@@ -1327,7 +1327,14 @@ namespace Notes
             Close();
         }
 
-
+        // Help Menu Handlers
+        private void menuHelpAbout_Click(object sender, EventArgs e)
+        {
+            using (frmAbout aboutForm = new frmAbout())
+            {
+                aboutForm.ShowDialog(this);
+            }
+        }
 
 
 

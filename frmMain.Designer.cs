@@ -264,6 +264,7 @@ namespace Notes
             this.menuHelpAbout.Name = "menuHelpAbout";
             this.menuHelpAbout.Size = new System.Drawing.Size(133, 26);
             this.menuHelpAbout.Text = "&About";
+            this.menuHelpAbout.Click += new System.EventHandler(this.menuHelpAbout_Click);
             // 
             // openFileDialog
             // 
