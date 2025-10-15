@@ -48,6 +48,7 @@ namespace Notes
             this.toolStripSeparator4 = new System.Windows.Forms.ToolStripSeparator();
             this.menuEditMovable = new System.Windows.Forms.ToolStripMenuItem();
             this.menuEditAutofocus = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuEditAutoSave = new System.Windows.Forms.ToolStripMenuItem();
             this.autoArrangeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripSeparator3 = new System.Windows.Forms.ToolStripSeparator();
             this.settingsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -199,6 +200,7 @@ namespace Notes
             this.toolStripSeparator4,
             this.menuEditMovable,
             this.menuEditAutofocus,
+            this.menuEditAutoSave,
             this.autoArrangeToolStripMenuItem,
             this.toolStripSeparator3,
             this.settingsToolStripMenuItem});
@@ -241,6 +243,14 @@ namespace Notes
             this.menuEditAutofocus.Size = new System.Drawing.Size(203, 26);
             this.menuEditAutofocus.Text = "Autofocus";
             this.menuEditAutofocus.Click += new System.EventHandler(this.menuEditAutofocus_Click);
+            // 
+            // menuEditAutoSave
+            // 
+            this.menuEditAutoSave.CheckOnClick = true;
+            this.menuEditAutoSave.Name = "menuEditAutoSave";
+            this.menuEditAutoSave.Size = new System.Drawing.Size(203, 26);
+            this.menuEditAutoSave.Text = "Auto &Save";
+            this.menuEditAutoSave.Click += new System.EventHandler(this.menuEditAutoSave_Click);
             // 
             // autoArrangeToolStripMenuItem
             // 
@@ -544,6 +554,7 @@ namespace Notes
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator2;
         private System.Windows.Forms.ToolStripMenuItem editToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem menuEditMovable;
+        private System.Windows.Forms.ToolStripMenuItem menuEditAutoSave;
         private System.Windows.Forms.ToolStripMenuItem autoArrangeToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem helpToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem menuHelpAbout;

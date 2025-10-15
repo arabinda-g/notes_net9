@@ -150,6 +150,9 @@ namespace Notes
             autoSaveEnabled = config.General.AutoSave;
             autoSaveTimer.Interval = config.General.AutoSaveInterval * 1000;
             
+            // Update menu checkbox state
+            menuEditAutoSave.Checked = autoSaveEnabled;
+            
             if (autoSaveEnabled)
             {
                 autoSaveTimer.Start();
@@ -1367,6 +1370,27 @@ namespace Notes
             else
             {
                 status = "Non-autofocus buttons";
+            }
+        }
+
+        private void menuEditAutoSave_Click(object sender, EventArgs e)
+        {
+            ToolStripMenuItem item = sender as ToolStripMenuItem;
+            autoSaveEnabled = item.Checked;
+            
+            var config = NotesLibrary.Instance.Config;
+            config.General.AutoSave = autoSaveEnabled;
+            NotesLibrary.Instance.SaveConfiguration();
+
+            if (autoSaveEnabled)
+            {
+                autoSaveTimer.Start();
+                status = "Auto-save enabled";
+            }
+            else
+            {
+                autoSaveTimer.Stop();
+                status = "Auto-save disabled";
             }
         }
 
