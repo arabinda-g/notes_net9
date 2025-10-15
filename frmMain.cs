@@ -1616,6 +1616,11 @@ namespace Notes
             ArrangeButtonsCompact();
         }
 
+        private void menuViewFixOverlaps_Click(object sender, EventArgs e)
+        {
+            FixOverlappingButtons();
+        }
+
         // Arrangement algorithms
 
         private void ArrangeButtonsInGrid()
@@ -1858,6 +1863,200 @@ namespace Notes
 
             configModified = true;
             status = $"Arranged {buttons.Count} notes in compact layout";
+        }
+
+        private void FixOverlappingButtons()
+        {
+            if (Units.Count == 0)
+            {
+                status = "No notes to check";
+                return;
+            }
+
+            var buttons = panelContainer.Controls.OfType<Button>().ToList();
+            if (buttons.Count == 0)
+            {
+                status = "No buttons to check";
+                return;
+            }
+
+            const int minSpacing = 5; // Minimum spacing between buttons
+            const int maxIterations = 100; // Maximum iterations to prevent infinite loops
+            const double damping = 0.8; // Damping factor for smoother convergence
+            
+            // Track which buttons have been moved
+            var movedButtons = new HashSet<Button>();
+            
+            // Stores displacement vectors for each button per iteration
+            var displacements = new Dictionary<Button, (double dx, double dy)>();
+            
+            int iteration = 0;
+            bool hasOverlaps = true;
+            
+            // Iterative physics-based separation algorithm
+            while (hasOverlaps && iteration < maxIterations)
+            {
+                hasOverlaps = false;
+                
+                // Reset displacements for this iteration
+                displacements.Clear();
+                foreach (var btn in buttons)
+                {
+                    displacements[btn] = (0.0, 0.0);
+                }
+                
+                // Check all pairs of buttons
+                for (int i = 0; i < buttons.Count; i++)
+                {
+                    for (int j = i + 1; j < buttons.Count; j++)
+                    {
+                        var btn1 = buttons[i];
+                        var btn2 = buttons[j];
+                        
+                        // Create expanded rectangles with spacing buffer
+                        Rectangle rect1 = new Rectangle(
+                            btn1.Left - minSpacing,
+                            btn1.Top - minSpacing,
+                            btn1.Width + (minSpacing * 2),
+                            btn1.Height + (minSpacing * 2)
+                        );
+                        Rectangle rect2 = new Rectangle(
+                            btn2.Left - minSpacing,
+                            btn2.Top - minSpacing,
+                            btn2.Width + (minSpacing * 2),
+                            btn2.Height + (minSpacing * 2)
+                        );
+                        
+                        // Check for overlap
+                        if (rect1.IntersectsWith(rect2))
+                        {
+                            hasOverlaps = true;
+                            
+                            // Calculate centers
+                            double center1X = btn1.Left + btn1.Width / 2.0;
+                            double center1Y = btn1.Top + btn1.Height / 2.0;
+                            double center2X = btn2.Left + btn2.Width / 2.0;
+                            double center2Y = btn2.Top + btn2.Height / 2.0;
+                            
+                            // Calculate direction vector from btn1 to btn2
+                            double dx = center2X - center1X;
+                            double dy = center2Y - center1Y;
+                            
+                            // Calculate distance between centers
+                            double distance = Math.Sqrt(dx * dx + dy * dy);
+                            
+                            // Handle exact overlap (same center)
+                            if (distance < 0.1)
+                            {
+                                // Use a random direction to separate
+                                Random rnd = new Random(btn1.GetHashCode() ^ btn2.GetHashCode());
+                                double angle = rnd.NextDouble() * Math.PI * 2;
+                                dx = Math.Cos(angle);
+                                dy = Math.Sin(angle);
+                                distance = 1.0;
+                            }
+                            
+                            // Normalize direction
+                            double normX = dx / distance;
+                            double normY = dy / distance;
+                            
+                            // Calculate required separation distance
+                            // We need to separate enough so rectangles don't overlap with spacing
+                            Rectangle intersection = Rectangle.Intersect(rect1, rect2);
+                            double overlapWidth = intersection.Width;
+                            double overlapHeight = intersection.Height;
+                            
+                            // Calculate repulsion force based on overlap amount
+                            // Larger overlap = stronger force
+                            double overlapArea = overlapWidth * overlapHeight;
+                            double forceMagnitude = Math.Sqrt(overlapArea) * 0.5;
+                            
+                            // Apply force in the direction of separation
+                            // Both buttons move away from each other (symmetric)
+                            double forceX = normX * forceMagnitude;
+                            double forceY = normY * forceMagnitude;
+                            
+                            // Accumulate displacement for both buttons
+                            var disp1 = displacements[btn1];
+                            displacements[btn1] = (disp1.dx - forceX, disp1.dy - forceY);
+                            
+                            var disp2 = displacements[btn2];
+                            displacements[btn2] = (disp2.dx + forceX, disp2.dy + forceY);
+                        }
+                    }
+                }
+                
+                // Apply accumulated displacements with damping
+                foreach (var btn in buttons)
+                {
+                    var (dx, dy) = displacements[btn];
+                    
+                    // Only move if there's actual displacement
+                    if (Math.Abs(dx) > 0.1 || Math.Abs(dy) > 0.1)
+                    {
+                        // Apply damping for smoother convergence
+                        double dampedDx = dx * damping;
+                        double dampedDy = dy * damping;
+                        
+                        // Calculate new position
+                        int newX = btn.Left + (int)Math.Round(dampedDx);
+                        int newY = btn.Top + (int)Math.Round(dampedDy);
+                        
+                        // Keep button on screen (non-negative coordinates)
+                        newX = Math.Max(0, newX);
+                        newY = Math.Max(0, newY);
+                        
+                        // Update button position
+                        btn.Left = newX;
+                        btn.Top = newY;
+                        
+                        movedButtons.Add(btn);
+                        
+                        // Update the unit position in the dictionary
+                        string btnId = (string)btn.Tag;
+                        if (Units.ContainsKey(btnId))
+                        {
+                            var unit = Units[btnId];
+                            unit.X = btn.Left;
+                            unit.Y = btn.Top;
+                            Units[btnId] = unit;
+                        }
+                    }
+                }
+                
+                iteration++;
+            }
+            
+            // Final verification with actual bounds (no spacing buffer)
+            int remainingOverlaps = 0;
+            for (int i = 0; i < buttons.Count; i++)
+            {
+                for (int j = i + 1; j < buttons.Count; j++)
+                {
+                    if (buttons[i].Bounds.IntersectsWith(buttons[j].Bounds))
+                    {
+                        remainingOverlaps++;
+                    }
+                }
+            }
+            
+            if (movedButtons.Count > 0)
+            {
+                configModified = true;
+            }
+            
+            if (remainingOverlaps > 0)
+            {
+                status = $"Moved {movedButtons.Count} button(s) in {iteration} iterations, {remainingOverlaps} overlap(s) remain";
+            }
+            else if (movedButtons.Count > 0)
+            {
+                status = $"Fixed all overlaps affecting {movedButtons.Count} button(s) in {iteration} iteration(s)";
+            }
+            else
+            {
+                status = "No overlapping buttons found";
+            }
         }
     }
 }

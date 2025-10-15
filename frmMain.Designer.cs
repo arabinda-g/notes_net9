@@ -57,6 +57,8 @@ namespace Notes
             this.menuViewArrangeByDate = new System.Windows.Forms.ToolStripMenuItem();
             this.menuViewArrangeByColor = new System.Windows.Forms.ToolStripMenuItem();
             this.menuViewArrangeCompact = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripSeparator10 = new System.Windows.Forms.ToolStripSeparator();
+            this.menuViewFixOverlaps = new System.Windows.Forms.ToolStripMenuItem();
             this.helpToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.menuHelpAbout = new System.Windows.Forms.ToolStripMenuItem();
             this.openFileDialog = new System.Windows.Forms.OpenFileDialog();
@@ -261,7 +263,9 @@ namespace Notes
             // viewToolStripMenuItem
             // 
             this.viewToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.menuViewArrange});
+            this.menuViewArrange,
+            this.toolStripSeparator10,
+            this.menuViewFixOverlaps});
             this.viewToolStripMenuItem.Name = "viewToolStripMenuItem";
             this.viewToolStripMenuItem.Size = new System.Drawing.Size(55, 24);
             this.viewToolStripMenuItem.Text = "&View";
@@ -304,6 +308,18 @@ namespace Notes
             this.menuViewArrangeCompact.Size = new System.Drawing.Size(180, 26);
             this.menuViewArrangeCompact.Text = "C&ompact";
             this.menuViewArrangeCompact.Click += new System.EventHandler(this.menuViewArrangeCompact_Click);
+            // 
+            // toolStripSeparator10
+            // 
+            this.toolStripSeparator10.Name = "toolStripSeparator10";
+            this.toolStripSeparator10.Size = new System.Drawing.Size(177, 6);
+            // 
+            // menuViewFixOverlaps
+            // 
+            this.menuViewFixOverlaps.Name = "menuViewFixOverlaps";
+            this.menuViewFixOverlaps.Size = new System.Drawing.Size(180, 26);
+            this.menuViewFixOverlaps.Text = "&Fix Overlaps";
+            this.menuViewFixOverlaps.Click += new System.EventHandler(this.menuViewFixOverlaps_Click);
             // 
             // helpToolStripMenuItem
             // 
@@ -570,6 +586,8 @@ namespace Notes
         private System.Windows.Forms.ToolStripMenuItem menuViewArrangeByDate;
         private System.Windows.Forms.ToolStripMenuItem menuViewArrangeByColor;
         private System.Windows.Forms.ToolStripMenuItem menuViewArrangeCompact;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator10;
+        private System.Windows.Forms.ToolStripMenuItem menuViewFixOverlaps;
     }
 }
 
