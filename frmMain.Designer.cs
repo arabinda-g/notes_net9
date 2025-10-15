@@ -60,6 +60,35 @@ namespace Notes
             this.menuViewArrangeCompact = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripSeparator10 = new System.Windows.Forms.ToolStripSeparator();
             this.menuViewFixOverlaps = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripSeparator11 = new System.Windows.Forms.ToolStripSeparator();
+            this.menuViewStyles = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuStyleClassic = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuStylePastel = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuStyleDark = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuStyleNeon = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuStyleEarth = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuStyleOcean = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuStyleSunset = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuStyleMonochrome = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuStyleVibrant = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripSeparator12 = new System.Windows.Forms.ToolStripSeparator();
+            this.menuStyleGradient = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuStyleGloss = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuStyleEmbossed = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuStyleRaised = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuStyleInset = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripSeparator13 = new System.Windows.Forms.ToolStripSeparator();
+            this.menuStyleRetro = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuStyleCyber = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuStyleGlass = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuStyleNeonGlow = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuStyleGolden = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripSeparator14 = new System.Windows.Forms.ToolStripSeparator();
+            this.menuStyleMinimal = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuStyleBold = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuStyleElegant = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuStylePlayful = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuStyleProfessional = new System.Windows.Forms.ToolStripMenuItem();
             this.helpToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.menuHelpAbout = new System.Windows.Forms.ToolStripMenuItem();
             this.openFileDialog = new System.Windows.Forms.OpenFileDialog();
@@ -275,7 +304,9 @@ namespace Notes
             this.viewToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.menuViewArrange,
             this.toolStripSeparator10,
-            this.menuViewFixOverlaps});
+            this.menuViewFixOverlaps,
+            this.toolStripSeparator11,
+            this.menuViewStyles});
             this.viewToolStripMenuItem.Name = "viewToolStripMenuItem";
             this.viewToolStripMenuItem.Size = new System.Drawing.Size(55, 24);
             this.viewToolStripMenuItem.Text = "&View";
@@ -330,6 +361,228 @@ namespace Notes
             this.menuViewFixOverlaps.Size = new System.Drawing.Size(180, 26);
             this.menuViewFixOverlaps.Text = "&Fix Overlaps";
             this.menuViewFixOverlaps.Click += new System.EventHandler(this.menuViewFixOverlaps_Click);
+            // 
+            // toolStripSeparator11
+            // 
+            this.toolStripSeparator11.Name = "toolStripSeparator11";
+            this.toolStripSeparator11.Size = new System.Drawing.Size(177, 6);
+            // 
+            // menuViewStyles
+            // 
+            this.menuViewStyles.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.menuStyleClassic,
+            this.menuStylePastel,
+            this.menuStyleDark,
+            this.menuStyleNeon,
+            this.menuStyleEarth,
+            this.menuStyleOcean,
+            this.menuStyleSunset,
+            this.menuStyleMonochrome,
+            this.menuStyleVibrant,
+            this.toolStripSeparator12,
+            this.menuStyleGradient,
+            this.menuStyleGloss,
+            this.menuStyleEmbossed,
+            this.menuStyleRaised,
+            this.menuStyleInset,
+            this.toolStripSeparator13,
+            this.menuStyleRetro,
+            this.menuStyleCyber,
+            this.menuStyleGlass,
+            this.menuStyleNeonGlow,
+            this.menuStyleGolden,
+            this.toolStripSeparator14,
+            this.menuStyleMinimal,
+            this.menuStyleBold,
+            this.menuStyleElegant,
+            this.menuStylePlayful,
+            this.menuStyleProfessional});
+            this.menuViewStyles.Name = "menuViewStyles";
+            this.menuViewStyles.Size = new System.Drawing.Size(180, 26);
+            this.menuViewStyles.Text = "&Styles";
+            // 
+            // menuStyleClassic
+            // 
+            this.menuStyleClassic.Name = "menuStyleClassic";
+            this.menuStyleClassic.Size = new System.Drawing.Size(190, 26);
+            this.menuStyleClassic.Text = "Classic Blue";
+            this.menuStyleClassic.Click += new System.EventHandler(this.menuStyleClassic_Click);
+            // 
+            // menuStylePastel
+            // 
+            this.menuStylePastel.Name = "menuStylePastel";
+            this.menuStylePastel.Size = new System.Drawing.Size(190, 26);
+            this.menuStylePastel.Text = "Pastel Pink";
+            this.menuStylePastel.Click += new System.EventHandler(this.menuStylePastel_Click);
+            // 
+            // menuStyleDark
+            // 
+            this.menuStyleDark.Name = "menuStyleDark";
+            this.menuStyleDark.Size = new System.Drawing.Size(190, 26);
+            this.menuStyleDark.Text = "Dark Mode";
+            this.menuStyleDark.Click += new System.EventHandler(this.menuStyleDark_Click);
+            // 
+            // menuStyleNeon
+            // 
+            this.menuStyleNeon.Name = "menuStyleNeon";
+            this.menuStyleNeon.Size = new System.Drawing.Size(190, 26);
+            this.menuStyleNeon.Text = "Neon Green";
+            this.menuStyleNeon.Click += new System.EventHandler(this.menuStyleNeon_Click);
+            // 
+            // menuStyleEarth
+            // 
+            this.menuStyleEarth.Name = "menuStyleEarth";
+            this.menuStyleEarth.Size = new System.Drawing.Size(190, 26);
+            this.menuStyleEarth.Text = "Earth Tones";
+            this.menuStyleEarth.Click += new System.EventHandler(this.menuStyleEarth_Click);
+            // 
+            // menuStyleOcean
+            // 
+            this.menuStyleOcean.Name = "menuStyleOcean";
+            this.menuStyleOcean.Size = new System.Drawing.Size(190, 26);
+            this.menuStyleOcean.Text = "Ocean Blue";
+            this.menuStyleOcean.Click += new System.EventHandler(this.menuStyleOcean_Click);
+            // 
+            // menuStyleSunset
+            // 
+            this.menuStyleSunset.Name = "menuStyleSunset";
+            this.menuStyleSunset.Size = new System.Drawing.Size(190, 26);
+            this.menuStyleSunset.Text = "Sunset Orange";
+            this.menuStyleSunset.Click += new System.EventHandler(this.menuStyleSunset_Click);
+            // 
+            // menuStyleMonochrome
+            // 
+            this.menuStyleMonochrome.Name = "menuStyleMonochrome";
+            this.menuStyleMonochrome.Size = new System.Drawing.Size(190, 26);
+            this.menuStyleMonochrome.Text = "Monochrome";
+            this.menuStyleMonochrome.Click += new System.EventHandler(this.menuStyleMonochrome_Click);
+            // 
+            // menuStyleVibrant
+            // 
+            this.menuStyleVibrant.Name = "menuStyleVibrant";
+            this.menuStyleVibrant.Size = new System.Drawing.Size(200, 26);
+            this.menuStyleVibrant.Text = "Vibrant Purple";
+            this.menuStyleVibrant.Click += new System.EventHandler(this.menuStyleVibrant_Click);
+            // 
+            // toolStripSeparator12
+            // 
+            this.toolStripSeparator12.Name = "toolStripSeparator12";
+            this.toolStripSeparator12.Size = new System.Drawing.Size(197, 6);
+            // 
+            // menuStyleGradient
+            // 
+            this.menuStyleGradient.Name = "menuStyleGradient";
+            this.menuStyleGradient.Size = new System.Drawing.Size(200, 26);
+            this.menuStyleGradient.Text = "3D Gradient";
+            this.menuStyleGradient.Click += new System.EventHandler(this.menuStyleGradient_Click);
+            // 
+            // menuStyleGloss
+            // 
+            this.menuStyleGloss.Name = "menuStyleGloss";
+            this.menuStyleGloss.Size = new System.Drawing.Size(200, 26);
+            this.menuStyleGloss.Text = "Glossy 3D";
+            this.menuStyleGloss.Click += new System.EventHandler(this.menuStyleGloss_Click);
+            // 
+            // menuStyleEmbossed
+            // 
+            this.menuStyleEmbossed.Name = "menuStyleEmbossed";
+            this.menuStyleEmbossed.Size = new System.Drawing.Size(200, 26);
+            this.menuStyleEmbossed.Text = "Embossed";
+            this.menuStyleEmbossed.Click += new System.EventHandler(this.menuStyleEmbossed_Click);
+            // 
+            // menuStyleRaised
+            // 
+            this.menuStyleRaised.Name = "menuStyleRaised";
+            this.menuStyleRaised.Size = new System.Drawing.Size(200, 26);
+            this.menuStyleRaised.Text = "Raised Button";
+            this.menuStyleRaised.Click += new System.EventHandler(this.menuStyleRaised_Click);
+            // 
+            // menuStyleInset
+            // 
+            this.menuStyleInset.Name = "menuStyleInset";
+            this.menuStyleInset.Size = new System.Drawing.Size(200, 26);
+            this.menuStyleInset.Text = "Inset Shadow";
+            this.menuStyleInset.Click += new System.EventHandler(this.menuStyleInset_Click);
+            // 
+            // toolStripSeparator13
+            // 
+            this.toolStripSeparator13.Name = "toolStripSeparator13";
+            this.toolStripSeparator13.Size = new System.Drawing.Size(197, 6);
+            // 
+            // menuStyleRetro
+            // 
+            this.menuStyleRetro.Name = "menuStyleRetro";
+            this.menuStyleRetro.Size = new System.Drawing.Size(200, 26);
+            this.menuStyleRetro.Text = "Retro 80s";
+            this.menuStyleRetro.Click += new System.EventHandler(this.menuStyleRetro_Click);
+            // 
+            // menuStyleCyber
+            // 
+            this.menuStyleCyber.Name = "menuStyleCyber";
+            this.menuStyleCyber.Size = new System.Drawing.Size(200, 26);
+            this.menuStyleCyber.Text = "Cyberpunk";
+            this.menuStyleCyber.Click += new System.EventHandler(this.menuStyleCyber_Click);
+            // 
+            // menuStyleGlass
+            // 
+            this.menuStyleGlass.Name = "menuStyleGlass";
+            this.menuStyleGlass.Size = new System.Drawing.Size(200, 26);
+            this.menuStyleGlass.Text = "Glassmorphism";
+            this.menuStyleGlass.Click += new System.EventHandler(this.menuStyleGlass_Click);
+            // 
+            // menuStyleNeonGlow
+            // 
+            this.menuStyleNeonGlow.Name = "menuStyleNeonGlow";
+            this.menuStyleNeonGlow.Size = new System.Drawing.Size(200, 26);
+            this.menuStyleNeonGlow.Text = "Neon Glow";
+            this.menuStyleNeonGlow.Click += new System.EventHandler(this.menuStyleNeonGlow_Click);
+            // 
+            // menuStyleGolden
+            // 
+            this.menuStyleGolden.Name = "menuStyleGolden";
+            this.menuStyleGolden.Size = new System.Drawing.Size(200, 26);
+            this.menuStyleGolden.Text = "Golden Premium";
+            this.menuStyleGolden.Click += new System.EventHandler(this.menuStyleGolden_Click);
+            // 
+            // toolStripSeparator14
+            // 
+            this.toolStripSeparator14.Name = "toolStripSeparator14";
+            this.toolStripSeparator14.Size = new System.Drawing.Size(197, 6);
+            // 
+            // menuStyleMinimal
+            // 
+            this.menuStyleMinimal.Name = "menuStyleMinimal";
+            this.menuStyleMinimal.Size = new System.Drawing.Size(200, 26);
+            this.menuStyleMinimal.Text = "Minimal Clean";
+            this.menuStyleMinimal.Click += new System.EventHandler(this.menuStyleMinimal_Click);
+            // 
+            // menuStyleBold
+            // 
+            this.menuStyleBold.Name = "menuStyleBold";
+            this.menuStyleBold.Size = new System.Drawing.Size(200, 26);
+            this.menuStyleBold.Text = "Bold Impact";
+            this.menuStyleBold.Click += new System.EventHandler(this.menuStyleBold_Click);
+            // 
+            // menuStyleElegant
+            // 
+            this.menuStyleElegant.Name = "menuStyleElegant";
+            this.menuStyleElegant.Size = new System.Drawing.Size(200, 26);
+            this.menuStyleElegant.Text = "Elegant Serif";
+            this.menuStyleElegant.Click += new System.EventHandler(this.menuStyleElegant_Click);
+            // 
+            // menuStylePlayful
+            // 
+            this.menuStylePlayful.Name = "menuStylePlayful";
+            this.menuStylePlayful.Size = new System.Drawing.Size(200, 26);
+            this.menuStylePlayful.Text = "Playful Comic";
+            this.menuStylePlayful.Click += new System.EventHandler(this.menuStylePlayful_Click);
+            // 
+            // menuStyleProfessional
+            // 
+            this.menuStyleProfessional.Name = "menuStyleProfessional";
+            this.menuStyleProfessional.Size = new System.Drawing.Size(200, 26);
+            this.menuStyleProfessional.Text = "Professional";
+            this.menuStyleProfessional.Click += new System.EventHandler(this.menuStyleProfessional_Click);
             // 
             // helpToolStripMenuItem
             // 
@@ -599,6 +852,35 @@ namespace Notes
         private System.Windows.Forms.ToolStripMenuItem menuViewArrangeCompact;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator10;
         private System.Windows.Forms.ToolStripMenuItem menuViewFixOverlaps;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator11;
+        private System.Windows.Forms.ToolStripMenuItem menuViewStyles;
+        private System.Windows.Forms.ToolStripMenuItem menuStyleClassic;
+        private System.Windows.Forms.ToolStripMenuItem menuStylePastel;
+        private System.Windows.Forms.ToolStripMenuItem menuStyleDark;
+        private System.Windows.Forms.ToolStripMenuItem menuStyleNeon;
+        private System.Windows.Forms.ToolStripMenuItem menuStyleEarth;
+        private System.Windows.Forms.ToolStripMenuItem menuStyleOcean;
+        private System.Windows.Forms.ToolStripMenuItem menuStyleSunset;
+        private System.Windows.Forms.ToolStripMenuItem menuStyleMonochrome;
+        private System.Windows.Forms.ToolStripMenuItem menuStyleVibrant;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator12;
+        private System.Windows.Forms.ToolStripMenuItem menuStyleGradient;
+        private System.Windows.Forms.ToolStripMenuItem menuStyleGloss;
+        private System.Windows.Forms.ToolStripMenuItem menuStyleEmbossed;
+        private System.Windows.Forms.ToolStripMenuItem menuStyleRaised;
+        private System.Windows.Forms.ToolStripMenuItem menuStyleInset;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator13;
+        private System.Windows.Forms.ToolStripMenuItem menuStyleRetro;
+        private System.Windows.Forms.ToolStripMenuItem menuStyleCyber;
+        private System.Windows.Forms.ToolStripMenuItem menuStyleGlass;
+        private System.Windows.Forms.ToolStripMenuItem menuStyleNeonGlow;
+        private System.Windows.Forms.ToolStripMenuItem menuStyleGolden;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator14;
+        private System.Windows.Forms.ToolStripMenuItem menuStyleMinimal;
+        private System.Windows.Forms.ToolStripMenuItem menuStyleBold;
+        private System.Windows.Forms.ToolStripMenuItem menuStyleElegant;
+        private System.Windows.Forms.ToolStripMenuItem menuStylePlayful;
+        private System.Windows.Forms.ToolStripMenuItem menuStyleProfessional;
     }
 }
 
