@@ -29,6 +29,7 @@ namespace Notes
             public DateTime ModifiedDate;
             public string Category;
             public string[] Tags;
+            public string ButtonType; // Store the custom button type name
         }
 
         // Status bar management
@@ -713,7 +714,7 @@ namespace Notes
 
         private void addButton(string id, UnitStruct unit)
         {
-            Button newButton = new DoubleClickButton();
+            Button newButton = CreateButtonByType(unit.ButtonType);
             newButton.Tag = id;
             newButton.AutoSize = true;
             newButton.AutoSizeMode = AutoSizeMode.GrowAndShrink;
@@ -724,6 +725,13 @@ namespace Notes
             newButton.Location = new Point(unit.X, unit.Y);
             newButton.ContextMenuStrip = unitMenuStrip;
             newButton.Cursor = Cursors.Hand;
+            
+            // Add padding and prevent text wrapping for custom buttons
+            if (!string.IsNullOrEmpty(unit.ButtonType) && unit.ButtonType != "DoubleClickButton")
+            {
+                newButton.Padding = new Padding(12, 8, 12, 8);
+                newButton.MinimumSize = new Size(80, 40);
+            }
 
             // Set up events
             newButton.Click += newButton_Click;
@@ -736,6 +744,38 @@ namespace Notes
             newButton.KeyUp += newButton_KeyUp;
 
             panelContainer.Controls.Add(newButton);
+        }
+
+        private Button CreateButtonByType(string buttonType)
+        {
+            if (string.IsNullOrEmpty(buttonType))
+                return new DoubleClickButton();
+
+            switch (buttonType)
+            {
+                case "GradientButton":
+                    return new GradientButton();
+                case "NeonGlowButton":
+                    return new NeonGlowButton();
+                case "MaterialButton":
+                    return new MaterialButton();
+                case "GlassMorphismButton":
+                    return new GlassMorphismButton();
+                case "NeumorphismButton":
+                    return new NeumorphismButton();
+                case "Retro3DButton":
+                    return new Retro3DButton();
+                case "PremiumCardButton":
+                    return new PremiumCardButton();
+                case "OutlineButton":
+                    return new OutlineButton();
+                case "PillButton":
+                    return new PillButton();
+                case "SkeuomorphicButton":
+                    return new SkeuomorphicButton();
+                default:
+                    return new DoubleClickButton();
+            }
         }
 
         private class ContextMenuInfo
@@ -1527,14 +1567,63 @@ namespace Notes
                     unit.BackgroundColor = copiedUnit.Value.BackgroundColor;
                     unit.TextColor = copiedUnit.Value.TextColor;
                     unit.Font = copiedUnit.Value.Font;
+                    unit.ButtonType = copiedUnit.Value.ButtonType; // Copy button type too
                     Units[id] = unit;
 
-                    btn.BackColor = Color.FromArgb(copiedUnit.Value.BackgroundColor);
-                    btn.ForeColor = Color.FromArgb(copiedUnit.Value.TextColor);
-                    btn.Font = copiedUnit.Value.Font;
+                    // If button type changed, recreate the button
+                    if (btn.GetType().Name != copiedUnit.Value.ButtonType)
+                    {
+                        // Store location and remove old button
+                        Point location = btn.Location;
+                        Rectangle oldBounds = btn.Bounds;
+                        panelContainer.Controls.Remove(btn);
+                        btn.Dispose();
+                        
+                        // Create new button with correct type
+                        Button newBtn = CreateButtonByType(copiedUnit.Value.ButtonType);
+                        newBtn.Tag = id;
+                        newBtn.Text = unit.Title;
+                        newBtn.BackColor = Color.FromArgb(copiedUnit.Value.BackgroundColor);
+                        newBtn.ForeColor = Color.FromArgb(copiedUnit.Value.TextColor);
+                        newBtn.Font = copiedUnit.Value.Font;
+                        newBtn.Location = location;
+                        newBtn.AutoSize = true;
+                        newBtn.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+                        newBtn.ContextMenuStrip = unitMenuStrip;
+                        newBtn.Cursor = Cursors.Hand;
+                        
+                        // Add padding for custom buttons
+                        if (!string.IsNullOrEmpty(copiedUnit.Value.ButtonType) && copiedUnit.Value.ButtonType != "DoubleClickButton")
+                        {
+                            newBtn.Padding = new Padding(12, 8, 12, 8);
+                            newBtn.MinimumSize = new Size(80, 40);
+                        }
+                        
+                        // Set up events
+                        newBtn.Click += newButton_Click;
+                        newBtn.DoubleClick += newButton_DoubleClick;
+                        newBtn.MouseUp += newButton_MouseUp;
+                        newBtn.MouseDown += newButton_MouseDown;
+                        newBtn.MouseMove += newButton_MouseMove;
+                        newBtn.PreviewKeyDown += newButton_PreviewKeyDown;
+                        newBtn.KeyDown += newButton_KeyDown;
+                        newBtn.KeyUp += newButton_KeyUp;
+                        
+                        panelContainer.Controls.Add(newBtn);
+                        panelContainer.Invalidate(oldBounds);
+                        panelContainer.Refresh();
+                    }
+                    else
+                    {
+                        // Same type, just update properties
+                        btn.BackColor = Color.FromArgb(copiedUnit.Value.BackgroundColor);
+                        btn.ForeColor = Color.FromArgb(copiedUnit.Value.TextColor);
+                        btn.Font = copiedUnit.Value.Font;
+                        btn.Invalidate();
+                    }
 
                     configModified = true;
-                    status = "Copy successful";
+                    status = "Style pasted successfully";
                 }
             }
         }
@@ -2104,6 +2193,11 @@ namespace Notes
                 font = new Font("Segoe UI", 9f, FontStyle.Regular);
             }
 
+            // Suspend layout to prevent flickering
+            panelContainer.SuspendLayout();
+
+            var buttonsToRecreate = new List<(string id, UnitStruct unit, Point location)>();
+
             foreach (var btn in buttonsToStyle)
             {
                 string id = (string)btn.Tag;
@@ -2113,20 +2207,74 @@ namespace Notes
                     unit.BackgroundColor = backgroundColor.ToArgb();
                     unit.TextColor = textColor.ToArgb();
                     unit.Font = font;
+                    unit.ButtonType = "DoubleClickButton"; // Clear custom button type
                     Units[id] = unit;
 
-                    btn.BackColor = backgroundColor;
-                    btn.ForeColor = textColor;
-                    btn.Font = font;
-                    
-                    // Reset to standard style (remove 3D effects)
-                    btn.FlatStyle = FlatStyle.Standard;
+                    // If this is a custom button type, we need to replace it with standard button
+                    if (btn.GetType() != typeof(DoubleClickButton))
+                    {
+                        buttonsToRecreate.Add((id, unit, btn.Location));
+                        
+                        // Remove from selection
+                        if (selectedButtons.Contains(btn))
+                        {
+                            selectedButtons.Remove(btn);
+                        }
+                        
+                        // Remove and dispose
+                        Rectangle oldBounds = btn.Bounds;
+                        panelContainer.Controls.Remove(btn);
+                        btn.Dispose();
+                        panelContainer.Invalidate(oldBounds);
+                    }
+                    else
+                    {
+                        // Standard button - just update properties
+                        btn.BackColor = backgroundColor;
+                        btn.ForeColor = textColor;
+                        btn.Font = font;
+                        btn.FlatStyle = FlatStyle.Standard;
+                        btn.Invalidate();
+                    }
                 }
             }
 
+            // Recreate custom buttons as standard buttons
+            foreach (var (id, unit, location) in buttonsToRecreate)
+            {
+                Button newBtn = new DoubleClickButton();
+                newBtn.Tag = id;
+                newBtn.AutoSize = true;
+                newBtn.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+                newBtn.Text = unit.Title;
+                newBtn.BackColor = backgroundColor;
+                newBtn.ForeColor = textColor;
+                newBtn.Font = font;
+                newBtn.Location = location;
+                newBtn.ContextMenuStrip = unitMenuStrip;
+                newBtn.Cursor = Cursors.Hand;
+                newBtn.FlatStyle = FlatStyle.Standard;
+
+                // Set up events
+                newBtn.Click += newButton_Click;
+                newBtn.DoubleClick += newButton_DoubleClick;
+                newBtn.MouseUp += newButton_MouseUp;
+                newBtn.MouseDown += newButton_MouseDown;
+                newBtn.MouseMove += newButton_MouseMove;
+                newBtn.PreviewKeyDown += newButton_PreviewKeyDown;
+                newBtn.KeyDown += newButton_KeyDown;
+                newBtn.KeyUp += newButton_KeyUp;
+
+                panelContainer.Controls.Add(newBtn);
+            }
+
+            // Resume layout and refresh
+            panelContainer.ResumeLayout(true);
+            panelContainer.Refresh();
+
             configModified = true;
-            string target = selectedButtons.Count > 0 ? $"{selectedButtons.Count} selected button(s)" : $"all {buttonsToStyle.Count} button(s)";
-            status = $"Applied style to {target}";
+            string target = buttonsToStyle.Count.ToString();
+            status = $"Applied style to {target} button(s)";
         }
 
         private void ApplyAdvancedStyleToSelectedButtons(Color backgroundColor, Color textColor, Font font, FlatStyle flatStyle, Color borderColor, int borderSize = 2)
@@ -2184,6 +2332,9 @@ namespace Notes
                 return;
             }
 
+            // Suspend layout to prevent flickering
+            panelContainer.SuspendLayout();
+
             var newButtons = new List<Button>();
 
             foreach (var oldBtn in buttonsToReplace)
@@ -2196,7 +2347,11 @@ namespace Notes
                     unit.BackgroundColor = backgroundColor.ToArgb();
                     unit.TextColor = textColor.ToArgb();
                     unit.Font = font;
+                    unit.ButtonType = typeof(T).Name; // Save the button type
                     Units[id] = unit;
+
+                    // Store old button's rectangle for invalidation
+                    Rectangle oldBounds = oldBtn.Bounds;
 
                     // Create new custom button
                     T newBtn = new T();
@@ -2206,11 +2361,14 @@ namespace Notes
                     newBtn.ForeColor = textColor;
                     newBtn.Font = font;
                     newBtn.Location = oldBtn.Location;
-                    newBtn.Size = oldBtn.Size;
                     newBtn.AutoSize = true;
                     newBtn.AutoSizeMode = AutoSizeMode.GrowAndShrink;
                     newBtn.ContextMenuStrip = unitMenuStrip;
                     newBtn.Cursor = Cursors.Hand;
+                    
+                    // Add padding and prevent text wrapping for custom buttons
+                    newBtn.Padding = new Padding(12, 8, 12, 8);
+                    newBtn.MinimumSize = new Size(80, 40);
 
                     // Apply custom properties
                     customizer?.Invoke(newBtn);
@@ -2225,19 +2383,37 @@ namespace Notes
                     newBtn.KeyDown += newButton_KeyDown;
                     newBtn.KeyUp += newButton_KeyUp;
 
-                    // Remove old button from panel and selection
-                    panelContainer.Controls.Remove(oldBtn);
+                    // Remove old button from selection first
                     if (selectedButtons.Contains(oldBtn))
                     {
                         selectedButtons.Remove(oldBtn);
-                        selectedButtons.Add(newBtn);
                     }
+
+                    // Remove old button from panel
+                    panelContainer.Controls.Remove(oldBtn);
+                    
+                    // Dispose old button to free resources
+                    oldBtn.Dispose();
 
                     // Add new button
                     panelContainer.Controls.Add(newBtn);
+                    
+                    // Add to selection if it was selected
+                    if (buttonsToReplace.Contains(oldBtn))
+                    {
+                        selectedButtons.Add(newBtn);
+                    }
+
                     newButtons.Add(newBtn);
+
+                    // Invalidate the old area to clear artifacts
+                    panelContainer.Invalidate(oldBounds);
                 }
             }
+
+            // Resume layout and refresh
+            panelContainer.ResumeLayout(true);
+            panelContainer.Refresh();
 
             configModified = true;
             string target = newButtons.Count.ToString();

@@ -90,7 +90,7 @@ namespace Notes
 
             // Draw text
             TextRenderer.DrawText(g, Text, Font, rect, ForeColor, 
-                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.WordBreak);
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine);
         }
 
         private GraphicsPath CreateRoundedRectangle(Rectangle rect, int radius)
