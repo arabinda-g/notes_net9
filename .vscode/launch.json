@@ -6,7 +6,7 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/obj/Debug/net9.0-windows/apphost.exe",
+            "program": "${workspaceFolder}/bin/Debug/net9.0-windows/Notes.dll",
             "args": [],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,

@@ -43,6 +43,29 @@ The Notes application allows you to create, organize, and manage colorful sticky
 2. Select **Build > Build Solution** (or press `Ctrl+Shift+B`)
 3. The executable will be in `Notes-NET9\bin\Debug\net9.0-windows\` or `Notes-NET9\bin\Release\net9.0-windows\`
 
+#### Using Visual Studio Code
+
+1. Open the project folder in Visual Studio Code
+2. Install the **C#** (by Microsoft) — the official extension (ID: `ms-dotnettools.csharp`).
+3. The project includes pre-configured debugging support
+
+**To run in debug mode:**
+- Press `F5` or select **Run > Start Debugging**
+- Set breakpoints by clicking to the left of line numbers
+- The application will build automatically and launch with the debugger attached
+
+**Debug Controls:**
+- `F5` - Start debugging / Continue
+- `F9` - Toggle breakpoint
+- `F10` - Step over
+- `F11` - Step into
+- `Shift+F11` - Step out
+- `Shift+F5` - Stop debugging
+
+**To build without debugging:**
+- Press `Ctrl+Shift+B` to run the build task
+- Or use the terminal commands below
+
 #### Using Command Line
 
 ```powershell
