@@ -272,6 +272,7 @@ namespace Notes
             this.toolStripMenuItem1.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.Z)));
             this.toolStripMenuItem1.Size = new System.Drawing.Size(203, 26);
             this.toolStripMenuItem1.Text = "&Undo";
+            this.toolStripMenuItem1.Click += new System.EventHandler(this.menuEditUndo_Click);
             // 
             // toolStripMenuItem2
             // 
@@ -279,6 +280,7 @@ namespace Notes
             this.toolStripMenuItem2.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.Y)));
             this.toolStripMenuItem2.Size = new System.Drawing.Size(203, 26);
             this.toolStripMenuItem2.Text = "&Redo";
+            this.toolStripMenuItem2.Click += new System.EventHandler(this.menuEditRedo_Click);
             // 
             // toolStripSeparator4
             // 

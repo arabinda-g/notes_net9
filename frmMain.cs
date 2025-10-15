@@ -422,6 +422,9 @@ namespace Notes
             {
                 NotesLibrary.Instance.CreateBackup();
             }
+            
+            // Initialize undo/redo menu state
+            UpdateUndoRedoMenuState();
         }
 
         private void CreateWelcomeNote()
@@ -513,6 +516,7 @@ namespace Notes
 
             if (result == DialogResult.Yes)
             {
+                SaveStateForUndo();
                 var buttonsToDelete = selectedButtons.ToList();
                 
                 foreach (var btn in buttonsToDelete)
@@ -528,6 +532,7 @@ namespace Notes
                 selectedButtons.Clear();
                 configModified = true;
                 status = $"Deleted {buttonsToDelete.Count} button(s)";
+                UpdateUndoRedoMenuState();
             }
         }
 
@@ -641,7 +646,12 @@ namespace Notes
         {
             if (redoStack.Count > 0)
             {
-                SaveStateForUndo();
+                // Save current state to undo stack WITHOUT clearing redo stack
+                var currentState = JsonConvert.DeserializeObject<Dictionary<string, UnitStruct>>(
+                    JsonConvert.SerializeObject(Units));
+                undoStack.Push(currentState);
+                
+                // Restore state from redo stack
                 Units = redoStack.Pop();
                 RefreshAllButtons();
                 configModified = true;
@@ -657,6 +667,7 @@ namespace Notes
             {
                 addButton(kvp.Key, kvp.Value);
             }
+            UpdateUndoRedoMenuState();
         }
 
         private bool loadJson(string json)
@@ -1082,6 +1093,7 @@ namespace Notes
 
                 if (selectedUnitModified)
                 {
+                    SaveStateForUndo();
                     selectedUnitModified = false;
 
                     Units[id] = selectedUnit;
@@ -1093,6 +1105,7 @@ namespace Notes
 
                     configModified = true;
                     status = "Updated successfully";
+                    UpdateUndoRedoMenuState();
                 }
             }
         }
@@ -1280,6 +1293,7 @@ namespace Notes
 
             if (selectedUnitModified)
             {
+                SaveStateForUndo();
                 selectedUnitModified = false;
                 var id = getNewId();
 
@@ -1289,6 +1303,7 @@ namespace Notes
 
                 configModified = true;
                 status = "New button added";
+                UpdateUndoRedoMenuState();
             }
         }
 
@@ -1304,11 +1319,13 @@ namespace Notes
 
             if (result == DialogResult.OK)
             {
+                SaveStateForUndo();
                 panelContainer.Controls.Clear();
                 Units.Clear();
 
                 configModified = true;
                 status = "All buttons deleted successfully";
+                UpdateUndoRedoMenuState();
             }
         }
 
@@ -1342,6 +1359,7 @@ namespace Notes
                     {
                         var newUnits = JsonConvert.DeserializeObject<Dictionary<string, UnitStruct>>(json);
 
+                        SaveStateForUndo();
                         foreach (var keyValuePair in newUnits)
                         {
                             var id = getNewId();
@@ -1351,6 +1369,7 @@ namespace Notes
 
                         configModified = true;
                         status = string.Format("{0} notes imported successfully", newUnits.Count());
+                        UpdateUndoRedoMenuState();
                     }
                     catch { }
                 }
@@ -1451,6 +1470,24 @@ namespace Notes
             }
         }
 
+        private void menuEditUndo_Click(object sender, EventArgs e)
+        {
+            PerformUndo();
+            UpdateUndoRedoMenuState();
+        }
+
+        private void menuEditRedo_Click(object sender, EventArgs e)
+        {
+            PerformRedo();
+            UpdateUndoRedoMenuState();
+        }
+
+        private void UpdateUndoRedoMenuState()
+        {
+            toolStripMenuItem1.Enabled = (undoStack.Count > 0);
+            toolStripMenuItem2.Enabled = (redoStack.Count > 0);
+        }
+
 
 
 
@@ -1481,6 +1518,7 @@ namespace Notes
 
                     if (selectedUnitModified)
                     {
+                        SaveStateForUndo();
                         selectedUnitModified = false;
 
                         Units[id] = selectedUnit;
@@ -1492,6 +1530,7 @@ namespace Notes
 
                         configModified = true;
                         status = "Updated successfully";
+                        UpdateUndoRedoMenuState();
                     }
                 }
             }
@@ -1509,11 +1548,13 @@ namespace Notes
 
                 if (Units.ContainsKey(id))
                 {
+                    SaveStateForUndo();
                     Units.Remove(id);
                     panelContainer.Controls.Remove(btn);
 
                     configModified = true;
                     status = "Deleted successfully";
+                    UpdateUndoRedoMenuState();
                 }
             }
         }
@@ -1538,6 +1579,7 @@ namespace Notes
 
                     if (selectedUnitModified)
                     {
+                        SaveStateForUndo();
                         selectedUnitModified = false;
                         id = getNewId();
 
@@ -1546,6 +1588,7 @@ namespace Notes
 
                         configModified = true;
                         status = "New button added";
+                        UpdateUndoRedoMenuState();
                     }
                 }
             }
@@ -1580,6 +1623,7 @@ namespace Notes
 
                 if (Units.ContainsKey(id) && copiedUnit.HasValue)
                 {
+                    SaveStateForUndo();
                     var unit = Units[id];
                     unit.BackgroundColor = copiedUnit.Value.BackgroundColor;
                     unit.TextColor = copiedUnit.Value.TextColor;
@@ -1641,6 +1685,7 @@ namespace Notes
 
                     configModified = true;
                     status = "Style pasted successfully";
+                    UpdateUndoRedoMenuState();
                 }
             }
         }
@@ -1761,6 +1806,8 @@ namespace Notes
                 return;
             }
 
+            SaveStateForUndo();
+
             const int padding = 10;
             const int startX = 10;
             const int startY = 10;
@@ -1807,6 +1854,7 @@ namespace Notes
 
             configModified = true;
             status = $"Arranged {buttons.Count} notes in grid layout";
+            UpdateUndoRedoMenuState();
         }
 
         private void ArrangeButtonsByDate()
@@ -1816,6 +1864,8 @@ namespace Notes
                 status = "No notes to arrange";
                 return;
             }
+
+            SaveStateForUndo();
 
             const int padding = 10;
             const int startX = 10;
@@ -1868,6 +1918,7 @@ namespace Notes
 
             configModified = true;
             status = $"Arranged {sortedUnits.Count} notes by date (newest first)";
+            UpdateUndoRedoMenuState();
         }
 
         private void ArrangeButtonsByColor()
@@ -1877,6 +1928,8 @@ namespace Notes
                 status = "No notes to arrange";
                 return;
             }
+
+            SaveStateForUndo();
 
             const int padding = 10;
             const int startX = 10;
@@ -1937,6 +1990,7 @@ namespace Notes
 
             configModified = true;
             status = $"Arranged {sortedUnits.Count} notes by color";
+            UpdateUndoRedoMenuState();
         }
 
         private void ArrangeButtonsCompact()
@@ -1946,6 +2000,8 @@ namespace Notes
                 status = "No notes to arrange";
                 return;
             }
+
+            SaveStateForUndo();
 
             const int padding = 5;
             const int startX = 5;
@@ -1993,6 +2049,7 @@ namespace Notes
 
             configModified = true;
             status = $"Arranged {buttons.Count} notes in compact layout";
+            UpdateUndoRedoMenuState();
         }
 
         private void FixOverlappingButtons()
@@ -2002,6 +2059,8 @@ namespace Notes
                 status = "No notes to check";
                 return;
             }
+
+            SaveStateForUndo();
 
             var buttons = panelContainer.Controls.OfType<Button>().ToList();
             if (buttons.Count == 0)
@@ -2187,6 +2246,8 @@ namespace Notes
             {
                 status = "No overlapping buttons found";
             }
+            
+            UpdateUndoRedoMenuState();
         }
 
         // Style Application Methods
@@ -2222,6 +2283,8 @@ namespace Notes
                 status = "No buttons to style";
                 return;
             }
+
+            SaveStateForUndo();
 
             // Use default font if none provided
             if (font == null)
@@ -2311,6 +2374,7 @@ namespace Notes
             configModified = true;
             string target = buttonsToStyle.Count.ToString();
             status = $"Applied style to {target} button(s)";
+            UpdateUndoRedoMenuState();
         }
 
         private void ApplyAdvancedStyleToSelectedButtons(Color backgroundColor, Color textColor, Font font, FlatStyle flatStyle, Color borderColor, int borderSize = 2, Button specificButton = null)
@@ -2345,6 +2409,8 @@ namespace Notes
                 return;
             }
 
+            SaveStateForUndo();
+
             foreach (var btn in buttonsToStyle)
             {
                 string id = (string)btn.Tag;
@@ -2372,6 +2438,7 @@ namespace Notes
             configModified = true;
             string target = selectedButtons.Count > 0 ? $"{selectedButtons.Count} selected button(s)" : $"all {buttonsToStyle.Count} button(s)";
             status = $"Applied advanced style to {target}";
+            UpdateUndoRedoMenuState();
         }
 
         private void ApplyCustomButtonStyle<T>(Color backgroundColor, Color textColor, Font font, Action<T> customizer = null, Button specificButton = null) where T : Button, new()
@@ -2405,6 +2472,8 @@ namespace Notes
                 status = "No buttons to style";
                 return;
             }
+
+            SaveStateForUndo();
 
             // Suspend layout to prevent flickering
             panelContainer.SuspendLayout();
@@ -2492,6 +2561,7 @@ namespace Notes
             configModified = true;
             string target = newButtons.Count.ToString();
             status = $"Applied custom style to {target} button(s)";
+            UpdateUndoRedoMenuState();
         }
 
         private void menuStyleClassic_Click(object sender, EventArgs e)
