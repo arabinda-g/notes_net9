@@ -790,13 +790,30 @@ namespace Notes
             ToolStripItem menuItem = sender as ToolStripItem;
             if (menuItem != null)
             {
-                ContextMenuStrip owner = menuItem.Owner as ContextMenuStrip;
-                if (owner != null)
+                // For nested menus, we need to traverse up to find the root ContextMenuStrip
+                ToolStripDropDown currentDropDown = menuItem.Owner as ToolStripDropDown;
+                while (currentDropDown != null)
                 {
-                    Button btn = owner.SourceControl as Button;
-                    if (btn != null)
+                    // Check if this is the root ContextMenuStrip
+                    ContextMenuStrip contextMenu = currentDropDown as ContextMenuStrip;
+                    if (contextMenu != null)
                     {
-                        return new ContextMenuInfo { Button = btn, Id = (string)btn.Tag };
+                        Button btn = contextMenu.SourceControl as Button;
+                        if (btn != null)
+                        {
+                            return new ContextMenuInfo { Button = btn, Id = (string)btn.Tag };
+                        }
+                        break;
+                    }
+                    
+                    // Move up to the parent dropdown
+                    if (currentDropDown.OwnerItem != null)
+                    {
+                        currentDropDown = currentDropDown.OwnerItem.Owner as ToolStripDropDown;
+                    }
+                    else
+                    {
+                        break;
                     }
                 }
             }
@@ -2174,12 +2191,31 @@ namespace Notes
 
         // Style Application Methods
 
-        private void ApplyStyleToSelectedButtons(Color backgroundColor, Color textColor, Font font = null)
+        private void ApplyStyleToSelectedButtons(Color backgroundColor, Color textColor, Font font = null, Button specificButton = null)
         {
-            // Get buttons to style - either selected buttons or all buttons if none selected
-            var buttonsToStyle = selectedButtons.Count > 0 
-                ? selectedButtons.ToList() 
-                : panelContainer.Controls.OfType<Button>().ToList();
+            // Get buttons to style
+            List<Button> buttonsToStyle;
+            
+            if (specificButton != null && selectedButtons.Count > 0 && selectedButtons.Contains(specificButton))
+            {
+                // Right-clicked on a selected button - apply to all selected buttons
+                buttonsToStyle = selectedButtons.ToList();
+            }
+            else if (specificButton != null)
+            {
+                // Right-clicked on a non-selected button - apply only to that button
+                buttonsToStyle = new List<Button> { specificButton };
+            }
+            else if (selectedButtons.Count > 0)
+            {
+                // Style selected buttons (from View menu)
+                buttonsToStyle = selectedButtons.ToList();
+            }
+            else
+            {
+                // Style all buttons (from View menu when nothing selected)
+                buttonsToStyle = panelContainer.Controls.OfType<Button>().ToList();
+            }
 
             if (buttonsToStyle.Count == 0)
             {
@@ -2277,12 +2313,31 @@ namespace Notes
             status = $"Applied style to {target} button(s)";
         }
 
-        private void ApplyAdvancedStyleToSelectedButtons(Color backgroundColor, Color textColor, Font font, FlatStyle flatStyle, Color borderColor, int borderSize = 2)
+        private void ApplyAdvancedStyleToSelectedButtons(Color backgroundColor, Color textColor, Font font, FlatStyle flatStyle, Color borderColor, int borderSize = 2, Button specificButton = null)
         {
-            // Get buttons to style - either selected buttons or all buttons if none selected
-            var buttonsToStyle = selectedButtons.Count > 0 
-                ? selectedButtons.ToList() 
-                : panelContainer.Controls.OfType<Button>().ToList();
+            // Get buttons to style
+            List<Button> buttonsToStyle;
+            
+            if (specificButton != null && selectedButtons.Count > 0 && selectedButtons.Contains(specificButton))
+            {
+                // Right-clicked on a selected button - apply to all selected buttons
+                buttonsToStyle = selectedButtons.ToList();
+            }
+            else if (specificButton != null)
+            {
+                // Right-clicked on a non-selected button - apply only to that button
+                buttonsToStyle = new List<Button> { specificButton };
+            }
+            else if (selectedButtons.Count > 0)
+            {
+                // Style selected buttons (from View menu)
+                buttonsToStyle = selectedButtons.ToList();
+            }
+            else
+            {
+                // Style all buttons (from View menu when nothing selected)
+                buttonsToStyle = panelContainer.Controls.OfType<Button>().ToList();
+            }
 
             if (buttonsToStyle.Count == 0)
             {
@@ -2319,12 +2374,31 @@ namespace Notes
             status = $"Applied advanced style to {target}";
         }
 
-        private void ApplyCustomButtonStyle<T>(Color backgroundColor, Color textColor, Font font, Action<T> customizer = null) where T : Button, new()
+        private void ApplyCustomButtonStyle<T>(Color backgroundColor, Color textColor, Font font, Action<T> customizer = null, Button specificButton = null) where T : Button, new()
         {
             // Get buttons to replace
-            var buttonsToReplace = selectedButtons.Count > 0
-                ? selectedButtons.ToList()
-                : panelContainer.Controls.OfType<Button>().ToList();
+            List<Button> buttonsToReplace;
+            
+            if (specificButton != null && selectedButtons.Count > 0 && selectedButtons.Contains(specificButton))
+            {
+                // Right-clicked on a selected button - apply to all selected buttons
+                buttonsToReplace = selectedButtons.ToList();
+            }
+            else if (specificButton != null)
+            {
+                // Right-clicked on a non-selected button - apply only to that button
+                buttonsToReplace = new List<Button> { specificButton };
+            }
+            else if (selectedButtons.Count > 0)
+            {
+                // Style selected buttons (from View menu)
+                buttonsToReplace = selectedButtons.ToList();
+            }
+            else
+            {
+                // Style all buttons (from View menu when nothing selected)
+                buttonsToReplace = panelContainer.Controls.OfType<Button>().ToList();
+            }
 
             if (buttonsToReplace.Count == 0)
             {
@@ -2422,82 +2496,100 @@ namespace Notes
 
         private void menuStyleClassic_Click(object sender, EventArgs e)
         {
+            var contextInfo = getContextMenuInfo(sender);
             ApplyStyleToSelectedButtons(
                 Color.LightSteelBlue,
                 Color.DarkBlue,
-                new Font("Segoe UI", 9f, FontStyle.Regular)
+                new Font("Segoe UI", 9f, FontStyle.Regular),
+                contextInfo?.Button
             );
         }
 
         private void menuStylePastel_Click(object sender, EventArgs e)
         {
+            var contextInfo = getContextMenuInfo(sender);
             ApplyStyleToSelectedButtons(
                 Color.LightPink,
                 Color.DarkRed,
-                new Font("Segoe UI", 9f, FontStyle.Regular)
+                new Font("Segoe UI", 9f, FontStyle.Regular),
+                contextInfo?.Button
             );
         }
 
         private void menuStyleDark_Click(object sender, EventArgs e)
         {
+            var contextInfo = getContextMenuInfo(sender);
             ApplyStyleToSelectedButtons(
                 Color.FromArgb(45, 45, 48),
                 Color.WhiteSmoke,
-                new Font("Consolas", 9f, FontStyle.Regular)
+                new Font("Consolas", 9f, FontStyle.Regular),
+                contextInfo?.Button
             );
         }
 
         private void menuStyleNeon_Click(object sender, EventArgs e)
         {
+            var contextInfo = getContextMenuInfo(sender);
             ApplyStyleToSelectedButtons(
                 Color.FromArgb(57, 255, 20),
                 Color.Black,
-                new Font("Segoe UI", 9f, FontStyle.Bold)
+                new Font("Segoe UI", 9f, FontStyle.Bold),
+                contextInfo?.Button
             );
         }
 
         private void menuStyleEarth_Click(object sender, EventArgs e)
         {
+            var contextInfo = getContextMenuInfo(sender);
             ApplyStyleToSelectedButtons(
                 Color.FromArgb(210, 180, 140),
                 Color.FromArgb(101, 67, 33),
-                new Font("Georgia", 9f, FontStyle.Regular)
+                new Font("Georgia", 9f, FontStyle.Regular),
+                contextInfo?.Button
             );
         }
 
         private void menuStyleOcean_Click(object sender, EventArgs e)
         {
+            var contextInfo = getContextMenuInfo(sender);
             ApplyStyleToSelectedButtons(
                 Color.FromArgb(0, 119, 190),
                 Color.White,
-                new Font("Segoe UI", 9f, FontStyle.Regular)
+                new Font("Segoe UI", 9f, FontStyle.Regular),
+                contextInfo?.Button
             );
         }
 
         private void menuStyleSunset_Click(object sender, EventArgs e)
         {
+            var contextInfo = getContextMenuInfo(sender);
             ApplyStyleToSelectedButtons(
                 Color.FromArgb(255, 140, 0),
                 Color.White,
-                new Font("Segoe UI", 9f, FontStyle.Bold)
+                new Font("Segoe UI", 9f, FontStyle.Bold),
+                contextInfo?.Button
             );
         }
 
         private void menuStyleMonochrome_Click(object sender, EventArgs e)
         {
+            var contextInfo = getContextMenuInfo(sender);
             ApplyStyleToSelectedButtons(
                 Color.White,
                 Color.Black,
-                new Font("Arial", 9f, FontStyle.Regular)
+                new Font("Arial", 9f, FontStyle.Regular),
+                contextInfo?.Button
             );
         }
 
         private void menuStyleVibrant_Click(object sender, EventArgs e)
         {
+            var contextInfo = getContextMenuInfo(sender);
             ApplyStyleToSelectedButtons(
                 Color.FromArgb(138, 43, 226),
                 Color.White,
-                new Font("Segoe UI", 9f, FontStyle.Bold)
+                new Font("Segoe UI", 9f, FontStyle.Bold),
+                contextInfo?.Button
             );
         }
 
@@ -2505,6 +2597,7 @@ namespace Notes
 
         private void menuStyleGradient_Click(object sender, EventArgs e)
         {
+            var contextInfo = getContextMenuInfo(sender);
             // Custom Gradient Button with shadow
             ApplyCustomButtonStyle<GradientButton>(
                 Color.FromArgb(100, 149, 237),
@@ -2514,12 +2607,14 @@ namespace Notes
                 {
                     btn.GradientTop = Color.FromArgb(100, 149, 237);
                     btn.GradientBottom = Color.FromArgb(65, 105, 225);
-                }
+                },
+                contextInfo?.Button
             );
         }
 
         private void menuStyleGloss_Click(object sender, EventArgs e)
         {
+            var contextInfo = getContextMenuInfo(sender);
             // Glossy gradient button
             ApplyCustomButtonStyle<GradientButton>(
                 Color.FromArgb(70, 130, 180),
@@ -2529,37 +2624,47 @@ namespace Notes
                 {
                     btn.GradientTop = Color.FromArgb(135, 206, 250);
                     btn.GradientBottom = Color.FromArgb(25, 25, 112);
-                }
+                },
+                contextInfo?.Button
             );
         }
 
         private void menuStyleEmbossed_Click(object sender, EventArgs e)
         {
+            var contextInfo = getContextMenuInfo(sender);
             // Neumorphism soft UI
             ApplyCustomButtonStyle<NeumorphismButton>(
                 Color.FromArgb(230, 230, 230),
                 Color.FromArgb(60, 60, 60),
-                new Font("Segoe UI", 9f, FontStyle.Bold)
+                new Font("Segoe UI", 9f, FontStyle.Bold),
+                null,
+                contextInfo?.Button
             );
         }
 
         private void menuStyleRaised_Click(object sender, EventArgs e)
         {
+            var contextInfo = getContextMenuInfo(sender);
             // Material Design button with ripple
             ApplyCustomButtonStyle<MaterialButton>(
                 Color.FromArgb(33, 150, 243),
                 Color.White,
-                new Font("Segoe UI", 9.5f, FontStyle.Regular)
+                new Font("Segoe UI", 9.5f, FontStyle.Regular),
+                null,
+                contextInfo?.Button
             );
         }
 
         private void menuStyleInset_Click(object sender, EventArgs e)
         {
+            var contextInfo = getContextMenuInfo(sender);
             // Retro 3D button
             ApplyCustomButtonStyle<Retro3DButton>(
                 Color.FromArgb(255, 20, 147),
                 Color.White,
-                new Font("Impact", 10f, FontStyle.Bold)
+                new Font("Impact", 10f, FontStyle.Bold),
+                null,
+                contextInfo?.Button
             );
         }
 
@@ -2567,16 +2672,20 @@ namespace Notes
 
         private void menuStyleRetro_Click(object sender, EventArgs e)
         {
+            var contextInfo = getContextMenuInfo(sender);
             // Retro 3D style - hot pink
             ApplyCustomButtonStyle<Retro3DButton>(
                 Color.FromArgb(255, 20, 147),
                 Color.FromArgb(255, 255, 0),
-                new Font("Impact", 10f, FontStyle.Bold)
+                new Font("Impact", 10f, FontStyle.Bold),
+                null,
+                contextInfo?.Button
             );
         }
 
         private void menuStyleCyber_Click(object sender, EventArgs e)
         {
+            var contextInfo = getContextMenuInfo(sender);
             // Cyberpunk neon glow
             ApplyCustomButtonStyle<NeonGlowButton>(
                 Color.FromArgb(20, 20, 35),
@@ -2585,22 +2694,27 @@ namespace Notes
                 btn =>
                 {
                     btn.GlowColor = Color.FromArgb(255, 0, 255);
-                }
+                },
+                contextInfo?.Button
             );
         }
 
         private void menuStyleGlass_Click(object sender, EventArgs e)
         {
+            var contextInfo = getContextMenuInfo(sender);
             // Glassmorphism frosted glass
             ApplyCustomButtonStyle<GlassMorphismButton>(
                 Color.FromArgb(240, 248, 255),
                 Color.FromArgb(70, 130, 180),
-                new Font("Segoe UI", 9f, FontStyle.Regular)
+                new Font("Segoe UI", 9f, FontStyle.Regular),
+                null,
+                contextInfo?.Button
             );
         }
 
         private void menuStyleNeonGlow_Click(object sender, EventArgs e)
         {
+            var contextInfo = getContextMenuInfo(sender);
             // Neon glow effect
             ApplyCustomButtonStyle<NeonGlowButton>(
                 Color.FromArgb(10, 10, 20),
@@ -2609,12 +2723,14 @@ namespace Notes
                 btn =>
                 {
                     btn.GlowColor = Color.FromArgb(0, 255, 127);
-                }
+                },
+                contextInfo?.Button
             );
         }
 
         private void menuStyleGolden_Click(object sender, EventArgs e)
         {
+            var contextInfo = getContextMenuInfo(sender);
             // Golden gradient premium
             ApplyCustomButtonStyle<GradientButton>(
                 Color.FromArgb(255, 215, 0),
@@ -2624,7 +2740,8 @@ namespace Notes
                 {
                     btn.GradientTop = Color.FromArgb(255, 223, 0);
                     btn.GradientBottom = Color.FromArgb(218, 165, 32);
-                }
+                },
+                contextInfo?.Button
             );
         }
 
@@ -2632,51 +2749,66 @@ namespace Notes
 
         private void menuStyleMinimal_Click(object sender, EventArgs e)
         {
+            var contextInfo = getContextMenuInfo(sender);
             // Minimal outline style
             ApplyCustomButtonStyle<OutlineButton>(
                 Color.White,
                 Color.FromArgb(100, 100, 100),
-                new Font("Segoe UI", 9f, FontStyle.Regular)
+                new Font("Segoe UI", 9f, FontStyle.Regular),
+                null,
+                contextInfo?.Button
             );
         }
 
         private void menuStyleBold_Click(object sender, EventArgs e)
         {
+            var contextInfo = getContextMenuInfo(sender);
             // Bold skeuomorphic 3D
             ApplyCustomButtonStyle<SkeuomorphicButton>(
                 Color.FromArgb(220, 20, 60),
                 Color.White,
-                new Font("Arial Black", 10f, FontStyle.Bold)
+                new Font("Arial Black", 10f, FontStyle.Bold),
+                null,
+                contextInfo?.Button
             );
         }
 
         private void menuStyleElegant_Click(object sender, EventArgs e)
         {
+            var contextInfo = getContextMenuInfo(sender);
             // Elegant premium card
             ApplyCustomButtonStyle<PremiumCardButton>(
                 Color.FromArgb(245, 245, 220),
                 Color.FromArgb(75, 0, 130),
-                new Font("Times New Roman", 10f, FontStyle.Italic)
+                new Font("Times New Roman", 10f, FontStyle.Italic),
+                null,
+                contextInfo?.Button
             );
         }
 
         private void menuStylePlayful_Click(object sender, EventArgs e)
         {
+            var contextInfo = getContextMenuInfo(sender);
             // Playful pill button
             ApplyCustomButtonStyle<PillButton>(
                 Color.FromArgb(255, 182, 193),
                 Color.FromArgb(255, 20, 147),
-                new Font("Comic Sans MS", 10f, FontStyle.Bold)
+                new Font("Comic Sans MS", 10f, FontStyle.Bold),
+                null,
+                contextInfo?.Button
             );
         }
 
         private void menuStyleProfessional_Click(object sender, EventArgs e)
         {
+            var contextInfo = getContextMenuInfo(sender);
             // Professional material design
             ApplyCustomButtonStyle<MaterialButton>(
                 Color.FromArgb(96, 125, 139),
                 Color.White,
-                new Font("Calibri", 9.5f, FontStyle.Regular)
+                new Font("Calibri", 9.5f, FontStyle.Regular),
+                null,
+                contextInfo?.Button
             );
         }
     }
