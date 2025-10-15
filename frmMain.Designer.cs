@@ -51,6 +51,12 @@ namespace Notes
             this.autoArrangeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripSeparator3 = new System.Windows.Forms.ToolStripSeparator();
             this.settingsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.viewToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuViewArrange = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuViewArrangeGrid = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuViewArrangeByDate = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuViewArrangeByColor = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuViewArrangeCompact = new System.Windows.Forms.ToolStripMenuItem();
             this.helpToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.menuHelpAbout = new System.Windows.Forms.ToolStripMenuItem();
             this.openFileDialog = new System.Windows.Forms.OpenFileDialog();
@@ -90,6 +96,7 @@ namespace Notes
             this.menuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.fileToolStripMenuItem,
             this.editToolStripMenuItem,
+            this.viewToolStripMenuItem,
             this.helpToolStripMenuItem});
             this.menuStrip.Location = new System.Drawing.Point(0, 0);
             this.menuStrip.Name = "menuStrip";
@@ -250,6 +257,53 @@ namespace Notes
             this.settingsToolStripMenuItem.Size = new System.Drawing.Size(203, 26);
             this.settingsToolStripMenuItem.Text = "&Settings...";
             this.settingsToolStripMenuItem.Click += new System.EventHandler(this.settingsToolStripMenuItem_Click);
+            // 
+            // viewToolStripMenuItem
+            // 
+            this.viewToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.menuViewArrange});
+            this.viewToolStripMenuItem.Name = "viewToolStripMenuItem";
+            this.viewToolStripMenuItem.Size = new System.Drawing.Size(55, 24);
+            this.viewToolStripMenuItem.Text = "&View";
+            // 
+            // menuViewArrange
+            // 
+            this.menuViewArrange.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.menuViewArrangeGrid,
+            this.menuViewArrangeByDate,
+            this.menuViewArrangeByColor,
+            this.menuViewArrangeCompact});
+            this.menuViewArrange.Name = "menuViewArrange";
+            this.menuViewArrange.Size = new System.Drawing.Size(150, 26);
+            this.menuViewArrange.Text = "&Arrange";
+            // 
+            // menuViewArrangeGrid
+            // 
+            this.menuViewArrangeGrid.Name = "menuViewArrangeGrid";
+            this.menuViewArrangeGrid.Size = new System.Drawing.Size(180, 26);
+            this.menuViewArrangeGrid.Text = "&Grid Layout";
+            this.menuViewArrangeGrid.Click += new System.EventHandler(this.menuViewArrangeGrid_Click);
+            // 
+            // menuViewArrangeByDate
+            // 
+            this.menuViewArrangeByDate.Name = "menuViewArrangeByDate";
+            this.menuViewArrangeByDate.Size = new System.Drawing.Size(180, 26);
+            this.menuViewArrangeByDate.Text = "By &Date";
+            this.menuViewArrangeByDate.Click += new System.EventHandler(this.menuViewArrangeByDate_Click);
+            // 
+            // menuViewArrangeByColor
+            // 
+            this.menuViewArrangeByColor.Name = "menuViewArrangeByColor";
+            this.menuViewArrangeByColor.Size = new System.Drawing.Size(180, 26);
+            this.menuViewArrangeByColor.Text = "By &Color";
+            this.menuViewArrangeByColor.Click += new System.EventHandler(this.menuViewArrangeByColor_Click);
+            // 
+            // menuViewArrangeCompact
+            // 
+            this.menuViewArrangeCompact.Name = "menuViewArrangeCompact";
+            this.menuViewArrangeCompact.Size = new System.Drawing.Size(180, 26);
+            this.menuViewArrangeCompact.Text = "C&ompact";
+            this.menuViewArrangeCompact.Click += new System.EventHandler(this.menuViewArrangeCompact_Click);
             // 
             // helpToolStripMenuItem
             // 
@@ -510,6 +564,12 @@ namespace Notes
         private System.Windows.Forms.ToolStripMenuItem unitMenuCopyInLowercase;
         private System.Windows.Forms.ToolStripMenuItem unitMenuCopyInUppercase;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator9;
+        private System.Windows.Forms.ToolStripMenuItem viewToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem menuViewArrange;
+        private System.Windows.Forms.ToolStripMenuItem menuViewArrangeGrid;
+        private System.Windows.Forms.ToolStripMenuItem menuViewArrangeByDate;
+        private System.Windows.Forms.ToolStripMenuItem menuViewArrangeByColor;
+        private System.Windows.Forms.ToolStripMenuItem menuViewArrangeCompact;
     }
 }
 

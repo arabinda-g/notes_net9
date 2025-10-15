@@ -1593,6 +1593,272 @@ namespace Notes
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+
+        // View Menu - Arrange submenu handlers
+        
+        private void menuViewArrangeGrid_Click(object sender, EventArgs e)
+        {
+            ArrangeButtonsInGrid();
+        }
+
+        private void menuViewArrangeByDate_Click(object sender, EventArgs e)
+        {
+            ArrangeButtonsByDate();
+        }
+
+        private void menuViewArrangeByColor_Click(object sender, EventArgs e)
+        {
+            ArrangeButtonsByColor();
+        }
+
+        private void menuViewArrangeCompact_Click(object sender, EventArgs e)
+        {
+            ArrangeButtonsCompact();
+        }
+
+        // Arrangement algorithms
+
+        private void ArrangeButtonsInGrid()
+        {
+            if (Units.Count == 0)
+            {
+                status = "No notes to arrange";
+                return;
+            }
+
+            const int padding = 10;
+            const int startX = 10;
+            const int startY = 10;
+            const int maxColumns = 5;
+            
+            int currentX = startX;
+            int currentY = startY;
+            int column = 0;
+            int maxHeightInRow = 0;
+
+            var buttons = panelContainer.Controls.OfType<Button>().ToList();
+            
+            foreach (var btn in buttons)
+            {
+                string id = (string)btn.Tag;
+                if (Units.ContainsKey(id))
+                {
+                    var unit = Units[id];
+                    unit.X = currentX;
+                    unit.Y = currentY;
+                    Units[id] = unit;
+                    
+                    btn.Location = new Point(currentX, currentY);
+                    
+                    // Track max height in this row
+                    maxHeightInRow = Math.Max(maxHeightInRow, btn.Height);
+                    
+                    column++;
+                    if (column >= maxColumns)
+                    {
+                        // Move to next row
+                        column = 0;
+                        currentX = startX;
+                        currentY += maxHeightInRow + padding;
+                        maxHeightInRow = 0;
+                    }
+                    else
+                    {
+                        // Move to next column
+                        currentX += btn.Width + padding;
+                    }
+                }
+            }
+
+            configModified = true;
+            status = $"Arranged {buttons.Count} notes in grid layout";
+        }
+
+        private void ArrangeButtonsByDate()
+        {
+            if (Units.Count == 0)
+            {
+                status = "No notes to arrange";
+                return;
+            }
+
+            const int padding = 10;
+            const int startX = 10;
+            const int startY = 10;
+            
+            // Sort buttons by creation date (newest first)
+            var sortedUnits = Units.OrderByDescending(kvp => kvp.Value.CreatedDate).ToList();
+            
+            int currentX = startX;
+            int currentY = startY;
+            int maxHeightInRow = 0;
+            int itemsInRow = 0;
+            const int maxColumns = 4;
+
+            foreach (var kvp in sortedUnits)
+            {
+                var id = kvp.Key;
+                var unit = kvp.Value;
+                
+                // Find the button for this unit
+                var btn = panelContainer.Controls.OfType<Button>()
+                    .FirstOrDefault(b => (string)b.Tag == id);
+                    
+                if (btn != null)
+                {
+                    unit.X = currentX;
+                    unit.Y = currentY;
+                    Units[id] = unit;
+                    
+                    btn.Location = new Point(currentX, currentY);
+                    
+                    maxHeightInRow = Math.Max(maxHeightInRow, btn.Height);
+                    
+                    itemsInRow++;
+                    if (itemsInRow >= maxColumns)
+                    {
+                        // Move to next row
+                        itemsInRow = 0;
+                        currentX = startX;
+                        currentY += maxHeightInRow + padding;
+                        maxHeightInRow = 0;
+                    }
+                    else
+                    {
+                        // Move to next column
+                        currentX += btn.Width + padding;
+                    }
+                }
+            }
+
+            configModified = true;
+            status = $"Arranged {sortedUnits.Count} notes by date (newest first)";
+        }
+
+        private void ArrangeButtonsByColor()
+        {
+            if (Units.Count == 0)
+            {
+                status = "No notes to arrange";
+                return;
+            }
+
+            const int padding = 10;
+            const int startX = 10;
+            const int startY = 10;
+            
+            // Group by color and sort by hue
+            var sortedUnits = Units.OrderBy(kvp => 
+            {
+                var color = Color.FromArgb(kvp.Value.BackgroundColor);
+                return color.GetHue();
+            }).ThenBy(kvp => 
+            {
+                var color = Color.FromArgb(kvp.Value.BackgroundColor);
+                return color.GetBrightness();
+            }).ToList();
+            
+            int currentX = startX;
+            int currentY = startY;
+            int maxHeightInRow = 0;
+            int itemsInRow = 0;
+            const int maxColumns = 4;
+
+            foreach (var kvp in sortedUnits)
+            {
+                var id = kvp.Key;
+                var unit = kvp.Value;
+                
+                // Find the button for this unit
+                var btn = panelContainer.Controls.OfType<Button>()
+                    .FirstOrDefault(b => (string)b.Tag == id);
+                    
+                if (btn != null)
+                {
+                    unit.X = currentX;
+                    unit.Y = currentY;
+                    Units[id] = unit;
+                    
+                    btn.Location = new Point(currentX, currentY);
+                    
+                    maxHeightInRow = Math.Max(maxHeightInRow, btn.Height);
+                    
+                    itemsInRow++;
+                    if (itemsInRow >= maxColumns)
+                    {
+                        // Move to next row
+                        itemsInRow = 0;
+                        currentX = startX;
+                        currentY += maxHeightInRow + padding;
+                        maxHeightInRow = 0;
+                    }
+                    else
+                    {
+                        // Move to next column
+                        currentX += btn.Width + padding;
+                    }
+                }
+            }
+
+            configModified = true;
+            status = $"Arranged {sortedUnits.Count} notes by color";
+        }
+
+        private void ArrangeButtonsCompact()
+        {
+            if (Units.Count == 0)
+            {
+                status = "No notes to arrange";
+                return;
+            }
+
+            const int padding = 5;
+            const int startX = 5;
+            const int startY = 5;
+            
+            var buttons = panelContainer.Controls.OfType<Button>().OrderBy(b => 
+            {
+                // Sort by current position (top-to-bottom, left-to-right)
+                return b.Location.Y * 10000 + b.Location.X;
+            }).ToList();
+            
+            int currentX = startX;
+            int currentY = startY;
+            int maxHeightInRow = 0;
+            int availableWidth = panelContainer.Width - 20;
+
+            foreach (var btn in buttons)
+            {
+                string id = (string)btn.Tag;
+                if (Units.ContainsKey(id))
+                {
+                    // Check if this button would exceed the available width
+                    if (currentX + btn.Width > availableWidth && currentX > startX)
+                    {
+                        // Move to next row
+                        currentX = startX;
+                        currentY += maxHeightInRow + padding;
+                        maxHeightInRow = 0;
+                    }
+                    
+                    var unit = Units[id];
+                    unit.X = currentX;
+                    unit.Y = currentY;
+                    Units[id] = unit;
+                    
+                    btn.Location = new Point(currentX, currentY);
+                    
+                    // Track max height in this row
+                    maxHeightInRow = Math.Max(maxHeightInRow, btn.Height);
+                    
+                    // Move to next position
+                    currentX += btn.Width + padding;
+                }
+            }
+
+            configModified = true;
+            status = $"Arranged {buttons.Count} notes in compact layout";
+        }
     }
 }
 
