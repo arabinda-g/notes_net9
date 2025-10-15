@@ -75,6 +75,16 @@ namespace Notes
         private Point Origin_Control;
         private bool BtnDragging = false;
 
+        // Multi-selection variables
+        private bool isSelecting = false;
+        private Point selectionStart;
+        private Point selectionEnd;
+        private Rectangle selectionRectangle;
+        private HashSet<Button> selectedButtons = new HashSet<Button>();
+        private bool isMovingGroup = false;
+        private Point groupMoveStart;
+        private Dictionary<Button, Point> groupOriginalPositions = new Dictionary<Button, Point>();
+
         // Copy functionality
         public static UnitStruct? copiedUnit = null;
 
@@ -94,6 +104,10 @@ namespace Notes
             LoadConfiguration();
             SetupSystemThemeMonitoring();
             RegisterGlobalHotkey();
+            
+            // Enable key preview to catch keyboard events
+            this.KeyPreview = true;
+            this.KeyDown += frmMain_KeyDown;
         }
 
         private void InitializeCustomComponents()
@@ -109,6 +123,9 @@ namespace Notes
             this.Resize += frmMain_Resize;
             this.FormClosing += frmMain_FormClosing;
             panelContainer.MouseUp += panelContainer_MouseUp;
+            panelContainer.MouseDown += panelContainer_MouseDown;
+            panelContainer.MouseMove += panelContainer_MouseMove;
+            panelContainer.Paint += panelContainer_Paint;
             
             // Initialize status
             statusLabel.Text = "Ready";
@@ -440,6 +457,76 @@ namespace Notes
             ResizePanel();
         }
 
+        private void frmMain_KeyDown(object sender, KeyEventArgs e)
+        {
+            // Ctrl+A to select all buttons
+            if (e.Control && e.KeyCode == Keys.A && isMovable)
+            {
+                SelectAllButtons();
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+            }
+            // Escape to clear selection
+            else if (e.KeyCode == Keys.Escape && selectedButtons.Count > 0)
+            {
+                ClearSelection();
+                status = "Selection cleared";
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+            }
+            // Delete to delete selected buttons
+            else if (e.KeyCode == Keys.Delete && selectedButtons.Count > 0)
+            {
+                DeleteSelectedButtons();
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+            }
+        }
+
+        private void SelectAllButtons()
+        {
+            ClearSelection();
+            foreach (Control control in panelContainer.Controls)
+            {
+                if (control is Button btn)
+                {
+                    SelectButton(btn);
+                }
+            }
+            status = $"Selected {selectedButtons.Count} buttons";
+        }
+
+        private void DeleteSelectedButtons()
+        {
+            if (selectedButtons.Count == 0)
+                return;
+
+            DialogResult result = MessageBox.Show(
+                $"Do you want to delete {selectedButtons.Count} selected button(s)?", 
+                AppName, 
+                MessageBoxButtons.YesNo, 
+                MessageBoxIcon.Question);
+
+            if (result == DialogResult.Yes)
+            {
+                var buttonsToDelete = selectedButtons.ToList();
+                
+                foreach (var btn in buttonsToDelete)
+                {
+                    string id = (string)btn.Tag;
+                    if (Units.ContainsKey(id))
+                    {
+                        Units.Remove(id);
+                        panelContainer.Controls.Remove(btn);
+                    }
+                }
+                
+                selectedButtons.Clear();
+                configModified = true;
+                status = $"Deleted {buttonsToDelete.Count} button(s)";
+            }
+        }
+
         private void ResizePanel()
         {
             panelContainer.Size = new Size(this.Width, this.Height - menuStrip.Height - statusStrip.Height);
@@ -560,6 +647,7 @@ namespace Notes
 
         private void RefreshAllButtons()
         {
+            ClearSelection();
             panelContainer.Controls.Clear();
             foreach (var kvp in Units)
             {
@@ -739,7 +827,22 @@ namespace Notes
 
         private void newButton_MouseUp(object sender, MouseEventArgs e)
         {
-            if (isMovable && this.BtnDragging)
+            if (isMovable && isMovingGroup && selectedButtons.Count > 1)
+            {
+                // End group movement
+                isMovingGroup = false;
+                
+                // Save all button positions
+                foreach (var btn in selectedButtons)
+                {
+                    saveButtonLocation(btn);
+                }
+                
+                groupOriginalPositions.Clear();
+                _unitMouseMoved = true; // Prevent click action
+                status = "Group move completed";
+            }
+            else if (isMovable && this.BtnDragging)
             {
                 this.BtnDragging = false;
 
@@ -756,16 +859,61 @@ namespace Notes
             if (isMovable && e.Button == MouseButtons.Left)
             {
                 Button ct = sender as Button;
+                
+                // If this button is already selected and we have multiple selections,
+                // start group movement
+                if (selectedButtons.Contains(ct) && selectedButtons.Count > 1)
+                {
+                    isMovingGroup = true;
+                    groupMoveStart = ct.PointToScreen(e.Location);
+                    groupMoveStart = panelContainer.PointToClient(groupMoveStart);
+                    groupOriginalPositions.Clear();
+                    foreach (var btn in selectedButtons)
+                    {
+                        groupOriginalPositions[btn] = btn.Location;
+                    }
+                    return;
+                }
+                
+                // Single button drag
                 ct.Capture = true;
                 this.Origin_Cursor = System.Windows.Forms.Cursor.Position;
                 this.Origin_Control = ct.Location;
                 this.BtnDragging = true;
+                
+                // Clear selection when dragging a single button
+                if (selectedButtons.Count > 0)
+                {
+                    ClearSelection();
+                }
             }
         }
 
         private void newButton_MouseMove(object sender, MouseEventArgs e)
         {
-            if (isMovable && this.BtnDragging)
+            if (isMovable && isMovingGroup && selectedButtons.Count > 1)
+            {
+                // Handle group movement
+                Button btn = sender as Button;
+                Point currentPos = btn.PointToScreen(e.Location);
+                currentPos = panelContainer.PointToClient(currentPos);
+                
+                int deltaX = currentPos.X - groupMoveStart.X;
+                int deltaY = currentPos.Y - groupMoveStart.Y;
+                
+                foreach (var selectedBtn in selectedButtons)
+                {
+                    if (groupOriginalPositions.ContainsKey(selectedBtn))
+                    {
+                        selectedBtn.Location = new Point(
+                            groupOriginalPositions[selectedBtn].X + deltaX,
+                            groupOriginalPositions[selectedBtn].Y + deltaY
+                        );
+                    }
+                }
+                status = "Moving selected buttons";
+            }
+            else if (isMovable && this.BtnDragging)
             {
                 Button btn = sender as Button;
                 btn.Left = this.Origin_Control.X - (this.Origin_Cursor.X - Cursor.Position.X);
@@ -921,15 +1069,140 @@ namespace Notes
 
 
 
+        private void panelContainer_MouseDown(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Left && isMovable)
+            {
+                // Check if clicking on empty space (not on a button)
+                Control clickedControl = panelContainer.GetChildAtPoint(e.Location);
+                if (clickedControl == null)
+                {
+                    // Start selection rectangle
+                    isSelecting = true;
+                    selectionStart = e.Location;
+                    selectionEnd = e.Location;
+                    
+                    // Clear previous selection if not holding Ctrl
+                    if (!ModifierKeys.HasFlag(Keys.Control))
+                    {
+                        ClearSelection();
+                    }
+                }
+            }
+        }
+
+        private void panelContainer_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (isSelecting)
+            {
+                selectionEnd = e.Location;
+                UpdateSelectionRectangle();
+                panelContainer.Invalidate(); // Trigger repaint
+            }
+        }
+
         private void panelContainer_MouseUp(object sender, MouseEventArgs e)
         {
-            if (e.Button == MouseButtons.Right)
+            if (isSelecting)
+            {
+                isSelecting = false;
+                UpdateSelectionRectangle();
+                SelectButtonsInRectangle();
+                panelContainer.Invalidate();
+            }
+            else if (e.Button == MouseButtons.Right)
             {
                 selectedUnit = new UnitStruct();
                 selectedUnit.X = e.X;
                 selectedUnit.Y = e.Y;
 
                 menuFileNew_Click(sender, e);
+            }
+        }
+
+        private void panelContainer_Paint(object sender, PaintEventArgs e)
+        {
+            if (isSelecting && !selectionRectangle.IsEmpty)
+            {
+                // Draw selection rectangle
+                using (Pen pen = new Pen(Color.DodgerBlue, 2))
+                {
+                    pen.DashStyle = System.Drawing.Drawing2D.DashStyle.Dash;
+                    e.Graphics.DrawRectangle(pen, selectionRectangle);
+                }
+                
+                // Fill with semi-transparent color
+                using (SolidBrush brush = new SolidBrush(Color.FromArgb(50, Color.DodgerBlue)))
+                {
+                    e.Graphics.FillRectangle(brush, selectionRectangle);
+                }
+            }
+        }
+
+        private void UpdateSelectionRectangle()
+        {
+            int x = Math.Min(selectionStart.X, selectionEnd.X);
+            int y = Math.Min(selectionStart.Y, selectionEnd.Y);
+            int width = Math.Abs(selectionEnd.X - selectionStart.X);
+            int height = Math.Abs(selectionEnd.Y - selectionStart.Y);
+            
+            selectionRectangle = new Rectangle(x, y, width, height);
+        }
+
+        private void SelectButtonsInRectangle()
+        {
+            foreach (Control control in panelContainer.Controls)
+            {
+                if (control is Button btn)
+                {
+                    if (selectionRectangle.IntersectsWith(btn.Bounds))
+                    {
+                        SelectButton(btn);
+                    }
+                }
+            }
+        }
+
+        private void SelectButton(Button btn)
+        {
+            if (!selectedButtons.Contains(btn))
+            {
+                selectedButtons.Add(btn);
+                UpdateButtonSelectionVisual(btn, true);
+            }
+        }
+
+        private void DeselectButton(Button btn)
+        {
+            if (selectedButtons.Contains(btn))
+            {
+                selectedButtons.Remove(btn);
+                UpdateButtonSelectionVisual(btn, false);
+            }
+        }
+
+        private void ClearSelection()
+        {
+            foreach (var btn in selectedButtons.ToList())
+            {
+                UpdateButtonSelectionVisual(btn, false);
+            }
+            selectedButtons.Clear();
+        }
+
+        private void UpdateButtonSelectionVisual(Button btn, bool isSelected)
+        {
+            if (isSelected)
+            {
+                // Add visual indicator for selection
+                btn.FlatStyle = FlatStyle.Flat;
+                btn.FlatAppearance.BorderColor = Color.DodgerBlue;
+                btn.FlatAppearance.BorderSize = 3;
+            }
+            else
+            {
+                // Remove selection visual
+                btn.FlatStyle = FlatStyle.Standard;
             }
         }
 
