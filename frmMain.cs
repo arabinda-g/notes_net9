@@ -2171,6 +2171,79 @@ namespace Notes
             status = $"Applied advanced style to {target}";
         }
 
+        private void ApplyCustomButtonStyle<T>(Color backgroundColor, Color textColor, Font font, Action<T> customizer = null) where T : Button, new()
+        {
+            // Get buttons to replace
+            var buttonsToReplace = selectedButtons.Count > 0
+                ? selectedButtons.ToList()
+                : panelContainer.Controls.OfType<Button>().ToList();
+
+            if (buttonsToReplace.Count == 0)
+            {
+                status = "No buttons to style";
+                return;
+            }
+
+            var newButtons = new List<Button>();
+
+            foreach (var oldBtn in buttonsToReplace)
+            {
+                string id = (string)oldBtn.Tag;
+                if (Units.ContainsKey(id))
+                {
+                    // Update unit data
+                    var unit = Units[id];
+                    unit.BackgroundColor = backgroundColor.ToArgb();
+                    unit.TextColor = textColor.ToArgb();
+                    unit.Font = font;
+                    Units[id] = unit;
+
+                    // Create new custom button
+                    T newBtn = new T();
+                    newBtn.Tag = id;
+                    newBtn.Text = oldBtn.Text;
+                    newBtn.BackColor = backgroundColor;
+                    newBtn.ForeColor = textColor;
+                    newBtn.Font = font;
+                    newBtn.Location = oldBtn.Location;
+                    newBtn.Size = oldBtn.Size;
+                    newBtn.AutoSize = true;
+                    newBtn.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+                    newBtn.ContextMenuStrip = unitMenuStrip;
+                    newBtn.Cursor = Cursors.Hand;
+
+                    // Apply custom properties
+                    customizer?.Invoke(newBtn);
+
+                    // Set up events
+                    newBtn.Click += newButton_Click;
+                    newBtn.DoubleClick += newButton_DoubleClick;
+                    newBtn.MouseUp += newButton_MouseUp;
+                    newBtn.MouseDown += newButton_MouseDown;
+                    newBtn.MouseMove += newButton_MouseMove;
+                    newBtn.PreviewKeyDown += newButton_PreviewKeyDown;
+                    newBtn.KeyDown += newButton_KeyDown;
+                    newBtn.KeyUp += newButton_KeyUp;
+
+                    // Remove old button from panel and selection
+                    panelContainer.Controls.Remove(oldBtn);
+                    if (selectedButtons.Contains(oldBtn))
+                    {
+                        selectedButtons.Remove(oldBtn);
+                        selectedButtons.Add(newBtn);
+                    }
+
+                    // Add new button
+                    panelContainer.Controls.Add(newBtn);
+                    newButtons.Add(newBtn);
+                }
+            }
+
+            configModified = true;
+            string target = newButtons.Count.ToString();
+            status = $"Applied custom style to {target} button(s)";
+        }
+
         private void menuStyleClassic_Click(object sender, EventArgs e)
         {
             ApplyStyleToSelectedButtons(
@@ -2256,66 +2329,61 @@ namespace Notes
 
         private void menuStyleGradient_Click(object sender, EventArgs e)
         {
-            // 3D Gradient effect - lighter blue gradient
-            ApplyAdvancedStyleToSelectedButtons(
-                Color.FromArgb(100, 149, 237), // Cornflower blue
+            // Custom Gradient Button with shadow
+            ApplyCustomButtonStyle<GradientButton>(
+                Color.FromArgb(100, 149, 237),
                 Color.White,
                 new Font("Segoe UI", 9.5f, FontStyle.Bold),
-                FlatStyle.Popup,
-                Color.FromArgb(65, 105, 225),
-                3
+                btn =>
+                {
+                    btn.GradientTop = Color.FromArgb(100, 149, 237);
+                    btn.GradientBottom = Color.FromArgb(65, 105, 225);
+                }
             );
         }
 
         private void menuStyleGloss_Click(object sender, EventArgs e)
         {
-            // Glossy 3D button with bright colors
-            ApplyAdvancedStyleToSelectedButtons(
-                Color.FromArgb(70, 130, 180), // Steel blue
+            // Glossy gradient button
+            ApplyCustomButtonStyle<GradientButton>(
+                Color.FromArgb(70, 130, 180),
                 Color.White,
                 new Font("Segoe UI", 10f, FontStyle.Bold),
-                FlatStyle.Popup,
-                Color.FromArgb(25, 25, 112),
-                4
+                btn =>
+                {
+                    btn.GradientTop = Color.FromArgb(135, 206, 250);
+                    btn.GradientBottom = Color.FromArgb(25, 25, 112);
+                }
             );
         }
 
         private void menuStyleEmbossed_Click(object sender, EventArgs e)
         {
-            // Embossed look - subtle 3D
-            ApplyAdvancedStyleToSelectedButtons(
-                Color.FromArgb(220, 220, 220),
+            // Neumorphism soft UI
+            ApplyCustomButtonStyle<NeumorphismButton>(
+                Color.FromArgb(230, 230, 230),
                 Color.FromArgb(60, 60, 60),
-                new Font("Segoe UI", 9f, FontStyle.Bold),
-                FlatStyle.Flat,
-                Color.FromArgb(180, 180, 180),
-                2
+                new Font("Segoe UI", 9f, FontStyle.Bold)
             );
         }
 
         private void menuStyleRaised_Click(object sender, EventArgs e)
         {
-            // Raised button effect
-            ApplyAdvancedStyleToSelectedButtons(
-                Color.FromArgb(240, 240, 240),
-                Color.FromArgb(40, 40, 40),
-                new Font("Segoe UI", 9.5f, FontStyle.Regular),
-                FlatStyle.Popup,
-                Color.FromArgb(160, 160, 160),
-                3
+            // Material Design button with ripple
+            ApplyCustomButtonStyle<MaterialButton>(
+                Color.FromArgb(33, 150, 243),
+                Color.White,
+                new Font("Segoe UI", 9.5f, FontStyle.Regular)
             );
         }
 
         private void menuStyleInset_Click(object sender, EventArgs e)
         {
-            // Inset shadow effect - dark button
-            ApplyAdvancedStyleToSelectedButtons(
-                Color.FromArgb(60, 60, 70),
-                Color.FromArgb(200, 200, 200),
-                new Font("Segoe UI", 9f, FontStyle.Regular),
-                FlatStyle.Flat,
-                Color.FromArgb(40, 40, 50),
-                3
+            // Retro 3D button
+            ApplyCustomButtonStyle<Retro3DButton>(
+                Color.FromArgb(255, 20, 147),
+                Color.White,
+                new Font("Impact", 10f, FontStyle.Bold)
             );
         }
 
@@ -2323,66 +2391,64 @@ namespace Notes
 
         private void menuStyleRetro_Click(object sender, EventArgs e)
         {
-            // Retro 80s style - hot pink and electric blue
-            ApplyAdvancedStyleToSelectedButtons(
-                Color.FromArgb(255, 20, 147), // Deep pink
-                Color.FromArgb(255, 255, 0),   // Yellow text
-                new Font("Impact", 10f, FontStyle.Bold),
-                FlatStyle.Flat,
-                Color.FromArgb(0, 255, 255),
-                4
+            // Retro 3D style - hot pink
+            ApplyCustomButtonStyle<Retro3DButton>(
+                Color.FromArgb(255, 20, 147),
+                Color.FromArgb(255, 255, 0),
+                new Font("Impact", 10f, FontStyle.Bold)
             );
         }
 
         private void menuStyleCyber_Click(object sender, EventArgs e)
         {
-            // Cyberpunk theme - dark with cyan accents
-            ApplyAdvancedStyleToSelectedButtons(
+            // Cyberpunk neon glow
+            ApplyCustomButtonStyle<NeonGlowButton>(
                 Color.FromArgb(20, 20, 35),
                 Color.FromArgb(0, 255, 255),
                 new Font("Consolas", 9.5f, FontStyle.Bold),
-                FlatStyle.Flat,
-                Color.FromArgb(255, 0, 255),
-                3
+                btn =>
+                {
+                    btn.GlowColor = Color.FromArgb(255, 0, 255);
+                }
             );
         }
 
         private void menuStyleGlass_Click(object sender, EventArgs e)
         {
-            // Glassmorphism - light with transparency feel
-            ApplyAdvancedStyleToSelectedButtons(
-                Color.FromArgb(240, 248, 255), // Alice blue
+            // Glassmorphism frosted glass
+            ApplyCustomButtonStyle<GlassMorphismButton>(
+                Color.FromArgb(240, 248, 255),
                 Color.FromArgb(70, 130, 180),
-                new Font("Segoe UI", 9f, FontStyle.Regular),
-                FlatStyle.Flat,
-                Color.FromArgb(176, 196, 222),
-                2
+                new Font("Segoe UI", 9f, FontStyle.Regular)
             );
         }
 
         private void menuStyleNeonGlow_Click(object sender, EventArgs e)
         {
-            // Neon glow effect - bright border
-            ApplyAdvancedStyleToSelectedButtons(
+            // Neon glow effect
+            ApplyCustomButtonStyle<NeonGlowButton>(
                 Color.FromArgb(10, 10, 20),
-                Color.FromArgb(0, 255, 127), // Spring green
-                new Font("Arial", 10f, FontStyle.Bold),
-                FlatStyle.Flat,
                 Color.FromArgb(0, 255, 127),
-                5
+                new Font("Arial", 10f, FontStyle.Bold),
+                btn =>
+                {
+                    btn.GlowColor = Color.FromArgb(0, 255, 127);
+                }
             );
         }
 
         private void menuStyleGolden_Click(object sender, EventArgs e)
         {
-            // Golden premium look
-            ApplyAdvancedStyleToSelectedButtons(
-                Color.FromArgb(255, 215, 0), // Gold
-                Color.FromArgb(139, 69, 19), // Saddle brown
+            // Golden gradient premium
+            ApplyCustomButtonStyle<GradientButton>(
+                Color.FromArgb(255, 215, 0),
+                Color.FromArgb(139, 69, 19),
                 new Font("Georgia", 10f, FontStyle.Bold),
-                FlatStyle.Flat,
-                Color.FromArgb(184, 134, 11),
-                3
+                btn =>
+                {
+                    btn.GradientTop = Color.FromArgb(255, 223, 0);
+                    btn.GradientBottom = Color.FromArgb(218, 165, 32);
+                }
             );
         }
 
@@ -2390,66 +2456,51 @@ namespace Notes
 
         private void menuStyleMinimal_Click(object sender, EventArgs e)
         {
-            // Minimal clean design
-            ApplyAdvancedStyleToSelectedButtons(
+            // Minimal outline style
+            ApplyCustomButtonStyle<OutlineButton>(
                 Color.White,
-                Color.FromArgb(50, 50, 50),
-                new Font("Segoe UI", 9f, FontStyle.Regular),
-                FlatStyle.Flat,
-                Color.FromArgb(230, 230, 230),
-                1
+                Color.FromArgb(100, 100, 100),
+                new Font("Segoe UI", 9f, FontStyle.Regular)
             );
         }
 
         private void menuStyleBold_Click(object sender, EventArgs e)
         {
-            // Bold impact style
-            ApplyAdvancedStyleToSelectedButtons(
-                Color.Black,
+            // Bold skeuomorphic 3D
+            ApplyCustomButtonStyle<SkeuomorphicButton>(
+                Color.FromArgb(220, 20, 60),
                 Color.White,
-                new Font("Arial Black", 10f, FontStyle.Bold),
-                FlatStyle.Flat,
-                Color.FromArgb(255, 69, 0), // Red-orange
-                4
+                new Font("Arial Black", 10f, FontStyle.Bold)
             );
         }
 
         private void menuStyleElegant_Click(object sender, EventArgs e)
         {
-            // Elegant serif style
-            ApplyAdvancedStyleToSelectedButtons(
-                Color.FromArgb(245, 245, 220), // Beige
-                Color.FromArgb(75, 0, 130),     // Indigo
-                new Font("Times New Roman", 10f, FontStyle.Italic),
-                FlatStyle.Flat,
-                Color.FromArgb(216, 191, 216),
-                2
+            // Elegant premium card
+            ApplyCustomButtonStyle<PremiumCardButton>(
+                Color.FromArgb(245, 245, 220),
+                Color.FromArgb(75, 0, 130),
+                new Font("Times New Roman", 10f, FontStyle.Italic)
             );
         }
 
         private void menuStylePlayful_Click(object sender, EventArgs e)
         {
-            // Playful comic style
-            ApplyAdvancedStyleToSelectedButtons(
-                Color.FromArgb(255, 250, 205), // Lemon chiffon
-                Color.FromArgb(255, 20, 147),   // Deep pink
-                new Font("Comic Sans MS", 10f, FontStyle.Bold),
-                FlatStyle.Flat,
-                Color.FromArgb(255, 105, 180),
-                3
+            // Playful pill button
+            ApplyCustomButtonStyle<PillButton>(
+                Color.FromArgb(255, 182, 193),
+                Color.FromArgb(255, 20, 147),
+                new Font("Comic Sans MS", 10f, FontStyle.Bold)
             );
         }
 
         private void menuStyleProfessional_Click(object sender, EventArgs e)
         {
-            // Professional business style
-            ApplyAdvancedStyleToSelectedButtons(
-                Color.FromArgb(245, 245, 245), // White smoke
-                Color.FromArgb(47, 79, 79),     // Dark slate gray
-                new Font("Calibri", 9.5f, FontStyle.Regular),
-                FlatStyle.Flat,
-                Color.FromArgb(105, 105, 105),
-                2
+            // Professional material design
+            ApplyCustomButtonStyle<MaterialButton>(
+                Color.FromArgb(96, 125, 139),
+                Color.White,
+                new Font("Calibri", 9.5f, FontStyle.Regular)
             );
         }
     }
