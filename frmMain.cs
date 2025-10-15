@@ -82,6 +82,10 @@ namespace Notes
         private System.Windows.Forms.Timer autoSaveTimer;
         private System.Windows.Forms.Timer searchTimer;
 
+        // Global hotkey
+        private const int HOTKEY_ID = 9000;
+        private const int WM_HOTKEY = 0x0312;
+
         public frmMain()
         {
             InitializeComponent();
@@ -89,6 +93,7 @@ namespace Notes
             SetupAutoSave();
             LoadConfiguration();
             SetupSystemThemeMonitoring();
+            RegisterGlobalHotkey();
         }
 
         private void InitializeCustomComponents()
@@ -135,6 +140,98 @@ namespace Notes
             
             // Apply theme after loading configuration
             ApplyCurrentTheme();
+            
+            // Re-register hotkey if settings changed
+            UnregisterGlobalHotkey();
+            RegisterGlobalHotkey();
+        }
+
+        private void RegisterGlobalHotkey()
+        {
+            try
+            {
+                var config = NotesLibrary.Instance.Config;
+                
+                if (!config.Hotkey.Enabled)
+                    return;
+
+                // Calculate modifier flags
+                int modifiers = 0;
+                foreach (var modifier in config.Hotkey.Modifiers)
+                {
+                    if (modifier == Keys.Control)
+                        modifiers |= 0x0002; // MOD_CONTROL
+                    else if (modifier == Keys.Alt)
+                        modifiers |= 0x0001; // MOD_ALT
+                    else if (modifier == Keys.Shift)
+                        modifiers |= 0x0004; // MOD_SHIFT
+                    else if (modifier == Keys.LWin || modifier == Keys.RWin)
+                        modifiers |= 0x0008; // MOD_WIN
+                }
+
+                // Register the hotkey
+                bool success = Win32.RegisterHotKey(this.Handle, HOTKEY_ID, modifiers, (int)config.Hotkey.Key);
+                
+                if (!success)
+                {
+                    // Hotkey registration failed (might be already in use)
+                    System.Diagnostics.Debug.WriteLine("Failed to register global hotkey");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error registering hotkey: {ex.Message}");
+            }
+        }
+
+        private void UnregisterGlobalHotkey()
+        {
+            try
+            {
+                Win32.UnregisterHotKey(this.Handle, HOTKEY_ID);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error unregistering hotkey: {ex.Message}");
+            }
+        }
+
+        protected override void WndProc(ref Message m)
+        {
+            base.WndProc(ref m);
+
+            if (m.Msg == WM_HOTKEY && m.WParam.ToInt32() == HOTKEY_ID)
+            {
+                // Global hotkey was pressed - bring window to front
+                ActivateAndBringToFront();
+            }
+        }
+
+        private void ActivateAndBringToFront()
+        {
+            try
+            {
+                // If minimized, restore
+                if (this.WindowState == FormWindowState.Minimized)
+                {
+                    this.WindowState = FormWindowState.Normal;
+                }
+                
+                // Show the form if it's hidden
+                if (!this.Visible)
+                {
+                    this.Show();
+                }
+                
+                // Bring to front and activate
+                this.Activate();
+                this.BringToFront();
+                this.Focus();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error activating window: {ex.Message}");
+            }
         }
 
         private void RestoreWindowState()
@@ -352,6 +449,9 @@ namespace Notes
         {
             if (autoSaveTimer != null)
                 autoSaveTimer.Stop();
+            
+            // Unregister global hotkey
+            UnregisterGlobalHotkey();
             
             // Stop monitoring system theme changes
             ThemeManager.StopSystemThemeMonitoring();
