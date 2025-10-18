@@ -2092,23 +2092,6 @@ namespace Notes
                     newGroupBox.Refresh();
                     
                     Logger.Info($"Button successfully added to group. Button bounds: {btn.Bounds}, Visible: {btn.Visible}");
-                    
-                    // Show detailed debug info
-                    string debugInfo = $"Button Added to Group!\n" +
-                        $"Button ID: {id}\n" +
-                        $"Button Text: {btn.Text}\n" +
-                        $"Absolute Position: {absolutePos}\n" +
-                        $"Group Location: {newGroupBox.Location}\n" +
-                        $"Relative Position: {relativePos}\n" +
-                        $"Button.Location: {btn.Location}\n" +
-                        $"Button.Bounds: {btn.Bounds}\n" +
-                        $"Button.Visible: {btn.Visible}\n" +
-                        $"Button.Enabled: {btn.Enabled}\n" +
-                        $"Button in Controls: {newGroupBox.Controls.Contains(btn)}\n" +
-                        $"Group Controls Count: {newGroupBox.Controls.Count}\n" +
-                        $"Group Size: {newGroupBox.Size}";
-                    
-                    MessageBox.Show(debugInfo, "Debug Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
                 else
                 {
