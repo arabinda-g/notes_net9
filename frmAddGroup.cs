@@ -157,6 +157,12 @@ namespace Notes
                 selectedGroup.BorderColor = borderColor.ToArgb();
                 selectedGroup.BackgroundColor = backgroundColor.ToArgb();
                 selectedGroup.TextColor = textColor.ToArgb();
+                
+                // Set default GroupBoxType if not already set
+                if (string.IsNullOrEmpty(selectedGroup.GroupBoxType))
+                {
+                    selectedGroup.GroupBoxType = "ResizableGroupBox";
+                }
 
                 selectedGroupModified = true;
                 

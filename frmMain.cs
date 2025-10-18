@@ -44,6 +44,7 @@ namespace Notes
             public int BorderColor;
             public int BackgroundColor;
             public int TextColor;
+            public string GroupBoxType;
         }
 
         private class AppState
@@ -1566,6 +1567,11 @@ namespace Notes
             isMovable = item.Checked;
 
             // Update AllowResize for all group boxes
+            foreach (var control in panelContainer.Controls.OfType<CustomGroupBoxBase>())
+            {
+                control.AllowResize = isMovable;
+                control.UpdateResizeHandleVisibility();
+            }
             foreach (var control in panelContainer.Controls.OfType<ResizableGroupBox>())
             {
                 control.AllowResize = isMovable;
@@ -2367,6 +2373,139 @@ namespace Notes
             }
         }
 
+        private void groupMenuStyle_Click(object sender, EventArgs e)
+        {
+            Logger.Debug(">> groupMenuStyle_Click triggered");
+            
+            ToolStripMenuItem menuItem = sender as ToolStripMenuItem;
+            if (menuItem == null)
+            {
+                Logger.Warning("menuItem is null");
+                return;
+            }
+            
+            Logger.Debug($"Menu item clicked: {menuItem.Name} - {menuItem.Text}");
+
+            // Get the root ContextMenuStrip (not the parent ToolStripDropDownMenu)
+            ContextMenuStrip contextMenu = null;
+            ToolStripItem current = menuItem;
+            while (current != null)
+            {
+                if (current.Owner is ContextMenuStrip cms)
+                {
+                    contextMenu = cms;
+                    break;
+                }
+                current = current.OwnerItem;
+            }
+            
+            Logger.Debug($"ContextMenu: {contextMenu?.Name}, SourceControl: {contextMenu?.SourceControl?.GetType().Name}");
+            
+            if (contextMenu?.SourceControl is GroupBox oldGroupBox)
+            {
+                string groupId = oldGroupBox.Tag as string;
+                Logger.Debug($"GroupBox found - GroupId: {groupId}, Title: {oldGroupBox.Text}");
+                
+                if (string.IsNullOrEmpty(groupId) || !Groups.ContainsKey(groupId))
+                {
+                    Logger.Warning($"Invalid groupId or not found in Groups dictionary");
+                    return;
+                }
+
+                SaveStateForUndo();
+
+                var group = Groups[groupId];
+                Logger.Debug($"Current group type: {group.GroupBoxType}");
+                
+                // Determine group box type from menu item name
+                string groupBoxType = menuItem.Name switch
+                {
+                    "groupMenuStyleGradientGlass" => "GradientGlassGroupBox",
+                    "groupMenuStyleNeonGlow" => "NeonGlowGroupBox",
+                    "groupMenuStyleEmbossed" => "EmbossedGroupBox",
+                    "groupMenuStyleRetro" => "RetroGroupBox",
+                    "groupMenuStyleCard" => "CardGroupBox",
+                    "groupMenuStyleMinimal" => "MinimalGroupBox",
+                    "groupMenuStyleDashed" => "DashedGroupBox",
+                    "groupMenuStyleDoubleBorder" => "DoubleBorderGroupBox",
+                    "groupMenuStyleShadowPanel" => "ShadowPanelGroupBox",
+                    "groupMenuStyleRoundedNeon" => "RoundedNeonGroupBox",
+                    "groupMenuStyleHolographic" => "HolographicGroupBox",
+                    "groupMenuStyleVintagePaper" => "VintagePaperGroupBox",
+                    "groupMenuStyleLiquidMetal" => "LiquidMetalGroupBox",
+                    "groupMenuStyleCosmic" => "CosmicGroupBox",
+                    "groupMenuStyleRainbow" => "RainbowSpectrumGroupBox",
+                    _ => "ResizableGroupBox"
+                };
+
+                Logger.Info($"Changing group box type from '{group.GroupBoxType}' to '{groupBoxType}'");
+                
+                group.GroupBoxType = groupBoxType;
+                Groups[groupId] = group;
+
+                // Get all buttons in the old group
+                var buttons = oldGroupBox.Controls.OfType<Button>().ToList();
+                var buttonData = new List<(Button btn, Point location)>();
+                
+                foreach (var btn in buttons)
+                {
+                    buttonData.Add((btn, btn.Location));
+                }
+
+                // Get properties from old group
+                Point location = oldGroupBox.Location;
+                Size size = oldGroupBox.Size;
+                Color backColor = oldGroupBox.BackColor;
+                Color foreColor = oldGroupBox.ForeColor;
+                string title = oldGroupBox.Text;
+
+                // Remove old group
+                Logger.Debug($"Removing old GroupBox from panel");
+                panelContainer.Controls.Remove(oldGroupBox);
+                oldGroupBox.Dispose();
+
+                // Create new styled group directly
+                Logger.Debug($"Creating new GroupBox with type: {groupBoxType}");
+                var newGroupBox = CreateGroupBoxByType(groupBoxType);
+                Logger.Debug($"New GroupBox created - Actual type: {newGroupBox.GetType().Name}");
+                
+                newGroupBox.Tag = groupId;
+                newGroupBox.Text = title;
+                newGroupBox.Location = location;
+                newGroupBox.Size = size;
+                newGroupBox.BackColor = backColor;
+                newGroupBox.ForeColor = foreColor;
+
+                newGroupBox.MouseDown += GroupBox_MouseDown;
+                newGroupBox.MouseMove += GroupBox_MouseMove;
+                newGroupBox.MouseUp += GroupBox_MouseUp;
+                newGroupBox.ContextMenuStrip = groupMenuStrip;
+                newGroupBox.SizeChanged += GroupBox_SizeChanged;
+
+                panelContainer.Controls.Add(newGroupBox);
+                
+                // Re-add buttons
+                foreach (var (btn, loc) in buttonData)
+                {
+                    newGroupBox.Controls.Add(btn);
+                    btn.Location = loc;
+                    btn.BringToFront();
+                }
+
+                newGroupBox.Refresh();
+                
+                Logger.Info($"<< Group style successfully changed to {menuItem.Text} - Type: {newGroupBox.GetType().Name}");
+
+                configModified = true;
+                status = $"Group style changed to {menuItem.Text}";
+                UpdateUndoRedoMenuState();
+            }
+            else
+            {
+                Logger.Warning("ContextMenu or SourceControl is not a GroupBox");
+            }
+        }
+
 
 
 
@@ -3106,8 +3245,20 @@ namespace Notes
 
             SaveStateForUndo();
 
-            // Suspend layout to prevent flickering
-            panelContainer.SuspendLayout();
+            // Collect parent controls and suspend their layouts
+            var parentControls = new HashSet<Control>();
+            foreach (var btn in buttonsToReplace)
+            {
+                if (btn.Parent != null)
+                {
+                    parentControls.Add(btn.Parent);
+                }
+            }
+
+            foreach (var parent in parentControls)
+            {
+                parent.SuspendLayout();
+            }
 
             var newButtons = new List<Button>();
 
@@ -3124,8 +3275,9 @@ namespace Notes
                     unit.ButtonType = typeof(T).Name; // Save the button type
                     Units[id] = unit;
 
-                    // Store old button's rectangle for invalidation
+                    // Store old button's rectangle and parent for invalidation
                     Rectangle oldBounds = oldBtn.Bounds;
+                    Control parentControl = oldBtn.Parent;
 
                     // Create new custom button
                     T newBtn = new T();
@@ -3163,14 +3315,20 @@ namespace Notes
                         selectedButtons.Remove(oldBtn);
                     }
 
-                    // Remove old button from panel
-                    panelContainer.Controls.Remove(oldBtn);
+                    // Remove old button from its parent
+                    if (parentControl != null)
+                    {
+                        parentControl.Controls.Remove(oldBtn);
+                    }
                     
                     // Dispose old button to free resources
                     oldBtn.Dispose();
 
-                    // Add new button
-                    panelContainer.Controls.Add(newBtn);
+                    // Add new button to the same parent
+                    if (parentControl != null)
+                    {
+                        parentControl.Controls.Add(newBtn);
+                    }
                     
                     // Add to selection if it was selected
                     if (buttonsToReplace.Contains(oldBtn))
@@ -3180,14 +3338,17 @@ namespace Notes
 
                     newButtons.Add(newBtn);
 
-                    // Invalidate the old area to clear artifacts
-                    panelContainer.Invalidate(oldBounds);
+                    // Invalidate the old area to clear artifacts on the correct parent
+                    parentControl?.Invalidate(oldBounds);
                 }
             }
 
-            // Resume layout and refresh
-            panelContainer.ResumeLayout(true);
-            panelContainer.Refresh();
+            // Resume layout and refresh for all affected parent controls
+            foreach (var parent in parentControls)
+            {
+                parent.ResumeLayout(true);
+                parent.Refresh();
+            }
 
             configModified = true;
             string target = newButtons.Count.ToString();
@@ -3582,6 +3743,70 @@ namespace Notes
             }
         }
 
+        private GroupBox CreateGroupBoxByType(string groupBoxType)
+        {
+            GroupBox groupBox;
+            
+            switch (groupBoxType)
+            {
+                case "GradientGlassGroupBox":
+                    groupBox = new GradientGlassGroupBox();
+                    break;
+                case "NeonGlowGroupBox":
+                    groupBox = new NeonGlowGroupBox();
+                    break;
+                case "EmbossedGroupBox":
+                    groupBox = new EmbossedGroupBox();
+                    break;
+                case "RetroGroupBox":
+                    groupBox = new RetroGroupBox();
+                    break;
+                case "CardGroupBox":
+                    groupBox = new CardGroupBox();
+                    break;
+                case "MinimalGroupBox":
+                    groupBox = new MinimalGroupBox();
+                    break;
+                case "DashedGroupBox":
+                    groupBox = new DashedGroupBox();
+                    break;
+                case "DoubleBorderGroupBox":
+                    groupBox = new DoubleBorderGroupBox();
+                    break;
+                case "ShadowPanelGroupBox":
+                    groupBox = new ShadowPanelGroupBox();
+                    break;
+                case "RoundedNeonGroupBox":
+                    groupBox = new RoundedNeonGroupBox();
+                    break;
+                case "HolographicGroupBox":
+                    groupBox = new HolographicGroupBox();
+                    break;
+                case "VintagePaperGroupBox":
+                    groupBox = new VintagePaperGroupBox();
+                    break;
+                case "LiquidMetalGroupBox":
+                    groupBox = new LiquidMetalGroupBox();
+                    break;
+                case "CosmicGroupBox":
+                    groupBox = new CosmicGroupBox();
+                    break;
+                case "RainbowSpectrumGroupBox":
+                    groupBox = new RainbowSpectrumGroupBox();
+                    break;
+                default:
+                    groupBox = new ResizableGroupBox();
+                    break;
+            }
+
+            if (groupBox is CustomGroupBoxBase customGroupBox)
+            {
+                customGroupBox.AllowResize = isMovable;
+            }
+
+            return groupBox;
+        }
+
         private GroupBox GetOrCreateGroupBox(string groupId)
         {
             Logger.Debug($"GetOrCreateGroupBox called for: {groupId}");
@@ -3609,38 +3834,33 @@ namespace Notes
             }
 
             var group = Groups[groupId];
-            Logger.Info($"Creating new ResizableGroupBox for group: {group.Title}");
+            Logger.Info($"Creating new GroupBox for group: {group.Title}, Type: {group.GroupBoxType}");
 
-            var resizableGroupBox = new ResizableGroupBox
-            {
-                Tag = group.Id,
-                Text = group.Title,
-                Location = new Point(group.X, group.Y),
-                Size = new Size(group.Width, group.Height),
-                AllowResize = isMovable, // Enable resize handle in movable mode
-                BackColor = group.BackgroundColor != 0 ? Color.FromArgb(group.BackgroundColor) : Color.WhiteSmoke,
-                ForeColor = group.TextColor != 0 ? Color.FromArgb(group.TextColor) : Color.Black
-            };
+            var newGroupBox = CreateGroupBoxByType(group.GroupBoxType);
+            newGroupBox.Tag = group.Id;
+            newGroupBox.Text = group.Title;
+            newGroupBox.Location = new Point(group.X, group.Y);
+            newGroupBox.Size = new Size(group.Width, group.Height);
+            newGroupBox.BackColor = group.BackgroundColor != 0 ? Color.FromArgb(group.BackgroundColor) : Color.WhiteSmoke;
+            newGroupBox.ForeColor = group.TextColor != 0 ? Color.FromArgb(group.TextColor) : Color.Black;
 
-            Logger.Debug($"ResizableGroupBox created - Location: {resizableGroupBox.Location}, Size: {resizableGroupBox.Size}");
+            Logger.Debug($"GroupBox created - Location: {newGroupBox.Location}, Size: {newGroupBox.Size}");
 
-            // Note: BorderColor is handled in the custom paint method via ForeColor
+            newGroupBox.MouseDown += GroupBox_MouseDown;
+            newGroupBox.MouseMove += GroupBox_MouseMove;
+            newGroupBox.MouseUp += GroupBox_MouseUp;
+            newGroupBox.ContextMenuStrip = groupMenuStrip;
+            newGroupBox.SizeChanged += GroupBox_SizeChanged;
 
-            resizableGroupBox.MouseDown += GroupBox_MouseDown;
-            resizableGroupBox.MouseMove += GroupBox_MouseMove;
-            resizableGroupBox.MouseUp += GroupBox_MouseUp;
-            resizableGroupBox.ContextMenuStrip = groupMenuStrip;
-            resizableGroupBox.SizeChanged += GroupBox_SizeChanged;
+            panelContainer.Controls.Add(newGroupBox);
+            Logger.Debug($"GroupBox added to panel. Panel controls count: {panelContainer.Controls.Count}");
 
-            panelContainer.Controls.Add(resizableGroupBox);
-            Logger.Debug($"ResizableGroupBox added to panel. Panel controls count: {panelContainer.Controls.Count}");
-
-            return resizableGroupBox;
+            return newGroupBox;
         }
 
         private void GroupBox_SizeChanged(object sender, EventArgs e)
         {
-            if (sender is ResizableGroupBox groupBox)
+            if (sender is GroupBox groupBox)
             {
                 string groupId = groupBox.Tag as string;
                 if (!string.IsNullOrEmpty(groupId) && Groups.ContainsKey(groupId))
@@ -3718,6 +3938,12 @@ namespace Notes
                 resizableGroupBox.UpdateResizeHandleVisibility();
                 Logger.Debug($"ResizableGroupBox AllowResize set to: {isMovable}");
             }
+            else if (groupBox is CustomGroupBoxBase customGroupBox)
+            {
+                customGroupBox.AllowResize = isMovable;
+                customGroupBox.UpdateResizeHandleVisibility();
+                Logger.Debug($"CustomGroupBoxBase AllowResize set to: {isMovable}");
+            }
         }
 
         private void GroupBox_MouseDown(object sender, MouseEventArgs e)
@@ -3727,6 +3953,9 @@ namespace Notes
 
             // Don't start drag if clicking on resize handle
             if (sender is ResizableGroupBox resizable && resizable.IsResizing)
+                return;
+            
+            if (sender is CustomGroupBoxBase customResizable && customResizable.IsResizing)
                 return;
 
             currentGroupBoxDrag = sender as GroupBox;
@@ -3746,6 +3975,12 @@ namespace Notes
 
             // Check if we're in resize mode
             if (sender is ResizableGroupBox resizable && resizable.IsResizing)
+            {
+                isMovingGroupBox = false;
+                return;
+            }
+            
+            if (sender is CustomGroupBoxBase customResizable && customResizable.IsResizing)
             {
                 isMovingGroupBox = false;
                 return;

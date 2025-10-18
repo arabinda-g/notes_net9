@@ -141,6 +141,25 @@ namespace Notes
             this.groupMenuDelete = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripSeparator16 = new System.Windows.Forms.ToolStripSeparator();
             this.groupMenuAutoResize = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripSeparator17 = new System.Windows.Forms.ToolStripSeparator();
+            this.groupMenuStyles = new System.Windows.Forms.ToolStripMenuItem();
+            this.groupMenuStyleDefault = new System.Windows.Forms.ToolStripMenuItem();
+            this.groupMenuStyleGradientGlass = new System.Windows.Forms.ToolStripMenuItem();
+            this.groupMenuStyleNeonGlow = new System.Windows.Forms.ToolStripMenuItem();
+            this.groupMenuStyleEmbossed = new System.Windows.Forms.ToolStripMenuItem();
+            this.groupMenuStyleRetro = new System.Windows.Forms.ToolStripMenuItem();
+            this.groupMenuStyleCard = new System.Windows.Forms.ToolStripMenuItem();
+            this.groupMenuStyleMinimal = new System.Windows.Forms.ToolStripMenuItem();
+            this.groupMenuStyleDashed = new System.Windows.Forms.ToolStripMenuItem();
+            this.groupMenuStyleDoubleBorder = new System.Windows.Forms.ToolStripMenuItem();
+            this.groupMenuStyleShadowPanel = new System.Windows.Forms.ToolStripMenuItem();
+            this.groupMenuStyleRoundedNeon = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripSeparator18 = new System.Windows.Forms.ToolStripSeparator();
+            this.groupMenuStyleHolographic = new System.Windows.Forms.ToolStripMenuItem();
+            this.groupMenuStyleVintagePaper = new System.Windows.Forms.ToolStripMenuItem();
+            this.groupMenuStyleLiquidMetal = new System.Windows.Forms.ToolStripMenuItem();
+            this.groupMenuStyleCosmic = new System.Windows.Forms.ToolStripMenuItem();
+            this.groupMenuStyleRainbow = new System.Windows.Forms.ToolStripMenuItem();
             this.panelContainer = new System.Windows.Forms.Panel();
             this.statusStrip = new System.Windows.Forms.StatusStrip();
             this.statusLabel = new System.Windows.Forms.ToolStripStatusLabel();
@@ -979,9 +998,11 @@ namespace Notes
             this.groupMenuEdit,
             this.groupMenuDelete,
             this.toolStripSeparator16,
-            this.groupMenuAutoResize});
+            this.groupMenuAutoResize,
+            this.toolStripSeparator17,
+            this.groupMenuStyles});
             this.groupMenuStrip.Name = "groupMenuStrip";
-            this.groupMenuStrip.Size = new System.Drawing.Size(180, 88);
+            this.groupMenuStrip.Size = new System.Drawing.Size(180, 120);
             // 
             // groupMenuEdit
             // 
@@ -1008,6 +1029,152 @@ namespace Notes
             this.groupMenuAutoResize.Size = new System.Drawing.Size(179, 24);
             this.groupMenuAutoResize.Text = "&Auto Resize";
             this.groupMenuAutoResize.Click += new System.EventHandler(this.groupMenuAutoResize_Click);
+            // 
+            // toolStripSeparator17
+            // 
+            this.toolStripSeparator17.Name = "toolStripSeparator17";
+            this.toolStripSeparator17.Size = new System.Drawing.Size(176, 6);
+            // 
+            // groupMenuStyles
+            // 
+            this.groupMenuStyles.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.groupMenuStyleDefault,
+            this.groupMenuStyleGradientGlass,
+            this.groupMenuStyleNeonGlow,
+            this.groupMenuStyleEmbossed,
+            this.groupMenuStyleRetro,
+            this.groupMenuStyleCard,
+            this.groupMenuStyleMinimal,
+            this.groupMenuStyleDashed,
+            this.groupMenuStyleDoubleBorder,
+            this.groupMenuStyleShadowPanel,
+            this.groupMenuStyleRoundedNeon,
+            this.toolStripSeparator18,
+            this.groupMenuStyleHolographic,
+            this.groupMenuStyleVintagePaper,
+            this.groupMenuStyleLiquidMetal,
+            this.groupMenuStyleCosmic,
+            this.groupMenuStyleRainbow});
+            this.groupMenuStyles.Name = "groupMenuStyles";
+            this.groupMenuStyles.Size = new System.Drawing.Size(179, 24);
+            this.groupMenuStyles.Text = "&Styles";
+            // 
+            // groupMenuStyleDefault
+            // 
+            this.groupMenuStyleDefault.Name = "groupMenuStyleDefault";
+            this.groupMenuStyleDefault.Size = new System.Drawing.Size(180, 26);
+            this.groupMenuStyleDefault.Text = "Default";
+            this.groupMenuStyleDefault.Click += new System.EventHandler(this.groupMenuStyle_Click);
+            // 
+            // groupMenuStyleGradientGlass
+            // 
+            this.groupMenuStyleGradientGlass.Name = "groupMenuStyleGradientGlass";
+            this.groupMenuStyleGradientGlass.Size = new System.Drawing.Size(180, 26);
+            this.groupMenuStyleGradientGlass.Text = "Gradient Glass";
+            this.groupMenuStyleGradientGlass.Click += new System.EventHandler(this.groupMenuStyle_Click);
+            // 
+            // groupMenuStyleNeonGlow
+            // 
+            this.groupMenuStyleNeonGlow.Name = "groupMenuStyleNeonGlow";
+            this.groupMenuStyleNeonGlow.Size = new System.Drawing.Size(180, 26);
+            this.groupMenuStyleNeonGlow.Text = "Neon Glow";
+            this.groupMenuStyleNeonGlow.Click += new System.EventHandler(this.groupMenuStyle_Click);
+            // 
+            // groupMenuStyleEmbossed
+            // 
+            this.groupMenuStyleEmbossed.Name = "groupMenuStyleEmbossed";
+            this.groupMenuStyleEmbossed.Size = new System.Drawing.Size(180, 26);
+            this.groupMenuStyleEmbossed.Text = "3D Embossed";
+            this.groupMenuStyleEmbossed.Click += new System.EventHandler(this.groupMenuStyle_Click);
+            // 
+            // groupMenuStyleRetro
+            // 
+            this.groupMenuStyleRetro.Name = "groupMenuStyleRetro";
+            this.groupMenuStyleRetro.Size = new System.Drawing.Size(180, 26);
+            this.groupMenuStyleRetro.Text = "Retro 3D";
+            this.groupMenuStyleRetro.Click += new System.EventHandler(this.groupMenuStyle_Click);
+            // 
+            // groupMenuStyleCard
+            // 
+            this.groupMenuStyleCard.Name = "groupMenuStyleCard";
+            this.groupMenuStyleCard.Size = new System.Drawing.Size(180, 26);
+            this.groupMenuStyleCard.Text = "Modern Card";
+            this.groupMenuStyleCard.Click += new System.EventHandler(this.groupMenuStyle_Click);
+            // 
+            // groupMenuStyleMinimal
+            // 
+            this.groupMenuStyleMinimal.Name = "groupMenuStyleMinimal";
+            this.groupMenuStyleMinimal.Size = new System.Drawing.Size(180, 26);
+            this.groupMenuStyleMinimal.Text = "Minimal Flat";
+            this.groupMenuStyleMinimal.Click += new System.EventHandler(this.groupMenuStyle_Click);
+            // 
+            // groupMenuStyleDashed
+            // 
+            this.groupMenuStyleDashed.Name = "groupMenuStyleDashed";
+            this.groupMenuStyleDashed.Size = new System.Drawing.Size(180, 26);
+            this.groupMenuStyleDashed.Text = "Dashed Border";
+            this.groupMenuStyleDashed.Click += new System.EventHandler(this.groupMenuStyle_Click);
+            // 
+            // groupMenuStyleDoubleBorder
+            // 
+            this.groupMenuStyleDoubleBorder.Name = "groupMenuStyleDoubleBorder";
+            this.groupMenuStyleDoubleBorder.Size = new System.Drawing.Size(180, 26);
+            this.groupMenuStyleDoubleBorder.Text = "Double Border";
+            this.groupMenuStyleDoubleBorder.Click += new System.EventHandler(this.groupMenuStyle_Click);
+            // 
+            // groupMenuStyleShadowPanel
+            // 
+            this.groupMenuStyleShadowPanel.Name = "groupMenuStyleShadowPanel";
+            this.groupMenuStyleShadowPanel.Size = new System.Drawing.Size(180, 26);
+            this.groupMenuStyleShadowPanel.Text = "Shadow Panel";
+            this.groupMenuStyleShadowPanel.Click += new System.EventHandler(this.groupMenuStyle_Click);
+            // 
+            // groupMenuStyleRoundedNeon
+            // 
+            this.groupMenuStyleRoundedNeon.Name = "groupMenuStyleRoundedNeon";
+            this.groupMenuStyleRoundedNeon.Size = new System.Drawing.Size(180, 26);
+            this.groupMenuStyleRoundedNeon.Text = "Rounded Neon";
+            this.groupMenuStyleRoundedNeon.Click += new System.EventHandler(this.groupMenuStyle_Click);
+            // 
+            // toolStripSeparator18
+            // 
+            this.toolStripSeparator18.Name = "toolStripSeparator18";
+            this.toolStripSeparator18.Size = new System.Drawing.Size(177, 6);
+            // 
+            // groupMenuStyleHolographic
+            // 
+            this.groupMenuStyleHolographic.Name = "groupMenuStyleHolographic";
+            this.groupMenuStyleHolographic.Size = new System.Drawing.Size(180, 26);
+            this.groupMenuStyleHolographic.Text = "Holographic";
+            this.groupMenuStyleHolographic.Click += new System.EventHandler(this.groupMenuStyle_Click);
+            // 
+            // groupMenuStyleVintagePaper
+            // 
+            this.groupMenuStyleVintagePaper.Name = "groupMenuStyleVintagePaper";
+            this.groupMenuStyleVintagePaper.Size = new System.Drawing.Size(180, 26);
+            this.groupMenuStyleVintagePaper.Text = "Vintage Paper";
+            this.groupMenuStyleVintagePaper.Click += new System.EventHandler(this.groupMenuStyle_Click);
+            // 
+            // groupMenuStyleLiquidMetal
+            // 
+            this.groupMenuStyleLiquidMetal.Name = "groupMenuStyleLiquidMetal";
+            this.groupMenuStyleLiquidMetal.Size = new System.Drawing.Size(180, 26);
+            this.groupMenuStyleLiquidMetal.Text = "Liquid Metal";
+            this.groupMenuStyleLiquidMetal.Click += new System.EventHandler(this.groupMenuStyle_Click);
+            // 
+            // groupMenuStyleCosmic
+            // 
+            this.groupMenuStyleCosmic.Name = "groupMenuStyleCosmic";
+            this.groupMenuStyleCosmic.Size = new System.Drawing.Size(180, 26);
+            this.groupMenuStyleCosmic.Text = "Cosmic Space";
+            this.groupMenuStyleCosmic.Click += new System.EventHandler(this.groupMenuStyle_Click);
+            // 
+            // groupMenuStyleRainbow
+            // 
+            this.groupMenuStyleRainbow.Name = "groupMenuStyleRainbow";
+            this.groupMenuStyleRainbow.Size = new System.Drawing.Size(180, 26);
+            this.groupMenuStyleRainbow.Text = "Rainbow Spectrum";
+            this.groupMenuStyleRainbow.Click += new System.EventHandler(this.groupMenuStyle_Click);
             // 
             // panelContainer
             // 
@@ -1250,6 +1417,25 @@ namespace Notes
         private System.Windows.Forms.ToolStripMenuItem groupMenuDelete;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator16;
         private System.Windows.Forms.ToolStripMenuItem groupMenuAutoResize;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator17;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuStyles;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuStyleDefault;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuStyleGradientGlass;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuStyleNeonGlow;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuStyleEmbossed;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuStyleRetro;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuStyleCard;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuStyleMinimal;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuStyleDashed;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuStyleDoubleBorder;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuStyleShadowPanel;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuStyleRoundedNeon;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator18;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuStyleHolographic;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuStyleVintagePaper;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuStyleLiquidMetal;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuStyleCosmic;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuStyleRainbow;
     }
 }
 
