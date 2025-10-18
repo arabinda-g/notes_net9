@@ -163,6 +163,11 @@ namespace Notes
             panelContainer.DragDrop += panelContainer_DragDrop;
             panelContainer.AllowDrop = true;
             
+            // Enable double buffering to prevent visual artifacts when drawing selection rectangle
+            typeof(Control).GetProperty("DoubleBuffered", 
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(panelContainer, true);
+            
             // Initialize status
             statusLabel.Text = "Ready";
         }
