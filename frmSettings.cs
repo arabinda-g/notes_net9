@@ -101,6 +101,15 @@ namespace Notes
             cmbTheme.DataSource = Enum.GetValues(typeof(NotesLibrary.ThemeMode));
             cmbTheme.SelectedItem = NotesLibrary.ThemeMode.SystemDefault;
 
+            // Setup log level combo box
+            cmbLogLevel.Items.Clear();
+            cmbLogLevel.Items.Add("None (Disabled)");
+            cmbLogLevel.Items.Add("Error");
+            cmbLogLevel.Items.Add("Warning");
+            cmbLogLevel.Items.Add("Info");
+            cmbLogLevel.Items.Add("Debug");
+            cmbLogLevel.SelectedIndex = 0;
+
             // Add event handlers for dependent controls
             chkAutoSave.CheckedChanged += ChkAutoSave_CheckedChanged;
             chkShowTrayIcon.CheckedChanged += ChkShowTrayIcon_CheckedChanged;
@@ -190,6 +199,9 @@ namespace Notes
                 chkOptimizeForLargeFiles.Checked = config.General.OptimizeForLargeFiles;
                 chkEnableAnimations.Checked = config.General.EnableAnimations;
                 cmbTheme.SelectedItem = config.General.Theme;
+
+                // Logging settings
+                cmbLogLevel.SelectedIndex = (int)config.General.LogLevel;
             }
             catch (Exception ex)
             {
@@ -376,6 +388,7 @@ namespace Notes
                 config.General.OptimizeForLargeFiles = chkOptimizeForLargeFiles.Checked;
                 config.General.EnableAnimations = chkEnableAnimations.Checked;
                 config.General.Theme = (NotesLibrary.ThemeMode)cmbTheme.SelectedItem;
+                config.General.LogLevel = (LogLevel)cmbLogLevel.SelectedIndex;
 
                 // Hotkey settings
                 config.Hotkey.Enabled = cbHotkeyEnabled.Checked;
@@ -403,6 +416,10 @@ namespace Notes
                 
                 // Apply startup setting
                 NotesLibrary.Instance.SetStartupEntry(config.General.StartWithWindows);
+                
+                // Apply logging setting
+                Logger.Initialize(config.General.LogLevel);
+                Logger.Info("Settings updated - Log level changed to: " + config.General.LogLevel);
                 
                 hasChanges = false;
                 
@@ -504,6 +521,64 @@ namespace Notes
                 selectedTheme == NotesLibrary.ThemeMode.SystemDefault)
             {
                 ThemeManager.ApplyTheme(this, selectedTheme);
+            }
+        }
+
+        private void btnOpenLogFile_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                string logFilePath = Logger.GetLogFilePath();
+                
+                if (string.IsNullOrEmpty(logFilePath))
+                {
+                    MessageBox.Show("Logging is currently disabled. Please set a log level first and restart the application.", 
+                        NotesLibrary.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                if (!File.Exists(logFilePath))
+                {
+                    MessageBox.Show("No log file exists yet. The log file will be created when the first log entry is written.", 
+                        NotesLibrary.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                // Open the log file with default text editor
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = logFilePath,
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error opening log file: " + ex.Message, 
+                    NotesLibrary.AppName, MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void btnClearLogs_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                DialogResult result = MessageBox.Show(
+                    "This will delete log files older than 7 days. Continue?",
+                    NotesLibrary.AppName,
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question);
+
+                if (result == DialogResult.Yes)
+                {
+                    Logger.ClearOldLogs(7);
+                    MessageBox.Show("Old log files have been cleared.", 
+                        NotesLibrary.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error clearing logs: " + ex.Message, 
+                    NotesLibrary.AppName, MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 

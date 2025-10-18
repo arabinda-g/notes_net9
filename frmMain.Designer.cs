@@ -33,6 +33,7 @@ namespace Notes
             this.menuStrip = new System.Windows.Forms.MenuStrip();
             this.fileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.menuFileNew = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuFileNewGroup = new System.Windows.Forms.ToolStripMenuItem();
             this.menuFileSave = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripSeparator2 = new System.Windows.Forms.ToolStripSeparator();
             this.menuFileImport = new System.Windows.Forms.ToolStripMenuItem();
@@ -132,6 +133,14 @@ namespace Notes
             this.unitMenuDuplicate = new System.Windows.Forms.ToolStripMenuItem();
             this.unitMenuCopyStyle = new System.Windows.Forms.ToolStripMenuItem();
             this.unitMenuPasteStyle = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripSeparator15 = new System.Windows.Forms.ToolStripSeparator();
+            this.unitMenuAddToGroup = new System.Windows.Forms.ToolStripMenuItem();
+            this.unitMenuRemoveFromGroup = new System.Windows.Forms.ToolStripMenuItem();
+            this.groupMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
+            this.groupMenuEdit = new System.Windows.Forms.ToolStripMenuItem();
+            this.groupMenuDelete = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripSeparator16 = new System.Windows.Forms.ToolStripSeparator();
+            this.groupMenuAutoResize = new System.Windows.Forms.ToolStripMenuItem();
             this.panelContainer = new System.Windows.Forms.Panel();
             this.statusStrip = new System.Windows.Forms.StatusStrip();
             this.statusLabel = new System.Windows.Forms.ToolStripStatusLabel();
@@ -147,6 +156,7 @@ namespace Notes
             this.toolStripMenuItem6 = new System.Windows.Forms.ToolStripMenuItem();
             this.menuStrip.SuspendLayout();
             this.unitMenuStrip.SuspendLayout();
+            this.groupMenuStrip.SuspendLayout();
             this.statusStrip.SuspendLayout();
             this.trayMenuStrip.SuspendLayout();
             this.SuspendLayout();
@@ -169,6 +179,7 @@ namespace Notes
             // 
             this.fileToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.menuFileNew,
+            this.menuFileNewGroup,
             this.menuFileSave,
             this.toolStripSeparator2,
             this.menuFileImport,
@@ -186,9 +197,17 @@ namespace Notes
             // 
             this.menuFileNew.Name = "menuFileNew";
             this.menuFileNew.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.N)));
-            this.menuFileNew.Size = new System.Drawing.Size(190, 26);
-            this.menuFileNew.Text = "&New...";
+            this.menuFileNew.Size = new System.Drawing.Size(220, 26);
+            this.menuFileNew.Text = "&New Note...";
             this.menuFileNew.Click += new System.EventHandler(this.menuFileNew_Click);
+            // 
+            // menuFileNewGroup
+            // 
+            this.menuFileNewGroup.Name = "menuFileNewGroup";
+            this.menuFileNewGroup.ShortcutKeys = ((System.Windows.Forms.Keys)(((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.Shift) | System.Windows.Forms.Keys.G)));
+            this.menuFileNewGroup.Size = new System.Drawing.Size(220, 26);
+            this.menuFileNewGroup.Text = "New &Group...";
+            this.menuFileNewGroup.Click += new System.EventHandler(this.menuFileNewGroup_Click);
             // 
             // menuFileSave
             // 
@@ -648,9 +667,13 @@ namespace Notes
             this.toolStripSeparator9,
             this.unitMenuDuplicate,
             this.unitMenuCopyStyle,
-            this.unitMenuPasteStyle});
+            this.unitMenuPasteStyle,
+            this.toolStripSeparator15,
+            this.unitMenuAddToGroup,
+            this.unitMenuRemoveFromGroup});
             this.unitMenuStrip.Name = "unitMenuStrip";
-            this.unitMenuStrip.Size = new System.Drawing.Size(211, 212);
+            this.unitMenuStrip.Size = new System.Drawing.Size(225, 280);
+            this.unitMenuStrip.Opening += new System.ComponentModel.CancelEventHandler(this.unitMenuStrip_Opening);
             // 
             // unitMenuEdit
             // 
@@ -925,9 +948,66 @@ namespace Notes
             // 
             this.unitMenuPasteStyle.Enabled = false;
             this.unitMenuPasteStyle.Name = "unitMenuPasteStyle";
-            this.unitMenuPasteStyle.Size = new System.Drawing.Size(202, 24);
+            this.unitMenuPasteStyle.Size = new System.Drawing.Size(224, 24);
             this.unitMenuPasteStyle.Text = "&Paste style";
             this.unitMenuPasteStyle.Click += new System.EventHandler(this.unitMenuPasteStyle_Click);
+            // 
+            // toolStripSeparator15
+            // 
+            this.toolStripSeparator15.Name = "toolStripSeparator15";
+            this.toolStripSeparator15.Size = new System.Drawing.Size(221, 6);
+            // 
+            // unitMenuAddToGroup
+            // 
+            this.unitMenuAddToGroup.Name = "unitMenuAddToGroup";
+            this.unitMenuAddToGroup.Size = new System.Drawing.Size(224, 24);
+            this.unitMenuAddToGroup.Text = "Add to &Group...";
+            this.unitMenuAddToGroup.Click += new System.EventHandler(this.unitMenuAddToGroup_Click);
+            // 
+            // unitMenuRemoveFromGroup
+            // 
+            this.unitMenuRemoveFromGroup.Name = "unitMenuRemoveFromGroup";
+            this.unitMenuRemoveFromGroup.Size = new System.Drawing.Size(224, 24);
+            this.unitMenuRemoveFromGroup.Text = "&Remove from Group";
+            this.unitMenuRemoveFromGroup.Enabled = false;
+            this.unitMenuRemoveFromGroup.Click += new System.EventHandler(this.unitMenuRemoveFromGroup_Click);
+            // 
+            // groupMenuStrip
+            // 
+            this.groupMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
+            this.groupMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.groupMenuEdit,
+            this.groupMenuDelete,
+            this.toolStripSeparator16,
+            this.groupMenuAutoResize});
+            this.groupMenuStrip.Name = "groupMenuStrip";
+            this.groupMenuStrip.Size = new System.Drawing.Size(180, 88);
+            // 
+            // groupMenuEdit
+            // 
+            this.groupMenuEdit.Name = "groupMenuEdit";
+            this.groupMenuEdit.Size = new System.Drawing.Size(179, 24);
+            this.groupMenuEdit.Text = "&Edit Group...";
+            this.groupMenuEdit.Click += new System.EventHandler(this.groupMenuEdit_Click);
+            // 
+            // groupMenuDelete
+            // 
+            this.groupMenuDelete.Name = "groupMenuDelete";
+            this.groupMenuDelete.Size = new System.Drawing.Size(179, 24);
+            this.groupMenuDelete.Text = "&Delete Group";
+            this.groupMenuDelete.Click += new System.EventHandler(this.groupMenuDelete_Click);
+            // 
+            // toolStripSeparator16
+            // 
+            this.toolStripSeparator16.Name = "toolStripSeparator16";
+            this.toolStripSeparator16.Size = new System.Drawing.Size(176, 6);
+            // 
+            // groupMenuAutoResize
+            // 
+            this.groupMenuAutoResize.Name = "groupMenuAutoResize";
+            this.groupMenuAutoResize.Size = new System.Drawing.Size(179, 24);
+            this.groupMenuAutoResize.Text = "&Auto Resize";
+            this.groupMenuAutoResize.Click += new System.EventHandler(this.groupMenuAutoResize_Click);
             // 
             // panelContainer
             // 
@@ -1035,6 +1115,7 @@ namespace Notes
             this.menuStrip.ResumeLayout(false);
             this.menuStrip.PerformLayout();
             this.unitMenuStrip.ResumeLayout(false);
+            this.groupMenuStrip.ResumeLayout(false);
             this.statusStrip.ResumeLayout(false);
             this.statusStrip.PerformLayout();
             this.trayMenuStrip.ResumeLayout(false);
@@ -1054,6 +1135,7 @@ namespace Notes
         private System.Windows.Forms.OpenFileDialog openFileDialog;
         private System.Windows.Forms.SaveFileDialog saveFileDialog;
         private System.Windows.Forms.ToolStripMenuItem menuFileNew;
+        private System.Windows.Forms.ToolStripMenuItem menuFileNewGroup;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator2;
         private System.Windows.Forms.ToolStripMenuItem editToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem menuEditMovable;
@@ -1160,6 +1242,14 @@ namespace Notes
         private System.Windows.Forms.ToolStripMenuItem unitMenuStylePlayful;
         private System.Windows.Forms.ToolStripMenuItem unitMenuStyleProfessional;
         private System.Windows.Forms.ToolStripSeparator unitMenuSeparatorStyles;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator15;
+        private System.Windows.Forms.ToolStripMenuItem unitMenuAddToGroup;
+        private System.Windows.Forms.ToolStripMenuItem unitMenuRemoveFromGroup;
+        private System.Windows.Forms.ContextMenuStrip groupMenuStrip;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuEdit;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuDelete;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator16;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuAutoResize;
     }
 }
 

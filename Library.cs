@@ -134,6 +134,7 @@ namespace Notes
             public bool OptimizeForLargeFiles { get; set; }
             public bool EnableAnimations { get; set; }
             public ThemeMode Theme { get; set; }
+            public LogLevel LogLevel { get; set; }
 
             public GeneralSettings()
             {
@@ -154,6 +155,7 @@ namespace Notes
                 OptimizeForLargeFiles = false;
                 EnableAnimations = true;
                 Theme = ThemeMode.SystemDefault;
+                LogLevel = LogLevel.None;
             }
         }
 

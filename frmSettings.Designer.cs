@@ -93,6 +93,11 @@ namespace Notes
             this.groupBoxPerformance = new System.Windows.Forms.GroupBox();
             this.chkOptimizeForLargeFiles = new System.Windows.Forms.CheckBox();
             this.chkEnableAnimations = new System.Windows.Forms.CheckBox();
+            this.groupBoxLogging = new System.Windows.Forms.GroupBox();
+            this.cmbLogLevel = new System.Windows.Forms.ComboBox();
+            this.lblLogLevel = new System.Windows.Forms.Label();
+            this.btnOpenLogFile = new System.Windows.Forms.Button();
+            this.btnClearLogs = new System.Windows.Forms.Button();
             this.tabControl1.SuspendLayout();
             this.tabGeneral.SuspendLayout();
             this.groupBoxAutoSave.SuspendLayout();
@@ -113,6 +118,7 @@ namespace Notes
             this.groupBoxBehavior.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.numUndoLevels)).BeginInit();
             this.groupBoxPerformance.SuspendLayout();
+            this.groupBoxLogging.SuspendLayout();
             this.SuspendLayout();
             // 
             // btnSave
@@ -708,6 +714,7 @@ namespace Notes
             // 
             // tabAdvanced
             // 
+            this.tabAdvanced.Controls.Add(this.groupBoxLogging);
             this.tabAdvanced.Controls.Add(this.groupBoxPerformance);
             this.tabAdvanced.Controls.Add(this.groupBoxBehavior);
             this.tabAdvanced.Location = new System.Drawing.Point(4, 22);
@@ -813,6 +820,57 @@ namespace Notes
             this.chkEnableAnimations.Text = "Enable animations";
             this.chkEnableAnimations.UseVisualStyleBackColor = true;
             // 
+            // groupBoxLogging
+            // 
+            this.groupBoxLogging.Controls.Add(this.btnClearLogs);
+            this.groupBoxLogging.Controls.Add(this.btnOpenLogFile);
+            this.groupBoxLogging.Controls.Add(this.cmbLogLevel);
+            this.groupBoxLogging.Controls.Add(this.lblLogLevel);
+            this.groupBoxLogging.Location = new System.Drawing.Point(11, 216);
+            this.groupBoxLogging.Name = "groupBoxLogging";
+            this.groupBoxLogging.Size = new System.Drawing.Size(659, 90);
+            this.groupBoxLogging.TabIndex = 2;
+            this.groupBoxLogging.TabStop = false;
+            this.groupBoxLogging.Text = "Logging / Debugging";
+            // 
+            // lblLogLevel
+            // 
+            this.lblLogLevel.AutoSize = true;
+            this.lblLogLevel.Location = new System.Drawing.Point(15, 28);
+            this.lblLogLevel.Name = "lblLogLevel";
+            this.lblLogLevel.Size = new System.Drawing.Size(57, 13);
+            this.lblLogLevel.TabIndex = 0;
+            this.lblLogLevel.Text = "Log Level:";
+            // 
+            // cmbLogLevel
+            // 
+            this.cmbLogLevel.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.cmbLogLevel.FormattingEnabled = true;
+            this.cmbLogLevel.Location = new System.Drawing.Point(78, 25);
+            this.cmbLogLevel.Name = "cmbLogLevel";
+            this.cmbLogLevel.Size = new System.Drawing.Size(150, 21);
+            this.cmbLogLevel.TabIndex = 1;
+            // 
+            // btnOpenLogFile
+            // 
+            this.btnOpenLogFile.Location = new System.Drawing.Point(250, 23);
+            this.btnOpenLogFile.Name = "btnOpenLogFile";
+            this.btnOpenLogFile.Size = new System.Drawing.Size(120, 25);
+            this.btnOpenLogFile.TabIndex = 2;
+            this.btnOpenLogFile.Text = "Open Log File";
+            this.btnOpenLogFile.UseVisualStyleBackColor = true;
+            this.btnOpenLogFile.Click += new System.EventHandler(this.btnOpenLogFile_Click);
+            // 
+            // btnClearLogs
+            // 
+            this.btnClearLogs.Location = new System.Drawing.Point(380, 23);
+            this.btnClearLogs.Name = "btnClearLogs";
+            this.btnClearLogs.Size = new System.Drawing.Size(120, 25);
+            this.btnClearLogs.TabIndex = 3;
+            this.btnClearLogs.Text = "Clear Old Logs";
+            this.btnClearLogs.UseVisualStyleBackColor = true;
+            this.btnClearLogs.Click += new System.EventHandler(this.btnClearLogs_Click);
+            // 
             // frmSettings
             // 
             this.AcceptButton = this.btnSave;
@@ -863,6 +921,8 @@ namespace Notes
             ((System.ComponentModel.ISupportInitialize)(this.numUndoLevels)).EndInit();
             this.groupBoxPerformance.ResumeLayout(false);
             this.groupBoxPerformance.PerformLayout();
+            this.groupBoxLogging.ResumeLayout(false);
+            this.groupBoxLogging.PerformLayout();
             this.ResumeLayout(false);
 
         }
@@ -944,5 +1004,10 @@ namespace Notes
         private System.Windows.Forms.GroupBox groupBoxPerformance;
         private System.Windows.Forms.CheckBox chkOptimizeForLargeFiles;
         private System.Windows.Forms.CheckBox chkEnableAnimations;
+        private System.Windows.Forms.GroupBox groupBoxLogging;
+        private System.Windows.Forms.ComboBox cmbLogLevel;
+        private System.Windows.Forms.Label lblLogLevel;
+        private System.Windows.Forms.Button btnOpenLogFile;
+        private System.Windows.Forms.Button btnClearLogs;
     }
 }

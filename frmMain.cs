@@ -30,6 +30,32 @@ namespace Notes
             public string Category;
             public string[] Tags;
             public string ButtonType; // Store the custom button type name
+            public string GroupId; // Optional group association
+        }
+
+        public struct GroupStruct
+        {
+            public string Id;
+            public string Title;
+            public int X;
+            public int Y;
+            public int Width;
+            public int Height;
+            public int BorderColor;
+            public int BackgroundColor;
+            public int TextColor;
+        }
+
+        private class AppState
+        {
+            public Dictionary<string, UnitStruct> Units { get; set; } = new Dictionary<string, UnitStruct>();
+            public Dictionary<string, GroupStruct> Groups { get; set; } = new Dictionary<string, GroupStruct>();
+        }
+
+        private class NotesData
+        {
+            public Dictionary<string, UnitStruct> Units { get; set; } = new Dictionary<string, UnitStruct>();
+            public Dictionary<string, GroupStruct> Groups { get; set; } = new Dictionary<string, GroupStruct>();
         }
 
         // Status bar management
@@ -53,9 +79,10 @@ namespace Notes
         }
 
         private Dictionary<string, UnitStruct> Units = new Dictionary<string, UnitStruct>();
+        private Dictionary<string, GroupStruct> Groups = new Dictionary<string, GroupStruct>();
         private List<string> searchResults = new List<string>();
-        private Stack<Dictionary<string, UnitStruct>> undoStack = new Stack<Dictionary<string, UnitStruct>>();
-        private Stack<Dictionary<string, UnitStruct>> redoStack = new Stack<Dictionary<string, UnitStruct>>();
+        private Stack<AppState> undoStack = new Stack<AppState>();
+        private Stack<AppState> redoStack = new Stack<AppState>();
 
         public static UnitStruct selectedUnit = new UnitStruct();
         public static bool selectedUnitModified = false;
@@ -82,6 +109,11 @@ namespace Notes
         private Point selectionEnd;
         private Rectangle selectionRectangle;
         private HashSet<Button> selectedButtons = new HashSet<Button>();
+        private bool isMovingGroupBox = false;
+        private Point groupBoxMoveStart;
+        private GroupBox currentGroupBoxDrag;
+        private Point currentGroupBoxOriginalLocation;
+        private Dictionary<Button, Point> currentGroupBoxButtonOrigins = new Dictionary<Button, Point>();
         private bool isMovingGroup = false;
         private Point groupMoveStart;
         private Dictionary<Button, Point> groupOriginalPositions = new Dictionary<Button, Point>();
@@ -127,6 +159,9 @@ namespace Notes
             panelContainer.MouseDown += panelContainer_MouseDown;
             panelContainer.MouseMove += panelContainer_MouseMove;
             panelContainer.Paint += panelContainer_Paint;
+            panelContainer.DragEnter += panelContainer_DragEnter;
+            panelContainer.DragDrop += panelContainer_DragDrop;
+            panelContainer.AllowDrop = true;
             
             // Initialize status
             statusLabel.Text = "Ready";
@@ -401,6 +436,12 @@ namespace Notes
 
         private void frmMain_Load(object sender, EventArgs e)
         {
+            // Initialize logging system
+            LoadConfiguration();
+            Logger.Initialize(NotesLibrary.Instance.Config.General.LogLevel);
+            Logger.Info("Application starting");
+            Logger.Debug($"Log level: {NotesLibrary.Instance.Config.General.LogLevel}");
+            
             // Restore window size and position
             RestoreWindowState();
             
@@ -409,10 +450,12 @@ namespace Notes
             if (string.IsNullOrEmpty(Properties.Settings.Default.JsonData))
             {
                 status = "No saved notes found - Create your first note by right-clicking";
+                Logger.Info("No existing data found, creating welcome note");
                 CreateWelcomeNote();
             }
             else
             {
+                Logger.Info("Loading existing notes from storage");
                 loadJson(Properties.Settings.Default.JsonData);
                 loadConfig();
             }
@@ -493,11 +536,11 @@ namespace Notes
         private void SelectAllButtons()
         {
             ClearSelection();
-            foreach (Control control in panelContainer.Controls)
+            foreach (Control control in GetAllButtonsInPanel())
             {
-                if (control is Button btn)
+                if (control is Button button)
                 {
-                    SelectButton(btn);
+                    SelectButton(button);
                 }
             }
             status = $"Selected {selectedButtons.Count} buttons";
@@ -518,17 +561,17 @@ namespace Notes
             {
                 SaveStateForUndo();
                 var buttonsToDelete = selectedButtons.ToList();
-                
+
                 foreach (var btn in buttonsToDelete)
                 {
                     string id = (string)btn.Tag;
                     if (Units.ContainsKey(id))
                     {
                         Units.Remove(id);
-                        panelContainer.Controls.Remove(btn);
+                        RemoveButtonControl(btn);
                     }
                 }
-                
+
                 selectedButtons.Clear();
                 configModified = true;
                 status = $"Deleted {buttonsToDelete.Count} button(s)";
@@ -608,12 +651,9 @@ namespace Notes
 
         private void SaveStateForUndo()
         {
-            // Deep clone current state for undo
-            var currentState = JsonConvert.DeserializeObject<Dictionary<string, UnitStruct>>(
-                JsonConvert.SerializeObject(Units));
-            undoStack.Push(currentState);
+            var snapshot = CreateStateSnapshot();
+            undoStack.Push(snapshot);
             
-            // Limit undo history to 20 actions
             if (undoStack.Count > 20)
             {
                 var temp = undoStack.ToArray().Take(20).Reverse().ToArray();
@@ -622,20 +662,18 @@ namespace Notes
                     undoStack.Push(item);
             }
             
-            redoStack.Clear(); // Clear redo stack when new action is performed
+            redoStack.Clear();
         }
 
         public void PerformUndo()
         {
             if (undoStack.Count > 0)
             {
-                // Save current state to redo stack
-                var currentState = JsonConvert.DeserializeObject<Dictionary<string, UnitStruct>>(
-                    JsonConvert.SerializeObject(Units));
+                var currentState = CreateStateSnapshot();
                 redoStack.Push(currentState);
-                
-                // Restore previous state
-                Units = undoStack.Pop();
+
+                var previousState = undoStack.Pop();
+                RestoreState(previousState);
                 RefreshAllButtons();
                 configModified = true;
                 status = "Undo successful";
@@ -646,13 +684,11 @@ namespace Notes
         {
             if (redoStack.Count > 0)
             {
-                // Save current state to undo stack WITHOUT clearing redo stack
-                var currentState = JsonConvert.DeserializeObject<Dictionary<string, UnitStruct>>(
-                    JsonConvert.SerializeObject(Units));
+                var currentState = CreateStateSnapshot();
                 undoStack.Push(currentState);
-                
-                // Restore state from redo stack
-                Units = redoStack.Pop();
+
+                var redoState = redoStack.Pop();
+                RestoreState(redoState);
                 RefreshAllButtons();
                 configModified = true;
                 status = "Redo successful";
@@ -663,10 +699,17 @@ namespace Notes
         {
             ClearSelection();
             panelContainer.Controls.Clear();
+
+            foreach (var group in Groups.Values.OrderBy(g => g.X).ThenBy(g => g.Y))
+            {
+                AddGroupBoxToPanel(group);
+            }
+
             foreach (var kvp in Units)
             {
                 addButton(kvp.Key, kvp.Value);
             }
+
             UpdateUndoRedoMenuState();
         }
 
@@ -677,25 +720,21 @@ namespace Notes
             try
             {
                 panelContainer.Controls.Clear();
-                var newUnits = JsonConvert.DeserializeObject<Dictionary<string, UnitStruct>>(json);
+                var data = JsonConvert.DeserializeObject<NotesData>(json);
 
-                if (newUnits == null)
+                if (data == null || data.Units == null)
                 {
                     status = "No notes found";
                     return false;
                 }
-                else
-                {
-                    Units = newUnits;
 
-                    foreach (var keyValuePair in Units)
-                    {
-                        addButton(keyValuePair.Key, keyValuePair.Value);
-                    }
+                Units = data.Units;
+                Groups = data.Groups ?? new Dictionary<string, GroupStruct>();
 
-                    status = string.Format("Loaded {0} notes successfully", Units.Count);
-                    return true;
-                }
+                RefreshAllButtons();
+
+                status = string.Format("Loaded {0} notes successfully", Units.Count);
+                return true;
             }
             catch (Exception ex)
             {
@@ -733,7 +772,13 @@ namespace Notes
             newButton.BackColor = Color.FromArgb(unit.BackgroundColor);
             newButton.ForeColor = Color.FromArgb(unit.TextColor);
             newButton.Font = unit.Font ?? NotesLibrary.Instance.GetDefaultFont();
-            newButton.Location = new Point(unit.X, unit.Y);
+
+            GroupBox targetGroupBox = null;
+            if (!string.IsNullOrEmpty(unit.GroupId))
+            {
+                targetGroupBox = GetOrCreateGroupBox(unit.GroupId);
+            }
+
             newButton.ContextMenuStrip = unitMenuStrip;
             newButton.Cursor = Cursors.Hand;
             
@@ -754,7 +799,23 @@ namespace Notes
             newButton.KeyDown += newButton_KeyDown;
             newButton.KeyUp += newButton_KeyUp;
 
-            panelContainer.Controls.Add(newButton);
+            // Add button to appropriate container
+            if (targetGroupBox != null)
+            {
+                Point relativePos = new Point(
+                    unit.X - targetGroupBox.Location.X,
+                    unit.Y - targetGroupBox.Location.Y
+                );
+                newButton.Location = relativePos;
+                targetGroupBox.Controls.Add(newButton);
+                newButton.Visible = true;
+                newButton.BringToFront();
+            }
+            else
+            {
+                newButton.Location = new Point(unit.X, unit.Y);
+                panelContainer.Controls.Add(newButton);
+            }
         }
 
         private Button CreateButtonByType(string buttonType)
@@ -836,7 +897,13 @@ namespace Notes
         {
             try
             {
-                Properties.Settings.Default.JsonData = JsonConvert.SerializeObject(Units, Formatting.Indented);
+                var data = new NotesData
+                {
+                    Units = Units,
+                    Groups = Groups
+                };
+
+                Properties.Settings.Default.JsonData = JsonConvert.SerializeObject(data, Formatting.Indented);
                 Properties.Settings.Default.configAutofocus = isAutofocus;
                 
                 // Also save window state when saving other data
@@ -874,25 +941,34 @@ namespace Notes
             _unitDoubleClicked = true;
         }
 
-        private bool saveButtonLocation(Button btn)
+        private bool SaveButtonLocationAndGroup(Button btn)
         {
             string id = (string)btn.Tag;
 
             if (Units.ContainsKey(id))
             {
                 var item = Units[id];
-                item.X = btn.Location.X;
-                item.Y = btn.Location.Y;
+
+                if (btn.Parent is GroupBox groupBox)
+                {
+                    item.X = groupBox.Location.X + btn.Location.X;
+                    item.Y = groupBox.Location.Y + btn.Location.Y;
+                    item.GroupId = groupBox.Tag as string;
+                }
+                else
+                {
+                    item.X = btn.Location.X;
+                    item.Y = btn.Location.Y;
+                    item.GroupId = null;
+                }
+
                 Units[id] = item;
                 configModified = true;
                 status = "Moving successful";
                 return true;
             }
-            else
-            {
-                status = "Button not found";
-            }
 
+            status = "Button not found";
             return false;
         }
 
@@ -906,7 +982,7 @@ namespace Notes
                 // Save all button positions
                 foreach (var btn in selectedButtons)
                 {
-                    saveButtonLocation(btn);
+                    SaveButtonLocationAndGroup(btn);
                 }
                 
                 groupOriginalPositions.Clear();
@@ -920,7 +996,7 @@ namespace Notes
                 if (this.Origin_Cursor.X - Cursor.Position.X != 0 || this.Origin_Cursor.Y - Cursor.Position.Y != 0)
                 {
                     _unitMouseMoved = true;
-                    saveButtonLocation(sender as Button);
+                    SaveButtonLocationAndGroup(sender as Button);
                 }
             }
         }
@@ -972,23 +1048,53 @@ namespace Notes
                 int deltaX = currentPos.X - groupMoveStart.X;
                 int deltaY = currentPos.Y - groupMoveStart.Y;
                 
+                panelContainer.SuspendLayout();
                 foreach (var selectedBtn in selectedButtons)
                 {
                     if (groupOriginalPositions.ContainsKey(selectedBtn))
                     {
+                        Rectangle oldBounds = selectedBtn.Bounds;
                         selectedBtn.Location = new Point(
                             groupOriginalPositions[selectedBtn].X + deltaX,
                             groupOriginalPositions[selectedBtn].Y + deltaY
                         );
+                        
+                        // Invalidate both old and new positions
+                        if (selectedBtn.Parent != null)
+                        {
+                            selectedBtn.Parent.Invalidate(oldBounds);
+                            selectedBtn.Parent.Invalidate(selectedBtn.Bounds);
+                        }
                     }
                 }
+                panelContainer.ResumeLayout(false);
+                panelContainer.Update();
                 status = "Moving selected buttons";
             }
             else if (isMovable && this.BtnDragging)
             {
                 Button btn = sender as Button;
-                btn.Left = this.Origin_Control.X - (this.Origin_Cursor.X - Cursor.Position.X);
-                btn.Top = this.Origin_Control.Y - (this.Origin_Cursor.Y - Cursor.Position.Y);
+                Control parent = btn.Parent;
+                
+                // Store old bounds for invalidation
+                Rectangle oldBounds = btn.Bounds;
+                
+                // Calculate new position
+                int newLeft = this.Origin_Control.X - (this.Origin_Cursor.X - Cursor.Position.X);
+                int newTop = this.Origin_Control.Y - (this.Origin_Cursor.Y - Cursor.Position.Y);
+                
+                // Update position
+                btn.Left = newLeft;
+                btn.Top = newTop;
+                
+                // Invalidate old and new areas to prevent visual artifacts
+                if (parent != null)
+                {
+                    parent.Invalidate(oldBounds);
+                    parent.Invalidate(btn.Bounds);
+                    parent.Update();
+                }
+                
                 status = "Moving";
             }
             else if (isAutofocus)
@@ -1052,7 +1158,7 @@ namespace Notes
             if (btnMovingArrow)
             {
                 btnMovingArrow = false;
-                saveButtonLocation(sender as Button);
+                SaveButtonLocationAndGroup(sender as Button);
             }
         }
 
@@ -1307,6 +1413,37 @@ namespace Notes
             }
         }
 
+        private void menuFileNewGroup_Click(object sender, EventArgs e)
+        {
+            Logger.LogMethodEntry("menuFileNewGroup_Click");
+            
+            frmAddGroup addGroupForm = new frmAddGroup { IsEditMode = false };
+            frmAddGroup.selectedGroupModified = false;
+            frmAddGroup.selectedGroup = new GroupStruct();
+
+            addGroupForm.ShowDialog();
+
+            if (frmAddGroup.selectedGroupModified)
+            {
+                SaveStateForUndo();
+                frmAddGroup.selectedGroupModified = false;
+                var group = frmAddGroup.selectedGroup;
+
+                Logger.Info($"Creating new group: Id={group.Id}, Title={group.Title}, Location=({group.X},{group.Y}), Size=({group.Width}x{group.Height})");
+                
+                Groups.Add(group.Id, group);
+                AddGroupBoxToPanel(group);
+
+                configModified = true;
+                status = "New group added";
+                UpdateUndoRedoMenuState();
+                
+                Logger.Debug($"Group added successfully. Total groups: {Groups.Count}");
+            }
+            
+            Logger.LogMethodExit("menuFileNewGroup_Click");
+        }
+
         private void menuFileSave_Click(object sender, EventArgs e)
         {
             saveJson();
@@ -1423,13 +1560,20 @@ namespace Notes
             ToolStripMenuItem item = sender as ToolStripMenuItem;
             isMovable = item.Checked;
 
+            // Update AllowResize for all group boxes
+            foreach (var control in panelContainer.Controls.OfType<ResizableGroupBox>())
+            {
+                control.AllowResize = isMovable;
+                control.UpdateResizeHandleVisibility();
+            }
+
             if (item.Checked)
             {
-                status = "Movable buttons";
+                status = "Movable buttons / Resizable groups";
             }
             else
             {
-                status = "Non-movable buttons";
+                status = "Non-movable buttons / Non-resizable groups";
             }
         }
 
@@ -1550,7 +1694,7 @@ namespace Notes
                 {
                     SaveStateForUndo();
                     Units.Remove(id);
-                    panelContainer.Controls.Remove(btn);
+                    RemoveButtonControl(btn);
 
                     configModified = true;
                     status = "Deleted successfully";
@@ -1637,7 +1781,11 @@ namespace Notes
                         // Store location and remove old button
                         Point location = btn.Location;
                         Rectangle oldBounds = btn.Bounds;
-                        panelContainer.Controls.Remove(btn);
+                        Control parent = btn.Parent;
+                        if (parent != null)
+                        {
+                            parent.Controls.Remove(btn);
+                        }
                         btn.Dispose();
                         
                         // Create new button with correct type
@@ -1647,7 +1795,15 @@ namespace Notes
                         newBtn.BackColor = Color.FromArgb(copiedUnit.Value.BackgroundColor);
                         newBtn.ForeColor = Color.FromArgb(copiedUnit.Value.TextColor);
                         newBtn.Font = copiedUnit.Value.Font;
-                        newBtn.Location = location;
+                        if (parent is GroupBox parentGroup)
+                        {
+                            var parentLocation = parentGroup.PointToClient(panelContainer.PointToScreen(location));
+                            newBtn.Location = parentLocation;
+                        }
+                        else
+                        {
+                            newBtn.Location = location;
+                        }
                         newBtn.AutoSize = true;
                         newBtn.AutoSizeMode = AutoSizeMode.GrowAndShrink;
                         newBtn.ContextMenuStrip = unitMenuStrip;
@@ -1670,7 +1826,14 @@ namespace Notes
                         newBtn.KeyDown += newButton_KeyDown;
                         newBtn.KeyUp += newButton_KeyUp;
                         
-                        panelContainer.Controls.Add(newBtn);
+                        if (parent is GroupBox parentGroupBox)
+                        {
+                            parentGroupBox.Controls.Add(newBtn);
+                        }
+                        else
+                        {
+                            AddButtonControl(newBtn);
+                        }
                         panelContainer.Invalidate(oldBounds);
                         panelContainer.Refresh();
                     }
@@ -1732,7 +1895,463 @@ namespace Notes
             }
         }
 
+        private void unitMenuAddToGroup_Click(object sender, EventArgs e)
+        {
+            Logger.LogMethodEntry("unitMenuAddToGroup_Click");
+            
+            var item = getContextMenuInfo(sender);
+            if (item == null)
+            {
+                Logger.Warning("No context menu info found");
+                return;
+            }
 
+            var btn = item.Button;
+            var id = item.Id;
+
+            Logger.Debug($"Adding button to group - Button ID: {id}, Text: {btn.Text}");
+
+            if (!Units.ContainsKey(id))
+            {
+                Logger.Error($"Unit ID not found in Units dictionary: {id}");
+                return;
+            }
+
+            // Show dialog to select group
+            if (Groups.Count == 0)
+            {
+                Logger.Info("No groups available, prompting user to create one");
+                MessageBox.Show("No groups available. Please create a group first.", AppName, 
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            
+            Logger.Debug($"Available groups: {Groups.Count}");
+
+            // Create a simple selection dialog
+            Form selectGroupForm = new Form
+            {
+                Text = "Select Group",
+                Width = 350,
+                Height = 200,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                StartPosition = FormStartPosition.CenterParent,
+                MaximizeBox = false,
+                MinimizeBox = false
+            };
+
+            ComboBox comboBox = new ComboBox
+            {
+                Left = 20,
+                Top = 20,
+                Width = 290,
+                DropDownStyle = ComboBoxStyle.DropDownList
+            };
+
+            foreach (var group in Groups.Values)
+            {
+                comboBox.Items.Add($"{group.Title} ({group.Id})");
+            }
+
+            if (comboBox.Items.Count > 0)
+                comboBox.SelectedIndex = 0;
+
+            Button okButton = new Button
+            {
+                Text = "OK",
+                Left = 130,
+                Top = 70,
+                DialogResult = DialogResult.OK
+            };
+
+            Button cancelButton = new Button
+            {
+                Text = "Cancel",
+                Left = 220,
+                Top = 70,
+                DialogResult = DialogResult.Cancel
+            };
+
+            selectGroupForm.Controls.Add(comboBox);
+            selectGroupForm.Controls.Add(okButton);
+            selectGroupForm.Controls.Add(cancelButton);
+            selectGroupForm.AcceptButton = okButton;
+            selectGroupForm.CancelButton = cancelButton;
+
+            if (selectGroupForm.ShowDialog() == DialogResult.OK && comboBox.SelectedIndex >= 0)
+            {
+                SaveStateForUndo();
+
+                var selectedGroupId = Groups.Keys.ElementAt(comboBox.SelectedIndex);
+                var unit = Units[id];
+                
+                Logger.Info($"Selected group: {selectedGroupId}");
+                Logger.Debug($"Button current parent: {btn.Parent?.GetType().Name ?? "null"}");
+                Logger.Debug($"Button current location (relative to parent): {btn.Location}");
+                
+                // Calculate absolute position in panel coordinates
+                Point absolutePos;
+                if (btn.Parent == panelContainer)
+                {
+                    // Already in panel, location IS absolute
+                    absolutePos = btn.Location;
+                    Logger.Debug($"Button parent is panelContainer, location is absolute: {absolutePos}");
+                }
+                else if (btn.Parent is GroupBox oldGroupBox)
+                {
+                    // In a group, convert relative to absolute
+                    absolutePos = new Point(
+                        oldGroupBox.Location.X + btn.Location.X,
+                        oldGroupBox.Location.Y + btn.Location.Y
+                    );
+                    Logger.Debug($"Button in old GroupBox at {oldGroupBox.Location}, button relative pos: {btn.Location}, calculated absolute: {absolutePos}");
+                }
+                else
+                {
+                    // Fallback - should not happen
+                    absolutePos = btn.Location;
+                    Logger.Warning($"Button parent is unknown type: {btn.Parent?.GetType().Name ?? "null"}, using location as-is: {absolutePos}");
+                }
+
+                Logger.Info($"Button absolute position in panel: {absolutePos}");
+
+                // Remove from current parent
+                if (btn.Parent is GroupBox oldGroup)
+                {
+                    Logger.Debug($"Removing button from old group: {oldGroup.Text}");
+                    oldGroup.Controls.Remove(btn);
+                }
+                else
+                {
+                    Logger.Debug("Removing button from panel container");
+                    panelContainer.Controls.Remove(btn);
+                }
+
+                // Add to new group
+                var newGroupBox = GetOrCreateGroupBox(selectedGroupId);
+                if (newGroupBox != null)
+                {
+                    Logger.Debug($"New group box found/created: {newGroupBox.Text}, Location: {newGroupBox.Location}, Size: {newGroupBox.Size}");
+                    Logger.Debug($"Group box type: {newGroupBox.GetType().Name}");
+                    Logger.Debug($"Group box controls count before add: {newGroupBox.Controls.Count}");
+                    
+                    unit.GroupId = selectedGroupId;
+                    
+                    Point relativePos = new Point(
+                        absolutePos.X - newGroupBox.Location.X,
+                        absolutePos.Y - newGroupBox.Location.Y
+                    );
+                    
+                    Logger.Debug($"Initial calculated relative position: {relativePos}");
+                    
+                    // Check if button would be outside the group box visible area
+                    const int minPadding = 20;  // Minimum padding from edges
+                    const int titleHeight = 25; // Space for the title
+                    
+                    if (relativePos.X < minPadding || relativePos.Y < titleHeight ||
+                        relativePos.X > newGroupBox.Width - btn.Width - minPadding ||
+                        relativePos.Y > newGroupBox.Height - btn.Height - minPadding)
+                    {
+                        // Button would be outside visible area, place it at a sensible position inside
+                        relativePos = new Point(minPadding, titleHeight + 10);
+                        Logger.Info($"Button position adjusted to be inside group: {relativePos}");
+                        
+                        // Update absolute position to match
+                        absolutePos = new Point(
+                            newGroupBox.Location.X + relativePos.X,
+                            newGroupBox.Location.Y + relativePos.Y
+                        );
+                    }
+                    
+                    unit.X = absolutePos.X;
+                    unit.Y = absolutePos.Y;
+                    
+                    // Ensure button is visible and positioned correctly
+                    btn.Visible = true;
+                    btn.Enabled = true;
+                    Logger.Debug($"Button Visible: {btn.Visible}, Enabled: {btn.Enabled}, Size: {btn.Size}");
+                    
+                    newGroupBox.Controls.Add(btn);
+                    Logger.Debug($"Button added to group controls. Count after add: {newGroupBox.Controls.Count}");
+                    
+                    btn.Location = relativePos;
+                    Logger.Debug($"Button location set to: {btn.Location}");
+                    
+                    btn.BringToFront();
+                    Logger.Debug($"Button brought to front. Z-order index: {newGroupBox.Controls.GetChildIndex(btn)}");
+                    
+                    Units[id] = unit;
+                    
+                    // Force redraw
+                    newGroupBox.PerformLayout();
+                    newGroupBox.Refresh();
+                    
+                    Logger.Info($"Button successfully added to group. Button bounds: {btn.Bounds}, Visible: {btn.Visible}");
+                    
+                    // Show detailed debug info
+                    string debugInfo = $"Button Added to Group!\n" +
+                        $"Button ID: {id}\n" +
+                        $"Button Text: {btn.Text}\n" +
+                        $"Absolute Position: {absolutePos}\n" +
+                        $"Group Location: {newGroupBox.Location}\n" +
+                        $"Relative Position: {relativePos}\n" +
+                        $"Button.Location: {btn.Location}\n" +
+                        $"Button.Bounds: {btn.Bounds}\n" +
+                        $"Button.Visible: {btn.Visible}\n" +
+                        $"Button.Enabled: {btn.Enabled}\n" +
+                        $"Button in Controls: {newGroupBox.Controls.Contains(btn)}\n" +
+                        $"Group Controls Count: {newGroupBox.Controls.Count}\n" +
+                        $"Group Size: {newGroupBox.Size}";
+                    
+                    MessageBox.Show(debugInfo, "Debug Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                else
+                {
+                    Logger.Error($"Failed to get or create group box for ID: {selectedGroupId}");
+                }
+
+                configModified = true;
+                status = "Button added to group";
+                UpdateUndoRedoMenuState();
+            }
+            
+            Logger.LogMethodExit("unitMenuAddToGroup_Click");
+        }
+
+        private void unitMenuRemoveFromGroup_Click(object sender, EventArgs e)
+        {
+            var item = getContextMenuInfo(sender);
+            if (item == null) return;
+
+            var btn = item.Button;
+            var id = item.Id;
+
+            if (!Units.ContainsKey(id)) return;
+
+            var unit = Units[id];
+            if (string.IsNullOrEmpty(unit.GroupId)) return;
+
+            SaveStateForUndo();
+
+            // Get absolute position
+            Point absolutePos = btn.Parent.PointToScreen(btn.Location);
+            absolutePos = panelContainer.PointToClient(absolutePos);
+
+            // Remove from group
+            if (btn.Parent is GroupBox groupBox)
+            {
+                groupBox.Controls.Remove(btn);
+            }
+
+            // Add to panel
+            unit.GroupId = null;
+            unit.X = absolutePos.X;
+            unit.Y = absolutePos.Y;
+            btn.Location = absolutePos;
+            btn.Parent = panelContainer;
+            panelContainer.Controls.Add(btn);
+
+            Units[id] = unit;
+
+            configModified = true;
+            status = "Button removed from group";
+            UpdateUndoRedoMenuState();
+        }
+
+        private void groupMenuEdit_Click(object sender, EventArgs e)
+        {
+            ContextMenuStrip contextMenu = (sender as ToolStripMenuItem)?.Owner as ContextMenuStrip;
+            if (contextMenu?.SourceControl is GroupBox groupBox)
+            {
+                string groupId = groupBox.Tag as string;
+                if (string.IsNullOrEmpty(groupId) || !Groups.ContainsKey(groupId))
+                    return;
+
+                frmAddGroup.selectedGroup = Groups[groupId];
+                frmAddGroup.selectedGroupModified = false;
+
+                frmAddGroup editGroupForm = new frmAddGroup { IsEditMode = true };
+                editGroupForm.ShowDialog();
+
+                if (frmAddGroup.selectedGroupModified)
+                {
+                    SaveStateForUndo();
+
+                    var updatedGroup = frmAddGroup.selectedGroup;
+                    Groups[groupId] = updatedGroup;
+
+                    groupBox.Text = updatedGroup.Title;
+                    groupBox.Location = new Point(updatedGroup.X, updatedGroup.Y);
+                    groupBox.Size = new Size(updatedGroup.Width, updatedGroup.Height);
+                    groupBox.BackColor = updatedGroup.BackgroundColor != 0 ? Color.FromArgb(updatedGroup.BackgroundColor) : Color.WhiteSmoke;
+                    groupBox.ForeColor = updatedGroup.TextColor != 0 ? Color.FromArgb(updatedGroup.TextColor) : Color.Black;
+                    groupBox.Invalidate(); // Redraw to apply colors
+
+                    configModified = true;
+                    status = "Group updated";
+                    UpdateUndoRedoMenuState();
+                }
+            }
+        }
+
+        private void groupMenuDelete_Click(object sender, EventArgs e)
+        {
+            ContextMenuStrip contextMenu = (sender as ToolStripMenuItem)?.Owner as ContextMenuStrip;
+            if (contextMenu?.SourceControl is GroupBox groupBox)
+            {
+                string groupId = groupBox.Tag as string;
+                if (string.IsNullOrEmpty(groupId) || !Groups.ContainsKey(groupId))
+                    return;
+
+                DialogResult result = MessageBox.Show(
+                    "Do you want to delete this group? Buttons inside will be moved to the main panel.",
+                    AppName,
+                    MessageBoxButtons.OKCancel,
+                    MessageBoxIcon.Question);
+
+                if (result == DialogResult.OK)
+                {
+                    SaveStateForUndo();
+
+                    // Move all buttons to main panel
+                    var buttonsToMove = groupBox.Controls.OfType<Button>().ToList();
+                    foreach (var btn in buttonsToMove)
+                    {
+                        string btnId = btn.Tag as string;
+                        if (!string.IsNullOrEmpty(btnId) && Units.ContainsKey(btnId))
+                        {
+                            // Get absolute position
+                            Point absolutePos = groupBox.PointToScreen(btn.Location);
+                            absolutePos = panelContainer.PointToClient(absolutePos);
+
+                            var unit = Units[btnId];
+                            unit.GroupId = null;
+                            unit.X = absolutePos.X;
+                            unit.Y = absolutePos.Y;
+                            Units[btnId] = unit;
+
+                            groupBox.Controls.Remove(btn);
+                            btn.Location = absolutePos;
+                            btn.Parent = panelContainer;
+                            panelContainer.Controls.Add(btn);
+                        }
+                    }
+
+                    // Remove group
+                    Groups.Remove(groupId);
+                    panelContainer.Controls.Remove(groupBox);
+                    groupBox.Dispose();
+
+                    configModified = true;
+                    status = "Group deleted";
+                    UpdateUndoRedoMenuState();
+                }
+            }
+        }
+
+        private void groupMenuAutoResize_Click(object sender, EventArgs e)
+        {
+            ContextMenuStrip contextMenu = (sender as ToolStripMenuItem)?.Owner as ContextMenuStrip;
+            if (contextMenu?.SourceControl is GroupBox groupBox)
+            {
+                string groupId = groupBox.Tag as string;
+                if (string.IsNullOrEmpty(groupId) || !Groups.ContainsKey(groupId))
+                    return;
+
+                AutoResizeGroup(groupBox);
+
+                configModified = true;
+                status = "Group resized";
+            }
+        }
+
+        private void AutoResizeGroup(GroupBox groupBox)
+        {
+            if (groupBox == null || groupBox.Controls.Count == 0)
+                return;
+
+            string groupId = groupBox.Tag as string;
+            if (string.IsNullOrEmpty(groupId) || !Groups.ContainsKey(groupId))
+                return;
+
+            // Calculate bounds of all buttons
+            int minX = int.MaxValue;
+            int minY = int.MaxValue;
+            int maxX = int.MinValue;
+            int maxY = int.MinValue;
+
+            foreach (Button btn in groupBox.Controls.OfType<Button>())
+            {
+                minX = Math.Min(minX, btn.Left);
+                minY = Math.Min(minY, btn.Top);
+                maxX = Math.Max(maxX, btn.Right);
+                maxY = Math.Max(maxY, btn.Bottom);
+            }
+
+            if (minX == int.MaxValue) // No buttons found
+                return;
+
+            // Add padding
+            const int padding = 20;
+            const int titleHeight = 30;
+
+            int newWidth = maxX - minX + padding * 2;
+            int newHeight = maxY - minY + padding + titleHeight;
+
+            // Ensure minimum size
+            newWidth = Math.Max(newWidth, 150);
+            newHeight = Math.Max(newHeight, 100);
+
+            // Adjust button positions if needed
+            if (minX < padding || minY < titleHeight)
+            {
+                int offsetX = Math.Max(0, padding - minX);
+                int offsetY = Math.Max(0, titleHeight - minY);
+
+                foreach (Button btn in groupBox.Controls.OfType<Button>())
+                {
+                    btn.Left += offsetX;
+                    btn.Top += offsetY;
+
+                    // Update unit data
+                    string btnId = btn.Tag as string;
+                    if (!string.IsNullOrEmpty(btnId) && Units.ContainsKey(btnId))
+                    {
+                        var unit = Units[btnId];
+                        Point absolutePos = groupBox.PointToScreen(btn.Location);
+                        absolutePos = panelContainer.PointToClient(absolutePos);
+                        unit.X = absolutePos.X;
+                        unit.Y = absolutePos.Y;
+                        Units[btnId] = unit;
+                    }
+                }
+
+                newWidth += offsetX;
+                newHeight += offsetY;
+            }
+
+            groupBox.Size = new Size(newWidth, newHeight);
+
+            var group = Groups[groupId];
+            group.Width = newWidth;
+            group.Height = newHeight;
+            Groups[groupId] = group;
+        }
+
+        private void unitMenuStrip_Opening(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            // Get the button that triggered the context menu
+            if (unitMenuStrip.SourceControl is Button btn)
+            {
+                string id = btn.Tag as string;
+                if (!string.IsNullOrEmpty(id) && Units.ContainsKey(id))
+                {
+                    var unit = Units[id];
+                    // Enable "Remove from Group" only if button is in a group
+                    unitMenuRemoveFromGroup.Enabled = !string.IsNullOrEmpty(unit.GroupId);
+                }
+            }
+        }
 
 
 
@@ -1818,7 +2437,7 @@ namespace Notes
             int column = 0;
             int maxHeightInRow = 0;
 
-            var buttons = panelContainer.Controls.OfType<Button>().ToList();
+            var buttons = GetAllButtonsInPanel().Cast<Button>().ToList();
             
             foreach (var btn in buttons)
             {
@@ -1886,8 +2505,7 @@ namespace Notes
                 var unit = kvp.Value;
                 
                 // Find the button for this unit
-                var btn = panelContainer.Controls.OfType<Button>()
-                    .FirstOrDefault(b => (string)b.Tag == id);
+                var btn = FindButtonById(id);
                     
                 if (btn != null)
                 {
@@ -1958,8 +2576,7 @@ namespace Notes
                 var unit = kvp.Value;
                 
                 // Find the button for this unit
-                var btn = panelContainer.Controls.OfType<Button>()
-                    .FirstOrDefault(b => (string)b.Tag == id);
+                var btn = FindButtonById(id);
                     
                 if (btn != null)
                 {
@@ -2007,7 +2624,7 @@ namespace Notes
             const int startX = 5;
             const int startY = 5;
             
-            var buttons = panelContainer.Controls.OfType<Button>().OrderBy(b => 
+            var buttons = GetAllButtonsInPanel().Cast<Button>().OrderBy(b => 
             {
                 // Sort by current position (top-to-bottom, left-to-right)
                 return b.Location.Y * 10000 + b.Location.X;
@@ -2062,7 +2679,7 @@ namespace Notes
 
             SaveStateForUndo();
 
-            var buttons = panelContainer.Controls.OfType<Button>().ToList();
+            var buttons = GetAllButtonsInPanel().Cast<Button>().ToList();
             if (buttons.Count == 0)
             {
                 status = "No buttons to check";
@@ -2275,7 +2892,7 @@ namespace Notes
             else
             {
                 // Style all buttons (from View menu when nothing selected)
-                buttonsToStyle = panelContainer.Controls.OfType<Button>().ToList();
+                buttonsToStyle = GetAllButtonsInPanel().Cast<Button>().ToList();
             }
 
             if (buttonsToStyle.Count == 0)
@@ -2322,7 +2939,7 @@ namespace Notes
                         
                         // Remove and dispose
                         Rectangle oldBounds = btn.Bounds;
-                        panelContainer.Controls.Remove(btn);
+                        RemoveButtonControl(btn);
                         btn.Dispose();
                         panelContainer.Invalidate(oldBounds);
                     }
@@ -2364,7 +2981,7 @@ namespace Notes
                 newBtn.KeyDown += newButton_KeyDown;
                 newBtn.KeyUp += newButton_KeyUp;
 
-                panelContainer.Controls.Add(newBtn);
+                AddButtonControl(newBtn);
             }
 
             // Resume layout and refresh
@@ -2400,7 +3017,7 @@ namespace Notes
             else
             {
                 // Style all buttons (from View menu when nothing selected)
-                buttonsToStyle = panelContainer.Controls.OfType<Button>().ToList();
+                buttonsToStyle = GetAllButtonsInPanel().Cast<Button>().ToList();
             }
 
             if (buttonsToStyle.Count == 0)
@@ -2464,7 +3081,7 @@ namespace Notes
             else
             {
                 // Style all buttons (from View menu when nothing selected)
-                buttonsToReplace = panelContainer.Controls.OfType<Button>().ToList();
+                buttonsToReplace = GetAllButtonsInPanel().Cast<Button>().ToList();
             }
 
             if (buttonsToReplace.Count == 0)
@@ -2881,6 +3498,318 @@ namespace Notes
                 contextInfo?.Button
             );
         }
+
+        private IEnumerable<Button> GetAllButtonsInPanel()
+        {
+            foreach (Control control in panelContainer.Controls)
+            {
+                if (control is Button button)
+                {
+                    yield return button;
+                }
+                else if (control is GroupBox groupBox)
+                {
+                    foreach (Button childButton in groupBox.Controls.OfType<Button>())
+                    {
+                        yield return childButton;
+                    }
+                }
+            }
+        }
+
+        private Button FindButtonById(string id)
+        {
+            foreach (Button button in GetAllButtonsInPanel())
+            {
+                if ((string)button.Tag == id)
+                {
+                    return button;
+                }
+            }
+
+            return null;
+        }
+
+        private void RemoveButtonControl(Button button)
+        {
+            if (button.Parent is GroupBox groupBox)
+            {
+                groupBox.Controls.Remove(button);
+
+                if (groupBox.Controls.OfType<Button>().Count() == 0)
+                {
+                    string groupId = groupBox.Tag as string;
+                    if (!string.IsNullOrEmpty(groupId) && Groups.ContainsKey(groupId))
+                    {
+                        Groups.Remove(groupId);
+                    }
+
+                    panelContainer.Controls.Remove(groupBox);
+                    groupBox.Dispose();
+                }
+            }
+            else
+            {
+                panelContainer.Controls.Remove(button);
+            }
+        }
+
+        private void AddButtonControl(Button button)
+        {
+            // This method is no longer needed since we add buttons directly in addButton
+            // Kept for backward compatibility with other parts of code
+            if (button.Parent == null)
+            {
+                panelContainer.Controls.Add(button);
+            }
+            else if (button.Parent is GroupBox groupBox && !groupBox.Controls.Contains(button))
+            {
+                groupBox.Controls.Add(button);
+            }
+        }
+
+        private GroupBox GetOrCreateGroupBox(string groupId)
+        {
+            Logger.Debug($"GetOrCreateGroupBox called for: {groupId}");
+            
+            if (string.IsNullOrEmpty(groupId))
+            {
+                Logger.Warning("GetOrCreateGroupBox called with null/empty groupId");
+                return null;
+            }
+
+            var groupBox = panelContainer.Controls
+                .OfType<GroupBox>()
+                .FirstOrDefault(gb => (string)gb.Tag == groupId);
+
+            if (groupBox != null)
+            {
+                Logger.Debug($"Existing group box found: {groupBox.Text}, Controls count: {groupBox.Controls.Count}");
+                return groupBox;
+            }
+
+            if (!Groups.ContainsKey(groupId))
+            {
+                Logger.Error($"Group ID not found in Groups dictionary: {groupId}");
+                return null;
+            }
+
+            var group = Groups[groupId];
+            Logger.Info($"Creating new ResizableGroupBox for group: {group.Title}");
+
+            var resizableGroupBox = new ResizableGroupBox
+            {
+                Tag = group.Id,
+                Text = group.Title,
+                Location = new Point(group.X, group.Y),
+                Size = new Size(group.Width, group.Height),
+                AllowResize = isMovable, // Enable resize handle in movable mode
+                BackColor = group.BackgroundColor != 0 ? Color.FromArgb(group.BackgroundColor) : Color.WhiteSmoke,
+                ForeColor = group.TextColor != 0 ? Color.FromArgb(group.TextColor) : Color.Black
+            };
+
+            Logger.Debug($"ResizableGroupBox created - Location: {resizableGroupBox.Location}, Size: {resizableGroupBox.Size}");
+
+            // Note: BorderColor is handled in the custom paint method via ForeColor
+
+            resizableGroupBox.MouseDown += GroupBox_MouseDown;
+            resizableGroupBox.MouseMove += GroupBox_MouseMove;
+            resizableGroupBox.MouseUp += GroupBox_MouseUp;
+            resizableGroupBox.ContextMenuStrip = groupMenuStrip;
+            resizableGroupBox.SizeChanged += GroupBox_SizeChanged;
+
+            panelContainer.Controls.Add(resizableGroupBox);
+            Logger.Debug($"ResizableGroupBox added to panel. Panel controls count: {panelContainer.Controls.Count}");
+
+            return resizableGroupBox;
+        }
+
+        private void GroupBox_SizeChanged(object sender, EventArgs e)
+        {
+            if (sender is ResizableGroupBox groupBox)
+            {
+                string groupId = groupBox.Tag as string;
+                if (!string.IsNullOrEmpty(groupId) && Groups.ContainsKey(groupId))
+                {
+                    var group = Groups[groupId];
+                    group.Width = groupBox.Width;
+                    group.Height = groupBox.Height;
+                    Groups[groupId] = group;
+                    configModified = true;
+                }
+            }
+        }
+
+        private void panelContainer_DragEnter(object sender, DragEventArgs e)
+        {
+            if (e.Data != null && e.Data.GetDataPresent(typeof(GroupBox)))
+            {
+                e.Effect = DragDropEffects.Move;
+            }
+            else
+            {
+                e.Effect = DragDropEffects.None;
+            }
+        }
+
+        private void panelContainer_DragDrop(object sender, DragEventArgs e)
+        {
+            if (e.Data == null || !e.Data.GetDataPresent(typeof(GroupBox)))
+                return;
+
+            GroupBox groupBox = e.Data.GetData(typeof(GroupBox)) as GroupBox;
+            if (groupBox == null)
+                return;
+
+            Point dropPoint = panelContainer.PointToClient(new Point(e.X, e.Y));
+            MoveGroupBox(groupBox, dropPoint);
+        }
+
+        private void MoveGroupBox(GroupBox groupBox, Point newLocation)
+        {
+            string groupId = groupBox.Tag as string;
+            if (string.IsNullOrEmpty(groupId) || !Groups.ContainsKey(groupId))
+                return;
+
+            MoveGroupBoxTo(groupBox, newLocation);
+
+            configModified = true;
+            status = "Group moved";
+            UpdateUndoRedoMenuState();
+        }
+
+        private void AddGroupBoxToPanel(GroupStruct group)
+        {
+            Logger.Debug($"AddGroupBoxToPanel - Group: {group.Id}, Title: {group.Title}, Location: ({group.X},{group.Y}), Size: ({group.Width}x{group.Height})");
+            
+            var groupBox = GetOrCreateGroupBox(group.Id);
+
+            if (groupBox == null)
+            {
+                Logger.Error($"Failed to get or create group box for: {group.Id}");
+                return;
+            }
+
+            groupBox.Text = group.Title;
+            groupBox.Location = new Point(group.X, group.Y);
+            groupBox.Size = new Size(group.Width, group.Height);
+            groupBox.BackColor = group.BackgroundColor != 0 ? Color.FromArgb(group.BackgroundColor) : Color.WhiteSmoke;
+            groupBox.ForeColor = group.TextColor != 0 ? Color.FromArgb(group.TextColor) : Color.Black;
+            
+            Logger.Debug($"Group box configured - Actual location: {groupBox.Location}, Size: {groupBox.Size}, BackColor: {groupBox.BackColor}");
+            
+            if (groupBox is ResizableGroupBox resizableGroupBox)
+            {
+                resizableGroupBox.AllowResize = isMovable;
+                resizableGroupBox.UpdateResizeHandleVisibility();
+                Logger.Debug($"ResizableGroupBox AllowResize set to: {isMovable}");
+            }
+        }
+
+        private void GroupBox_MouseDown(object sender, MouseEventArgs e)
+        {
+            if (!isMovable || e.Button != MouseButtons.Left)
+                return;
+
+            // Don't start drag if clicking on resize handle
+            if (sender is ResizableGroupBox resizable && resizable.IsResizing)
+                return;
+
+            currentGroupBoxDrag = sender as GroupBox;
+            if (currentGroupBoxDrag == null)
+                return;
+
+            groupBoxMoveStart = e.Location;
+            currentGroupBoxOriginalLocation = currentGroupBoxDrag.Location;
+
+            isMovingGroupBox = true;
+        }
+
+        private void GroupBox_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (!isMovingGroupBox || currentGroupBoxDrag == null)
+                return;
+
+            // Check if we're in resize mode
+            if (sender is ResizableGroupBox resizable && resizable.IsResizing)
+            {
+                isMovingGroupBox = false;
+                return;
+            }
+
+            // Calculate new location based on CURRENT mouse position relative to panel
+            Point mouseInPanel = panelContainer.PointToClient(Cursor.Position);
+            Point newLocation = new Point(
+                mouseInPanel.X - groupBoxMoveStart.X,
+                mouseInPanel.Y - groupBoxMoveStart.Y);
+
+            currentGroupBoxDrag.Location = newLocation;
+        }
+
+        private void GroupBox_MouseUp(object sender, MouseEventArgs e)
+        {
+            if (!isMovingGroupBox || currentGroupBoxDrag == null)
+                return;
+
+            isMovingGroupBox = false;
+
+            MoveGroupBoxTo(currentGroupBoxDrag, currentGroupBoxDrag.Location);
+
+            currentGroupBoxDrag = null;
+            currentGroupBoxButtonOrigins.Clear();
+        }
+
+        private void MoveGroupBoxTo(GroupBox groupBox, Point newLocation)
+        {
+            string groupId = groupBox.Tag as string;
+            if (string.IsNullOrEmpty(groupId) || !Groups.ContainsKey(groupId))
+                return;
+
+            groupBox.Location = newLocation;
+
+            // Update button absolute positions in the data model
+            foreach (Button button in groupBox.Controls.OfType<Button>())
+            {
+                string btnId = button.Tag as string;
+                if (!string.IsNullOrEmpty(btnId) && Units.ContainsKey(btnId))
+                {
+                    var unit = Units[btnId];
+                    // Calculate absolute position: group location + button's relative position
+                    Point absolutePos = new Point(
+                        groupBox.Location.X + button.Location.X,
+                        groupBox.Location.Y + button.Location.Y);
+                    unit.X = absolutePos.X;
+                    unit.Y = absolutePos.Y;
+                    Units[btnId] = unit;
+                }
+            }
+
+            var groupStruct = Groups[groupId];
+            groupStruct.X = newLocation.X;
+            groupStruct.Y = newLocation.Y;
+            groupStruct.Width = groupBox.Width;
+            groupStruct.Height = groupBox.Height;
+            Groups[groupId] = groupStruct;
+        }
+
+        private AppState CreateStateSnapshot()
+        {
+            return new AppState
+            {
+                Units = JsonConvert.DeserializeObject<Dictionary<string, UnitStruct>>(
+                    JsonConvert.SerializeObject(Units)),
+                Groups = JsonConvert.DeserializeObject<Dictionary<string, GroupStruct>>(
+                    JsonConvert.SerializeObject(Groups))
+            };
+        }
+
+        private void RestoreState(AppState state)
+        {
+            Units = JsonConvert.DeserializeObject<Dictionary<string, UnitStruct>>(
+                JsonConvert.SerializeObject(state.Units));
+            Groups = JsonConvert.DeserializeObject<Dictionary<string, GroupStruct>>(
+                JsonConvert.SerializeObject(state.Groups));
+        }
     }
 }
 
@@ -2889,6 +3818,156 @@ public class DoubleClickButton : Button
     public DoubleClickButton()
     {
         SetStyle(ControlStyles.StandardClick | ControlStyles.StandardDoubleClick, true);
+    }
+}
+
+public class ResizableGroupBox : GroupBox
+{
+    private bool isResizing = false;
+    private Point resizeStart;
+    private Size originalSize;
+    private const int RESIZE_HANDLE_SIZE = 16;
+    private Panel resizeHandlePanel;
+
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public bool AllowResize { get; set; } = true;
+
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public bool IsResizing => isResizing;
+
+    public ResizableGroupBox()
+    {
+        this.DoubleBuffered = true;
+        CreateResizeHandle();
+    }
+
+    private void CreateResizeHandle()
+    {
+        resizeHandlePanel = new Panel
+        {
+            Width = RESIZE_HANDLE_SIZE,
+            Height = RESIZE_HANDLE_SIZE,
+            BackColor = Color.Transparent,
+            Cursor = Cursors.SizeNWSE,
+            Anchor = AnchorStyles.Bottom | AnchorStyles.Right
+        };
+
+        resizeHandlePanel.Paint += ResizeHandlePanel_Paint;
+        resizeHandlePanel.MouseDown += ResizeHandlePanel_MouseDown;
+        resizeHandlePanel.MouseMove += ResizeHandlePanel_MouseMove;
+        resizeHandlePanel.MouseUp += ResizeHandlePanel_MouseUp;
+
+        this.Controls.Add(resizeHandlePanel);
+        PositionResizeHandle();
+    }
+    
+    protected override void OnControlAdded(ControlEventArgs e)
+    {
+        base.OnControlAdded(e);
+        // Ensure resize handle stays on top
+        if (resizeHandlePanel != null && AllowResize && e.Control != resizeHandlePanel)
+        {
+            resizeHandlePanel.BringToFront();
+        }
+    }
+
+    private void PositionResizeHandle()
+    {
+        if (resizeHandlePanel != null)
+        {
+            resizeHandlePanel.Location = new Point(
+                this.Width - RESIZE_HANDLE_SIZE - 2,
+                this.Height - RESIZE_HANDLE_SIZE - 2);
+            resizeHandlePanel.Visible = AllowResize;
+            if (AllowResize)
+            {
+                resizeHandlePanel.BringToFront();
+            }
+        }
+    }
+
+    private void ResizeHandlePanel_Paint(object sender, PaintEventArgs e)
+    {
+        if (!AllowResize) return;
+
+        // Draw resize handle background
+        using (SolidBrush handleBrush = new SolidBrush(Color.FromArgb(150, this.ForeColor)))
+        {
+            e.Graphics.FillRectangle(handleBrush, 0, 0, RESIZE_HANDLE_SIZE, RESIZE_HANDLE_SIZE);
+        }
+
+        // Draw grip lines
+        using (Pen gripPen = new Pen(Color.FromArgb(200, this.Parent?.BackColor ?? SystemColors.Control), 2))
+        {
+            e.Graphics.DrawLine(gripPen, 4, 12, 12, 4);
+            e.Graphics.DrawLine(gripPen, 7, 12, 12, 7);
+            e.Graphics.DrawLine(gripPen, 10, 12, 12, 10);
+        }
+    }
+
+    private void ResizeHandlePanel_MouseDown(object sender, MouseEventArgs e)
+    {
+        if (!AllowResize || e.Button != MouseButtons.Left)
+            return;
+
+        isResizing = true;
+        resizeStart = this.PointToClient(Cursor.Position);
+        originalSize = this.Size;
+    }
+
+    private void ResizeHandlePanel_MouseMove(object sender, MouseEventArgs e)
+    {
+        if (!isResizing)
+            return;
+
+        Point currentMouse = this.PointToClient(Cursor.Position);
+        int newWidth = originalSize.Width + (currentMouse.X - resizeStart.X);
+        int newHeight = originalSize.Height + (currentMouse.Y - resizeStart.Y);
+
+        newWidth = Math.Max(150, newWidth);
+        newHeight = Math.Max(100, newHeight);
+
+        Rectangle oldBounds = this.Bounds;
+        this.Size = new Size(newWidth, newHeight);
+        
+        // Invalidate old and new areas to prevent artifacts
+        if (this.Parent != null)
+        {
+            this.Parent.Invalidate(oldBounds);
+            this.Parent.Invalidate(this.Bounds);
+            this.Parent.Update();
+        }
+    }
+
+    private void ResizeHandlePanel_MouseUp(object sender, MouseEventArgs e)
+    {
+        if (!isResizing)
+            return;
+
+        isResizing = false;
+        
+        // Notify parent that resize is complete
+        OnSizeChanged(EventArgs.Empty);
+    }
+
+    protected override void OnResize(EventArgs e)
+    {
+        base.OnResize(e);
+        PositionResizeHandle();
+    }
+
+    protected override void OnLayout(LayoutEventArgs e)
+    {
+        base.OnLayout(e);
+        PositionResizeHandle();
+    }
+
+    public void UpdateResizeHandleVisibility()
+    {
+        if (resizeHandlePanel != null)
+        {
+            resizeHandlePanel.Visible = AllowResize;
+        }
     }
 }
 
