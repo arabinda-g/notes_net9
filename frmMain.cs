@@ -2459,6 +2459,12 @@ namespace Notes
                 Color foreColor = oldGroupBox.ForeColor;
                 string title = oldGroupBox.Text;
 
+                // Remove buttons from old group before disposing
+                foreach (var btn in buttons)
+                {
+                    oldGroupBox.Controls.Remove(btn);
+                }
+
                 // Remove old group
                 Logger.Debug($"Removing old GroupBox from panel");
                 panelContainer.Controls.Remove(oldGroupBox);

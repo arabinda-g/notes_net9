@@ -34,6 +34,40 @@ namespace Notes
 
         private static void ShowErrorDialog(Exception? ex)
         {
+            // Log detailed exception information if logging is enabled
+            if (Logger.CurrentLogLevel != LogLevel.None)
+            {
+                if (ex != null)
+                {
+                    Logger.Error("========== UNHANDLED EXCEPTION ==========");
+                    Logger.Error($"Exception Type: {ex.GetType().FullName}");
+                    Logger.Error($"Message: {ex.Message}");
+                    Logger.Error($"Source: {ex.Source}");
+                    Logger.Error($"Stack Trace:\n{ex.StackTrace}");
+                    
+                    // Log inner exceptions recursively
+                    var innerEx = ex.InnerException;
+                    int innerCount = 1;
+                    while (innerEx != null)
+                    {
+                        Logger.Error($"--- Inner Exception #{innerCount} ---");
+                        Logger.Error($"Type: {innerEx.GetType().FullName}");
+                        Logger.Error($"Message: {innerEx.Message}");
+                        Logger.Error($"Stack Trace:\n{innerEx.StackTrace}");
+                        innerEx = innerEx.InnerException;
+                        innerCount++;
+                    }
+                    
+                    Logger.Error("=========================================");
+                }
+                else
+                {
+                    Logger.Error("========== UNHANDLED EXCEPTION ==========");
+                    Logger.Error("Unknown error - no exception details available");
+                    Logger.Error("=========================================");
+                }
+            }
+            
             string message = string.Format("An unexpected error occurred:\n\n{0}\n\nThe application will continue running.", 
                 ex != null ? ex.Message : "Unknown error");
             MessageBox.Show(message, NotesLibrary.AppName, MessageBoxButtons.OK, MessageBoxIcon.Error);
