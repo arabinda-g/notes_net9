@@ -1904,21 +1904,52 @@ namespace Notes
         {
             Logger.LogMethodEntry("unitMenuAddToGroup_Click");
             
-            var item = getContextMenuInfo(sender);
-            if (item == null)
+            // Get buttons to add to group
+            List<Button> buttonsToAdd = new List<Button>();
+            List<string> buttonIds = new List<string>();
+
+            if (selectedButtons.Count > 0)
             {
-                Logger.Warning("No context menu info found");
-                return;
+                // Multiple buttons selected
+                Logger.Debug($"Adding {selectedButtons.Count} selected buttons to group");
+                foreach (var btn in selectedButtons)
+                {
+                    string btnId = btn.Tag as string;
+                    if (!string.IsNullOrEmpty(btnId) && Units.ContainsKey(btnId))
+                    {
+                        buttonsToAdd.Add(btn);
+                        buttonIds.Add(btnId);
+                    }
+                }
+            }
+            else
+            {
+                // Single button from context menu
+                var item = getContextMenuInfo(sender);
+                if (item == null)
+                {
+                    Logger.Warning("No context menu info found");
+                    return;
+                }
+
+                var btn = item.Button;
+                var id = item.Id;
+
+                Logger.Debug($"Adding single button to group - Button ID: {id}, Text: {btn.Text}");
+
+                if (!Units.ContainsKey(id))
+                {
+                    Logger.Error($"Unit ID not found in Units dictionary: {id}");
+                    return;
+                }
+
+                buttonsToAdd.Add(btn);
+                buttonIds.Add(id);
             }
 
-            var btn = item.Button;
-            var id = item.Id;
-
-            Logger.Debug($"Adding button to group - Button ID: {id}, Text: {btn.Text}");
-
-            if (!Units.ContainsKey(id))
+            if (buttonsToAdd.Count == 0)
             {
-                Logger.Error($"Unit ID not found in Units dictionary: {id}");
+                Logger.Warning("No valid buttons to add to group");
                 return;
             }
 
@@ -1931,31 +1962,42 @@ namespace Notes
                 return;
             }
             
-            Logger.Debug($"Available groups: {Groups.Count}");
+            Logger.Debug($"Available groups: {Groups.Count}, Buttons to add: {buttonsToAdd.Count}");
 
-            // Create a simple selection dialog
+            // Create selection dialog
             Form selectGroupForm = new Form
             {
                 Text = "Select Group",
-                Width = 350,
-                Height = 200,
+                Width = 400,
+                Height = 160,
                 FormBorderStyle = FormBorderStyle.FixedDialog,
                 StartPosition = FormStartPosition.CenterParent,
                 MaximizeBox = false,
-                MinimizeBox = false
+                MinimizeBox = false,
+                Font = new Font("Segoe UI", 9f)
+            };
+
+            Label label = new Label
+            {
+                Text = "Select a group:",
+                Left = 20,
+                Top = 20,
+                Width = 350,
+                Font = new Font("Segoe UI", 9f)
             };
 
             ComboBox comboBox = new ComboBox
             {
                 Left = 20,
-                Top = 20,
-                Width = 290,
-                DropDownStyle = ComboBoxStyle.DropDownList
+                Top = 45,
+                Width = 345,
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Font = new Font("Segoe UI", 9f)
             };
 
             foreach (var group in Groups.Values)
             {
-                comboBox.Items.Add($"{group.Title} ({group.Id})");
+                comboBox.Items.Add($"{group.Title}");
             }
 
             if (comboBox.Items.Count > 0)
@@ -1964,19 +2006,24 @@ namespace Notes
             Button okButton = new Button
             {
                 Text = "OK",
-                Left = 130,
-                Top = 70,
+                Left = 195,
+                Top = 80,
+                Width = 80,
+                Height = 28,
                 DialogResult = DialogResult.OK
             };
 
             Button cancelButton = new Button
             {
                 Text = "Cancel",
-                Left = 220,
-                Top = 70,
+                Left = 285,
+                Top = 80,
+                Width = 80,
+                Height = 28,
                 DialogResult = DialogResult.Cancel
             };
 
+            selectGroupForm.Controls.Add(label);
             selectGroupForm.Controls.Add(comboBox);
             selectGroupForm.Controls.Add(okButton);
             selectGroupForm.Controls.Add(cancelButton);
@@ -1988,58 +2035,55 @@ namespace Notes
                 SaveStateForUndo();
 
                 var selectedGroupId = Groups.Keys.ElementAt(comboBox.SelectedIndex);
-                var unit = Units[id];
-                
-                Logger.Info($"Selected group: {selectedGroupId}");
-                Logger.Debug($"Button current parent: {btn.Parent?.GetType().Name ?? "null"}");
-                Logger.Debug($"Button current location (relative to parent): {btn.Location}");
-                
-                // Calculate absolute position in panel coordinates
-                Point absolutePos;
-                if (btn.Parent == panelContainer)
-                {
-                    // Already in panel, location IS absolute
-                    absolutePos = btn.Location;
-                    Logger.Debug($"Button parent is panelContainer, location is absolute: {absolutePos}");
-                }
-                else if (btn.Parent is GroupBox oldGroupBox)
-                {
-                    // In a group, convert relative to absolute
-                    absolutePos = new Point(
-                        oldGroupBox.Location.X + btn.Location.X,
-                        oldGroupBox.Location.Y + btn.Location.Y
-                    );
-                    Logger.Debug($"Button in old GroupBox at {oldGroupBox.Location}, button relative pos: {btn.Location}, calculated absolute: {absolutePos}");
-                }
-                else
-                {
-                    // Fallback - should not happen
-                    absolutePos = btn.Location;
-                    Logger.Warning($"Button parent is unknown type: {btn.Parent?.GetType().Name ?? "null"}, using location as-is: {absolutePos}");
-                }
-
-                Logger.Info($"Button absolute position in panel: {absolutePos}");
-
-                // Remove from current parent
-                if (btn.Parent is GroupBox oldGroup)
-                {
-                    Logger.Debug($"Removing button from old group: {oldGroup.Text}");
-                    oldGroup.Controls.Remove(btn);
-                }
-                else
-                {
-                    Logger.Debug("Removing button from panel container");
-                    panelContainer.Controls.Remove(btn);
-                }
-
-                // Add to new group
                 var newGroupBox = GetOrCreateGroupBox(selectedGroupId);
-                if (newGroupBox != null)
+                
+                if (newGroupBox == null)
                 {
-                    Logger.Debug($"New group box found/created: {newGroupBox.Text}, Location: {newGroupBox.Location}, Size: {newGroupBox.Size}");
-                    Logger.Debug($"Group box type: {newGroupBox.GetType().Name}");
-                    Logger.Debug($"Group box controls count before add: {newGroupBox.Controls.Count}");
-                    
+                    Logger.Error($"Failed to get or create group box for ID: {selectedGroupId}");
+                    return;
+                }
+
+                Logger.Info($"Selected group: {selectedGroupId}, Adding {buttonsToAdd.Count} button(s)");
+
+                int addedCount = 0;
+                const int minPadding = 20;
+                const int titleHeight = 25;
+                int stackOffset = 0;
+
+                for (int i = 0; i < buttonsToAdd.Count; i++)
+                {
+                    var btn = buttonsToAdd[i];
+                    var id = buttonIds[i];
+                    var unit = Units[id];
+
+                    // Calculate absolute position
+                    Point absolutePos;
+                    if (btn.Parent == panelContainer)
+                    {
+                        absolutePos = btn.Location;
+                    }
+                    else if (btn.Parent is GroupBox oldGroupBox)
+                    {
+                        absolutePos = new Point(
+                            oldGroupBox.Location.X + btn.Location.X,
+                            oldGroupBox.Location.Y + btn.Location.Y
+                        );
+                    }
+                    else
+                    {
+                        absolutePos = btn.Location;
+                    }
+
+                    // Remove from current parent
+                    if (btn.Parent is GroupBox oldGroup)
+                    {
+                        oldGroup.Controls.Remove(btn);
+                    }
+                    else
+                    {
+                        panelContainer.Controls.Remove(btn);
+                    }
+
                     unit.GroupId = selectedGroupId;
                     
                     Point relativePos = new Point(
@@ -2047,21 +2091,15 @@ namespace Notes
                         absolutePos.Y - newGroupBox.Location.Y
                     );
                     
-                    Logger.Debug($"Initial calculated relative position: {relativePos}");
-                    
-                    // Check if button would be outside the group box visible area
-                    const int minPadding = 20;  // Minimum padding from edges
-                    const int titleHeight = 25; // Space for the title
-                    
+                    // Check if outside visible area
                     if (relativePos.X < minPadding || relativePos.Y < titleHeight ||
                         relativePos.X > newGroupBox.Width - btn.Width - minPadding ||
                         relativePos.Y > newGroupBox.Height - btn.Height - minPadding)
                     {
-                        // Button would be outside visible area, place it at a sensible position inside
-                        relativePos = new Point(minPadding, titleHeight + 10);
-                        Logger.Info($"Button position adjusted to be inside group: {relativePos}");
+                        // Stack buttons vertically if adding multiple
+                        relativePos = new Point(minPadding, titleHeight + 10 + stackOffset);
+                        stackOffset += btn.Height + 10;
                         
-                        // Update absolute position to match
                         absolutePos = new Point(
                             newGroupBox.Location.X + relativePos.X,
                             newGroupBox.Location.Y + relativePos.Y
@@ -2071,35 +2109,23 @@ namespace Notes
                     unit.X = absolutePos.X;
                     unit.Y = absolutePos.Y;
                     
-                    // Ensure button is visible and positioned correctly
                     btn.Visible = true;
                     btn.Enabled = true;
-                    Logger.Debug($"Button Visible: {btn.Visible}, Enabled: {btn.Enabled}, Size: {btn.Size}");
-                    
                     newGroupBox.Controls.Add(btn);
-                    Logger.Debug($"Button added to group controls. Count after add: {newGroupBox.Controls.Count}");
-                    
                     btn.Location = relativePos;
-                    Logger.Debug($"Button location set to: {btn.Location}");
-                    
                     btn.BringToFront();
-                    Logger.Debug($"Button brought to front. Z-order index: {newGroupBox.Controls.GetChildIndex(btn)}");
                     
                     Units[id] = unit;
-                    
-                    // Force redraw
-                    newGroupBox.PerformLayout();
-                    newGroupBox.Refresh();
-                    
-                    Logger.Info($"Button successfully added to group. Button bounds: {btn.Bounds}, Visible: {btn.Visible}");
-                }
-                else
-                {
-                    Logger.Error($"Failed to get or create group box for ID: {selectedGroupId}");
+                    addedCount++;
                 }
 
+                newGroupBox.PerformLayout();
+                newGroupBox.Refresh();
+                
+                Logger.Info($"Successfully added {addedCount} button(s) to group");
+
                 configModified = true;
-                status = "Button added to group";
+                status = $"{addedCount} button(s) added to group";
                 UpdateUndoRedoMenuState();
             }
             
