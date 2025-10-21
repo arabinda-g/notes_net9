@@ -248,7 +248,7 @@ namespace Notes
             try
             {
                 const string startupKeyPath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
-                string? appPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
+                string? appPath = Application.ExecutablePath;
                 
                 using (RegistryKey? key = Registry.CurrentUser.OpenSubKey(startupKeyPath, true))
                 {
