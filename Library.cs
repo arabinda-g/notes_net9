@@ -124,6 +124,7 @@ namespace Notes
             public bool ConfirmExit { get; set; }
             public bool ShowTrayIcon { get; set; }
             public bool MinimizeToTray { get; set; }
+            public bool CloseToTray { get; set; }
             public bool StartMinimized { get; set; }
             public bool StartWithWindows { get; set; }
             public bool AutoBackup { get; set; }
@@ -145,6 +146,7 @@ namespace Notes
                 ConfirmExit = false;
                 ShowTrayIcon = true;
                 MinimizeToTray = false;
+                CloseToTray = false;
                 StartMinimized = false;
                 StartWithWindows = false;
                 AutoBackup = true;

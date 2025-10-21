@@ -126,6 +126,7 @@ namespace Notes
         private void ChkShowTrayIcon_CheckedChanged(object sender, EventArgs e)
         {
             chkMinimizeToTray.Enabled = chkShowTrayIcon.Checked;
+            chkCloseToTray.Enabled = chkShowTrayIcon.Checked;
             chkStartMinimized.Enabled = chkShowTrayIcon.Checked;
         }
 
@@ -150,6 +151,7 @@ namespace Notes
                 chkConfirmExit.Checked = config.General.ConfirmExit;
                 chkShowTrayIcon.Checked = config.General.ShowTrayIcon;
                 chkMinimizeToTray.Checked = config.General.MinimizeToTray;
+                chkCloseToTray.Checked = config.General.CloseToTray;
                 chkStartMinimized.Checked = config.General.StartMinimized;
                 
                 // Check actual registry state for startup setting
@@ -220,6 +222,7 @@ namespace Notes
             chkConfirmExit.CheckedChanged += (s, e) => MarkAsChanged();
             chkShowTrayIcon.CheckedChanged += (s, e) => MarkAsChanged();
             chkMinimizeToTray.CheckedChanged += (s, e) => MarkAsChanged();
+            chkCloseToTray.CheckedChanged += (s, e) => MarkAsChanged();
             chkStartMinimized.CheckedChanged += (s, e) => MarkAsChanged();
             chkStartWithWindows.CheckedChanged += (s, e) => MarkAsChanged();
 
@@ -378,6 +381,7 @@ namespace Notes
                 config.General.ConfirmExit = chkConfirmExit.Checked;
                 config.General.ShowTrayIcon = chkShowTrayIcon.Checked;
                 config.General.MinimizeToTray = chkMinimizeToTray.Checked;
+                config.General.CloseToTray = chkCloseToTray.Checked;
                 config.General.StartMinimized = chkStartMinimized.Checked;
                 config.General.StartWithWindows = chkStartWithWindows.Checked;
                 config.General.AutoBackup = chkAutoBackup.Checked;

@@ -137,17 +137,27 @@ namespace Notes
             SetupAutoSave();
             LoadConfiguration();
             SetupSystemThemeMonitoring();
-            RegisterGlobalHotkey();
+            // Don't register hotkey here - handle isn't created yet
+            // It will be registered in OnHandleCreated
             
             // Enable key preview to catch keyboard events
             this.KeyPreview = true;
             this.KeyDown += frmMain_KeyDown;
         }
 
+        protected override void OnHandleCreated(EventArgs e)
+        {
+            base.OnHandleCreated(e);
+            
+            // Now that the handle is created, we can register the hotkey
+            RegisterGlobalHotkey();
+        }
+
         private void InitializeCustomComponents()
         {
             Icon = Properties.Resources.Notes;
             trayIcon.Icon = Icon;
+            trayIcon.Text = AppName;
             tmrClickHandle.Interval = SystemInformation.DoubleClickTime;
 
             // Apply theme styling
@@ -156,6 +166,7 @@ namespace Notes
             // Setup events
             this.Resize += frmMain_Resize;
             this.FormClosing += frmMain_FormClosing;
+            trayIcon.MouseClick += TrayIcon_MouseClick;
             panelContainer.MouseUp += panelContainer_MouseUp;
             panelContainer.MouseDown += panelContainer_MouseDown;
             panelContainer.MouseMove += panelContainer_MouseMove;
@@ -200,6 +211,12 @@ namespace Notes
                 autoSaveTimer.Start();
             }
             
+            // Apply tray icon settings
+            trayIcon.Visible = config.General.ShowTrayIcon;
+            
+            // Apply window settings
+            this.TopMost = config.Window.AlwaysOnTop;
+            
             // Apply theme after loading configuration
             ApplyCurrentTheme();
             
@@ -212,10 +229,20 @@ namespace Notes
         {
             try
             {
+                // Make sure handle is created
+                if (!this.IsHandleCreated)
+                {
+                    Logger.Debug("Hotkey registration skipped - Handle not created yet");
+                    return;
+                }
+
                 var config = NotesLibrary.Instance.Config;
                 
                 if (!config.Hotkey.Enabled)
+                {
+                    Logger.Debug("Hotkey registration skipped - Hotkey not enabled in settings");
                     return;
+                }
 
                 // Calculate modifier flags
                 int modifiers = 0;
@@ -231,13 +258,22 @@ namespace Notes
                         modifiers |= 0x0008; // MOD_WIN
                 }
 
+                Logger.Debug($"Attempting to register hotkey: Modifiers={modifiers}, Key={config.Hotkey.Key} ({(int)config.Hotkey.Key})");
+
                 // Register the hotkey
                 bool success = Win32.RegisterHotKey(this.Handle, HOTKEY_ID, modifiers, (int)config.Hotkey.Key);
                 
                 if (!success)
                 {
                     // Hotkey registration failed (might be already in use)
-                    System.Diagnostics.Debug.WriteLine("Failed to register global hotkey");
+                    int error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+                    Logger.Warning($"Failed to register global hotkey. Error code: {error}. The hotkey might be in use by another application.");
+                    MessageBox.Show("Failed to register global hotkey. The hotkey combination might be in use by another application.", 
+                        AppName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+                else
+                {
+                    Logger.Info($"Global hotkey registered successfully: {string.Join("+", config.Hotkey.Modifiers.Select(m => m.ToString()))}+{config.Hotkey.Key}");
                 }
             }
             catch (Exception ex)
@@ -250,48 +286,66 @@ namespace Notes
         {
             try
             {
-                Win32.UnregisterHotKey(this.Handle, HOTKEY_ID);
+                if (this.IsHandleCreated)
+                {
+                    Win32.UnregisterHotKey(this.Handle, HOTKEY_ID);
+                    Logger.Debug("Global hotkey unregistered");
+                }
             }
             catch (Exception ex)
             {
+                Logger.Warning($"Error unregistering hotkey: {ex.Message}");
                 System.Diagnostics.Debug.WriteLine($"Error unregistering hotkey: {ex.Message}");
             }
         }
 
         protected override void WndProc(ref Message m)
         {
-            base.WndProc(ref m);
-
             if (m.Msg == WM_HOTKEY && m.WParam.ToInt32() == HOTKEY_ID)
             {
+                Logger.Debug("Global hotkey pressed - activating window");
                 // Global hotkey was pressed - bring window to front
                 ActivateAndBringToFront();
+                return; // Don't pass this message to base
             }
+
+            base.WndProc(ref m);
         }
 
         private void ActivateAndBringToFront()
         {
             try
             {
-                // If minimized, restore
+                // Show the form if it's hidden (instant since it's kept in RAM)
+                if (!this.Visible)
+                {
+                    this.ShowInTaskbar = true;
+                    this.Show();
+                    Logger.Debug("Window restored from tray");
+                }
+                
+                // If minimized, restore using Win32 for speed
                 if (this.WindowState == FormWindowState.Minimized)
                 {
+                    Win32.ShowWindow(this.Handle, Win32.SW_RESTORE);
                     this.WindowState = FormWindowState.Normal;
                 }
                 
-                // Show the form if it's hidden
-                if (!this.Visible)
-                {
-                    this.Show();
-                }
+                // Force window to top with Win32 APIs for instant response
+                Win32.ShowWindow(this.Handle, Win32.SW_SHOW);
+                Win32.SetWindowPos(this.Handle, Win32.HWND_TOPMOST, 0, 0, 0, 0, 
+                    Win32.SWP_NOMOVE | Win32.SWP_NOSIZE | Win32.SWP_SHOWWINDOW);
+                Win32.SetWindowPos(this.Handle, Win32.HWND_NOTOPMOST, 0, 0, 0, 0, 
+                    Win32.SWP_NOMOVE | Win32.SWP_NOSIZE | Win32.SWP_SHOWWINDOW);
+                Win32.SetForegroundWindow(this.Handle);
                 
-                // Bring to front and activate
+                // Also use managed methods for safety
                 this.Activate();
-                this.BringToFront();
                 this.Focus();
             }
             catch (Exception ex)
             {
+                Logger.Warning($"Error activating window: {ex.Message}");
                 System.Diagnostics.Debug.WriteLine($"Error activating window: {ex.Message}");
             }
         }
@@ -511,6 +565,14 @@ namespace Notes
         private void frmMain_Resize(object sender, EventArgs e)
         {
             ResizePanel();
+            
+            // Handle minimize to tray
+            var config = NotesLibrary.Instance.Config;
+            if (this.WindowState == FormWindowState.Minimized && config.General.MinimizeToTray && config.General.ShowTrayIcon)
+            {
+                this.Hide();
+                this.ShowInTaskbar = false;
+            }
         }
 
         private void frmMain_KeyDown(object sender, KeyEventArgs e)
@@ -592,11 +654,26 @@ namespace Notes
 
         private void frmMain_FormClosing(object sender, FormClosingEventArgs e)
         {
+            var config = NotesLibrary.Instance.Config;
+            
+            // Check if we should minimize to tray instead of closing
+            if (config.General.CloseToTray && config.General.ShowTrayIcon && e.CloseReason == CloseReason.UserClosing)
+            {
+                e.Cancel = true;
+                // Keep window in RAM for instant reopening - just hide it without minimizing
+                this.Hide();
+                this.ShowInTaskbar = false;
+                Logger.Debug("Application hidden to tray (close to tray enabled) - keeping in RAM for instant reopening");
+                return;
+            }
+            
+            // Only cleanup if actually closing (not just hiding to tray)
             if (autoSaveTimer != null)
                 autoSaveTimer.Stop();
             
-            // Unregister global hotkey
+            // Unregister global hotkey only when actually closing
             UnregisterGlobalHotkey();
+            Logger.Info("Unregistered global hotkey - application closing");
             
             // Stop monitoring system theme changes
             ThemeManager.StopSystemThemeMonitoring();
@@ -607,7 +684,6 @@ namespace Notes
             
             if (configModified)
             {
-                var config = NotesLibrary.Instance.Config;
                 if (config.General.AutoSave)
                 {
                     saveJson();
@@ -633,6 +709,52 @@ namespace Notes
             // Save window state again if the operation wasn't cancelled
             if (!e.Cancel)
                 SaveWindowState();
+        }
+
+        private void TrayIcon_MouseClick(object sender, MouseEventArgs e)
+        {
+            // Only handle left click
+            if (e.Button == MouseButtons.Left)
+            {
+                // Instant show - window is kept in RAM
+                ActivateAndBringToFront();
+            }
+        }
+
+        private void trayMenuOpen_Click(object sender, EventArgs e)
+        {
+            // Show and activate the window
+            this.Show();
+            this.ShowInTaskbar = true;
+            if (this.WindowState == FormWindowState.Minimized)
+            {
+                this.WindowState = FormWindowState.Normal;
+            }
+            ActivateAndBringToFront();
+        }
+
+        private void trayMenuResetPosition_Click(object sender, EventArgs e)
+        {
+            this.StartPosition = FormStartPosition.CenterScreen;
+            this.CenterToScreen();
+            status = "Window position reset to center";
+        }
+
+        private void trayMenuResetSize_Click(object sender, EventArgs e)
+        {
+            this.Size = new Size(800, 600);
+            this.StartPosition = FormStartPosition.CenterScreen;
+            this.CenterToScreen();
+            status = "Window size reset to 800x600";
+        }
+
+        private void trayMenuExit_Click(object sender, EventArgs e)
+        {
+            // Force exit by disabling CloseToTray temporarily
+            var config = NotesLibrary.Instance.Config;
+            bool originalCloseToTray = config.General.CloseToTray;
+            config.General.CloseToTray = false;
+            Application.Exit();
         }
 
         private void AutoSaveTimer_Tick(object sender, EventArgs e)

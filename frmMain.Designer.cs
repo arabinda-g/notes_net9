@@ -1236,6 +1236,7 @@ namespace Notes
             this.toolStripMenuItem3.Name = "toolStripMenuItem3";
             this.toolStripMenuItem3.Size = new System.Drawing.Size(170, 24);
             this.toolStripMenuItem3.Text = "Open";
+            this.toolStripMenuItem3.Click += new System.EventHandler(this.trayMenuOpen_Click);
             // 
             // toolStripSeparator7
             // 
@@ -1247,12 +1248,14 @@ namespace Notes
             this.toolStripMenuItem4.Name = "toolStripMenuItem4";
             this.toolStripMenuItem4.Size = new System.Drawing.Size(170, 24);
             this.toolStripMenuItem4.Text = "Reset Position";
+            this.toolStripMenuItem4.Click += new System.EventHandler(this.trayMenuResetPosition_Click);
             // 
             // toolStripMenuItem5
             // 
             this.toolStripMenuItem5.Name = "toolStripMenuItem5";
             this.toolStripMenuItem5.Size = new System.Drawing.Size(170, 24);
             this.toolStripMenuItem5.Text = "Reset Size";
+            this.toolStripMenuItem5.Click += new System.EventHandler(this.trayMenuResetSize_Click);
             // 
             // toolStripSeparator8
             // 
@@ -1264,6 +1267,7 @@ namespace Notes
             this.toolStripMenuItem6.Name = "toolStripMenuItem6";
             this.toolStripMenuItem6.Size = new System.Drawing.Size(170, 24);
             this.toolStripMenuItem6.Text = "Exit";
+            this.toolStripMenuItem6.Click += new System.EventHandler(this.trayMenuExit_Click);
             // 
             // frmMain
             // 

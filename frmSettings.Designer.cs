@@ -47,6 +47,7 @@ namespace Notes
             this.chkConfirmExit = new System.Windows.Forms.CheckBox();
             this.groupBoxSystemTray = new System.Windows.Forms.GroupBox();
             this.chkMinimizeToTray = new System.Windows.Forms.CheckBox();
+            this.chkCloseToTray = new System.Windows.Forms.CheckBox();
             this.chkShowTrayIcon = new System.Windows.Forms.CheckBox();
             this.chkStartMinimized = new System.Windows.Forms.CheckBox();
             this.chkStartWithWindows = new System.Windows.Forms.CheckBox();
@@ -299,11 +300,12 @@ namespace Notes
             // 
             this.groupBoxSystemTray.Controls.Add(this.chkStartWithWindows);
             this.groupBoxSystemTray.Controls.Add(this.chkStartMinimized);
+            this.groupBoxSystemTray.Controls.Add(this.chkCloseToTray);
             this.groupBoxSystemTray.Controls.Add(this.chkMinimizeToTray);
             this.groupBoxSystemTray.Controls.Add(this.chkShowTrayIcon);
             this.groupBoxSystemTray.Location = new System.Drawing.Point(11, 107);
             this.groupBoxSystemTray.Name = "groupBoxSystemTray";
-            this.groupBoxSystemTray.Size = new System.Drawing.Size(320, 120);
+            this.groupBoxSystemTray.Size = new System.Drawing.Size(320, 143);
             this.groupBoxSystemTray.TabIndex = 2;
             this.groupBoxSystemTray.TabStop = false;
             this.groupBoxSystemTray.Text = "System Tray";
@@ -318,6 +320,16 @@ namespace Notes
             this.chkMinimizeToTray.Text = "Minimize to system tray";
             this.chkMinimizeToTray.UseVisualStyleBackColor = true;
             // 
+            // chkCloseToTray
+            // 
+            this.chkCloseToTray.AutoSize = true;
+            this.chkCloseToTray.Location = new System.Drawing.Point(15, 70);
+            this.chkCloseToTray.Name = "chkCloseToTray";
+            this.chkCloseToTray.Size = new System.Drawing.Size(184, 17);
+            this.chkCloseToTray.TabIndex = 2;
+            this.chkCloseToTray.Text = "Close to tray (keep hotkeys active)";
+            this.chkCloseToTray.UseVisualStyleBackColor = true;
+            // 
             // chkShowTrayIcon
             // 
             this.chkShowTrayIcon.AutoSize = true;
@@ -331,20 +343,20 @@ namespace Notes
             // chkStartMinimized
             // 
             this.chkStartMinimized.AutoSize = true;
-            this.chkStartMinimized.Location = new System.Drawing.Point(15, 70);
+            this.chkStartMinimized.Location = new System.Drawing.Point(15, 93);
             this.chkStartMinimized.Name = "chkStartMinimized";
             this.chkStartMinimized.Size = new System.Drawing.Size(96, 17);
-            this.chkStartMinimized.TabIndex = 2;
+            this.chkStartMinimized.TabIndex = 3;
             this.chkStartMinimized.Text = "Start minimized";
             this.chkStartMinimized.UseVisualStyleBackColor = true;
             // 
             // chkStartWithWindows
             // 
             this.chkStartWithWindows.AutoSize = true;
-            this.chkStartWithWindows.Location = new System.Drawing.Point(15, 93);
+            this.chkStartWithWindows.Location = new System.Drawing.Point(15, 116);
             this.chkStartWithWindows.Name = "chkStartWithWindows";
             this.chkStartWithWindows.Size = new System.Drawing.Size(137, 17);
-            this.chkStartWithWindows.TabIndex = 3;
+            this.chkStartWithWindows.TabIndex = 4;
             this.chkStartWithWindows.Text = "Start with Windows";
             this.chkStartWithWindows.UseVisualStyleBackColor = true;
             // 
@@ -949,6 +961,7 @@ namespace Notes
         private System.Windows.Forms.GroupBox groupBoxSystemTray;
         private System.Windows.Forms.CheckBox chkShowTrayIcon;
         private System.Windows.Forms.CheckBox chkMinimizeToTray;
+        private System.Windows.Forms.CheckBox chkCloseToTray;
         private System.Windows.Forms.CheckBox chkStartMinimized;
         private System.Windows.Forms.CheckBox chkStartWithWindows;
         private System.Windows.Forms.GroupBox groupBoxTheme;
