@@ -88,6 +88,7 @@ namespace Notes
         public static UnitStruct selectedUnit = new UnitStruct();
         public static bool selectedUnitModified = false;
         private bool configModified = false;
+        private static frmMain instance;
         private bool isMovable = false;
         private bool isAutofocus = false;
         private bool autoSaveEnabled = true;
@@ -132,6 +133,7 @@ namespace Notes
 
         public frmMain()
         {
+            instance = this;
             InitializeComponent();
             InitializeCustomComponents();
             SetupAutoSave();
@@ -143,6 +145,11 @@ namespace Notes
             // Enable key preview to catch keyboard events
             this.KeyPreview = true;
             this.KeyDown += frmMain_KeyDown;
+        }
+
+        public static Dictionary<string, GroupStruct> GetGroups()
+        {
+            return instance?.Groups ?? new Dictionary<string, GroupStruct>();
         }
 
         protected override void OnHandleCreated(EventArgs e)

@@ -51,8 +51,9 @@ namespace Notes
             // Load data
             tbTitle.Text = selectedUnit.Title;
             tbContent.Text = selectedUnit.Content;
-            numX.Value = selectedUnit.X;
-            numY.Value = selectedUnit.Y;
+            
+            // Populate and select group
+            LoadGroups();
             
             // Initialize styling
             UpdateColorButtons();
@@ -67,8 +68,36 @@ namespace Notes
             // Add change tracking events
             tbTitle.TextChanged += (s, args) => MarkAsChanged();
             tbContent.TextChanged += (s, args) => MarkAsChanged();
-            numX.ValueChanged += (s, args) => MarkAsChanged();
-            numY.ValueChanged += (s, args) => MarkAsChanged();
+            cmbGroup.SelectedIndexChanged += (s, args) => MarkAsChanged();
+        }
+
+        private void LoadGroups()
+        {
+            cmbGroup.Items.Clear();
+            cmbGroup.Items.Add("(None)");
+            
+            int selectedIndex = 0;
+            int currentIndex = 1;
+            
+            foreach (var group in frmMain.GetGroups())
+            {
+                cmbGroup.Items.Add(new GroupComboItem { Id = group.Key, Title = group.Value.Title });
+                
+                if (!string.IsNullOrEmpty(selectedUnit.GroupId) && group.Key == selectedUnit.GroupId)
+                {
+                    selectedIndex = currentIndex;
+                }
+                currentIndex++;
+            }
+            
+            cmbGroup.SelectedIndex = selectedIndex;
+        }
+
+        private class GroupComboItem
+        {
+            public string Id { get; set; }
+            public string Title { get; set; }
+            public override string ToString() => Title;
         }
 
         private void MarkAsChanged()
@@ -214,9 +243,17 @@ namespace Notes
             {
                 selectedUnit.Title = tbTitle.Text.Trim();
                 selectedUnit.Content = tbContent.Text;
-                selectedUnit.X = (int)numX.Value;
-                selectedUnit.Y = (int)numY.Value;
                 selectedUnit.ModifiedDate = DateTime.Now;
+
+                // Set GroupId from combobox
+                if (cmbGroup.SelectedItem is GroupComboItem groupItem)
+                {
+                    selectedUnit.GroupId = groupItem.Id;
+                }
+                else
+                {
+                    selectedUnit.GroupId = null;
+                }
 
                 frmMain.selectedUnit = selectedUnit;
                 frmMain.selectedUnitModified = true;

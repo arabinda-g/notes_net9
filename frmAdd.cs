@@ -49,9 +49,8 @@ namespace Notes
 
         private void frmAdd_Load(object sender, EventArgs e)
         {
-            // Set position values from main form selection
-            numX.Value = frmMain.selectedUnit.X;
-            numY.Value = frmMain.selectedUnit.Y;
+            // Populate group combobox
+            LoadGroups();
             
             // Initialize color buttons
             UpdateColorButtons();
@@ -61,6 +60,26 @@ namespace Notes
             
             // Add validation hints
             this.Text = "Add New Note";
+        }
+
+        private void LoadGroups()
+        {
+            cmbGroup.Items.Clear();
+            cmbGroup.Items.Add("(None)");
+            
+            foreach (var group in frmMain.GetGroups())
+            {
+                cmbGroup.Items.Add(new GroupComboItem { Id = group.Key, Title = group.Value.Title });
+            }
+            
+            cmbGroup.SelectedIndex = 0;
+        }
+
+        private class GroupComboItem
+        {
+            public string Id { get; set; }
+            public string Title { get; set; }
+            public override string ToString() => Title;
         }
 
         private void UpdateColorButtons()
@@ -190,10 +209,18 @@ namespace Notes
             {
                 selectedUnit.Title = tbTitle.Text.Trim();
                 selectedUnit.Content = tbContent.Text;
-                selectedUnit.X = (int)numX.Value;
-                selectedUnit.Y = (int)numY.Value;
                 selectedUnit.CreatedDate = DateTime.Now;
                 selectedUnit.ModifiedDate = DateTime.Now;
+
+                // Set GroupId from combobox
+                if (cmbGroup.SelectedItem is GroupComboItem groupItem)
+                {
+                    selectedUnit.GroupId = groupItem.Id;
+                }
+                else
+                {
+                    selectedUnit.GroupId = null;
+                }
 
                 frmMain.selectedUnit = selectedUnit;
                 frmMain.selectedUnitModified = true;
