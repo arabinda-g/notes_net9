@@ -1625,22 +1625,47 @@ namespace Notes
                 if (File.Exists(openFileDialog.FileName))
                 {
                     string json = File.ReadAllText(openFileDialog.FileName);
-                    //loadJson(json);
 
                     try
                     {
-                        var newUnits = JsonConvert.DeserializeObject<Dictionary<string, UnitStruct>>(json);
+                        var data = JsonConvert.DeserializeObject<NotesData>(json);
+                        var newUnits = data?.Units ?? new Dictionary<string, UnitStruct>();
+                        var newGroups = data?.Groups ?? new Dictionary<string, GroupStruct>();
 
                         SaveStateForUndo();
+                        
+                        // Map old group IDs to new group IDs
+                        var groupIdMap = new Dictionary<string, string>();
+                        
+                        foreach (var keyValuePair in newGroups)
+                        {
+                            var oldGroupId = keyValuePair.Key;
+                            var newGroupId = getNewId();
+                            var group = keyValuePair.Value;
+                            group.Id = newGroupId;
+                            
+                            groupIdMap[oldGroupId] = newGroupId;
+                            Groups.Add(newGroupId, group);
+                            AddGroupBoxToPanel(group);
+                        }
+
                         foreach (var keyValuePair in newUnits)
                         {
                             var id = getNewId();
-                            Units.Add(id, keyValuePair.Value);
-                            addButton(id, keyValuePair.Value);
+                            var unit = keyValuePair.Value;
+                            
+                            // Remap GroupId if the unit belongs to an imported group
+                            if (!string.IsNullOrEmpty(unit.GroupId) && groupIdMap.ContainsKey(unit.GroupId))
+                            {
+                                unit.GroupId = groupIdMap[unit.GroupId];
+                            }
+                            
+                            Units.Add(id, unit);
+                            addButton(id, unit);
                         }
 
                         configModified = true;
-                        status = string.Format("{0} notes imported successfully", newUnits.Count());
+                        status = string.Format("{0} notes and {1} groups imported successfully", newUnits.Count(), newGroups.Count());
                         UpdateUndoRedoMenuState();
                     }
                     catch { }
@@ -1663,11 +1688,15 @@ namespace Notes
                 if ((stream = saveFileDialog.OpenFile()) != null)
                 {
                     StreamWriter writer = new StreamWriter(stream);
-                    //writer.Write(Properties.Settings.Default.JsonData);
-                    writer.Write(JsonConvert.SerializeObject(Units));
+                    var data = new NotesData
+                    {
+                        Units = Units,
+                        Groups = Groups
+                    };
+                    writer.Write(JsonConvert.SerializeObject(data));
                     writer.Close();
 
-                    status = string.Format("{0} notes exported successfully", Units.Count());
+                    status = string.Format("{0} notes and {1} groups exported successfully", Units.Count(), Groups.Count());
                 }
             }
 
