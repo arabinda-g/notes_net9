@@ -140,6 +140,13 @@ namespace Notes
             this.groupMenuEdit = new System.Windows.Forms.ToolStripMenuItem();
             this.groupMenuDelete = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripSeparator16 = new System.Windows.Forms.ToolStripSeparator();
+            this.groupMenuAlignButtons = new System.Windows.Forms.ToolStripMenuItem();
+            this.groupMenuAlignLeft = new System.Windows.Forms.ToolStripMenuItem();
+            this.groupMenuAlignCenter = new System.Windows.Forms.ToolStripMenuItem();
+            this.groupMenuAlignRight = new System.Windows.Forms.ToolStripMenuItem();
+            this.groupMenuAlignTop = new System.Windows.Forms.ToolStripMenuItem();
+            this.groupMenuAlignMiddle = new System.Windows.Forms.ToolStripMenuItem();
+            this.groupMenuAlignBottom = new System.Windows.Forms.ToolStripMenuItem();
             this.groupMenuAutoResize = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripSeparator17 = new System.Windows.Forms.ToolStripSeparator();
             this.groupMenuStyles = new System.Windows.Forms.ToolStripMenuItem();
@@ -998,6 +1005,7 @@ namespace Notes
             this.groupMenuEdit,
             this.groupMenuDelete,
             this.toolStripSeparator16,
+            this.groupMenuAlignButtons,
             this.groupMenuAutoResize,
             this.toolStripSeparator17,
             this.groupMenuStyles});
@@ -1022,6 +1030,61 @@ namespace Notes
             // 
             this.toolStripSeparator16.Name = "toolStripSeparator16";
             this.toolStripSeparator16.Size = new System.Drawing.Size(176, 6);
+            // 
+            // groupMenuAlignButtons
+            // 
+            this.groupMenuAlignButtons.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.groupMenuAlignLeft,
+            this.groupMenuAlignCenter,
+            this.groupMenuAlignRight,
+            this.groupMenuAlignTop,
+            this.groupMenuAlignMiddle,
+            this.groupMenuAlignBottom});
+            this.groupMenuAlignButtons.Name = "groupMenuAlignButtons";
+            this.groupMenuAlignButtons.Size = new System.Drawing.Size(179, 24);
+            this.groupMenuAlignButtons.Text = "&Align Buttons";
+            // 
+            // groupMenuAlignLeft
+            // 
+            this.groupMenuAlignLeft.Name = "groupMenuAlignLeft";
+            this.groupMenuAlignLeft.Size = new System.Drawing.Size(180, 26);
+            this.groupMenuAlignLeft.Text = "Align &Left";
+            this.groupMenuAlignLeft.Click += new System.EventHandler(this.groupMenuAlign_Click);
+            // 
+            // groupMenuAlignCenter
+            // 
+            this.groupMenuAlignCenter.Name = "groupMenuAlignCenter";
+            this.groupMenuAlignCenter.Size = new System.Drawing.Size(180, 26);
+            this.groupMenuAlignCenter.Text = "Align &Center";
+            this.groupMenuAlignCenter.Click += new System.EventHandler(this.groupMenuAlign_Click);
+            // 
+            // groupMenuAlignRight
+            // 
+            this.groupMenuAlignRight.Name = "groupMenuAlignRight";
+            this.groupMenuAlignRight.Size = new System.Drawing.Size(180, 26);
+            this.groupMenuAlignRight.Text = "Align &Right";
+            this.groupMenuAlignRight.Click += new System.EventHandler(this.groupMenuAlign_Click);
+            // 
+            // groupMenuAlignTop
+            // 
+            this.groupMenuAlignTop.Name = "groupMenuAlignTop";
+            this.groupMenuAlignTop.Size = new System.Drawing.Size(180, 26);
+            this.groupMenuAlignTop.Text = "Align &Top";
+            this.groupMenuAlignTop.Click += new System.EventHandler(this.groupMenuAlign_Click);
+            // 
+            // groupMenuAlignMiddle
+            // 
+            this.groupMenuAlignMiddle.Name = "groupMenuAlignMiddle";
+            this.groupMenuAlignMiddle.Size = new System.Drawing.Size(180, 26);
+            this.groupMenuAlignMiddle.Text = "Align &Middle";
+            this.groupMenuAlignMiddle.Click += new System.EventHandler(this.groupMenuAlign_Click);
+            // 
+            // groupMenuAlignBottom
+            // 
+            this.groupMenuAlignBottom.Name = "groupMenuAlignBottom";
+            this.groupMenuAlignBottom.Size = new System.Drawing.Size(180, 26);
+            this.groupMenuAlignBottom.Text = "Align &Bottom";
+            this.groupMenuAlignBottom.Click += new System.EventHandler(this.groupMenuAlign_Click);
             // 
             // groupMenuAutoResize
             // 
@@ -1420,6 +1483,13 @@ namespace Notes
         private System.Windows.Forms.ToolStripMenuItem groupMenuEdit;
         private System.Windows.Forms.ToolStripMenuItem groupMenuDelete;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator16;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuAlignButtons;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuAlignLeft;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuAlignCenter;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuAlignRight;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuAlignTop;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuAlignMiddle;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuAlignBottom;
         private System.Windows.Forms.ToolStripMenuItem groupMenuAutoResize;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator17;
         private System.Windows.Forms.ToolStripMenuItem groupMenuStyles;

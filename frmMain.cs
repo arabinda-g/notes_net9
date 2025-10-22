@@ -2414,6 +2414,117 @@ namespace Notes
             }
         }
 
+        private void groupMenuAlign_Click(object sender, EventArgs e)
+        {
+            ToolStripMenuItem menuItem = sender as ToolStripMenuItem;
+            ContextMenuStrip contextMenu = menuItem?.GetCurrentParent() as ContextMenuStrip 
+                ?? (menuItem?.OwnerItem as ToolStripMenuItem)?.GetCurrentParent() as ContextMenuStrip;
+            if (contextMenu?.SourceControl is GroupBox groupBox)
+            {
+                string groupId = groupBox.Tag as string;
+                if (string.IsNullOrEmpty(groupId) || !Groups.ContainsKey(groupId))
+                    return;
+
+                var buttons = groupBox.Controls.OfType<Button>().ToList();
+                if (buttons.Count == 0)
+                    return;
+
+                string alignType = menuItem.Name.Replace("groupMenuAlign", "");
+                const int spacing = 10;
+
+                switch (alignType)
+                {
+                    case "Left":
+                        int leftX = buttons.Min(b => b.Left);
+                        var sortedByTop = buttons.OrderBy(b => b.Top).ToList();
+                        int currentY = sortedByTop[0].Top;
+                        foreach (var btn in sortedByTop)
+                        {
+                            btn.Left = leftX;
+                            btn.Top = currentY;
+                            currentY += btn.Height + spacing;
+                        }
+                        break;
+
+                    case "Center":
+                        int centerX = buttons.Sum(b => b.Left + b.Width / 2) / buttons.Count;
+                        var sortedByCenterTop = buttons.OrderBy(b => b.Top).ToList();
+                        int currentCenterY = sortedByCenterTop[0].Top;
+                        foreach (var btn in sortedByCenterTop)
+                        {
+                            btn.Left = centerX - btn.Width / 2;
+                            btn.Top = currentCenterY;
+                            currentCenterY += btn.Height + spacing;
+                        }
+                        break;
+
+                    case "Right":
+                        int rightX = buttons.Max(b => b.Right);
+                        var sortedByRightTop = buttons.OrderBy(b => b.Top).ToList();
+                        int currentRightY = sortedByRightTop[0].Top;
+                        foreach (var btn in sortedByRightTop)
+                        {
+                            btn.Left = rightX - btn.Width;
+                            btn.Top = currentRightY;
+                            currentRightY += btn.Height + spacing;
+                        }
+                        break;
+
+                    case "Top":
+                        int topY = buttons.Min(b => b.Top);
+                        var sortedByLeft = buttons.OrderBy(b => b.Left).ToList();
+                        int currentX = sortedByLeft[0].Left;
+                        foreach (var btn in sortedByLeft)
+                        {
+                            btn.Top = topY;
+                            btn.Left = currentX;
+                            currentX += btn.Width + spacing;
+                        }
+                        break;
+
+                    case "Middle":
+                        int middleY = buttons.Sum(b => b.Top + b.Height / 2) / buttons.Count;
+                        var sortedByMiddleLeft = buttons.OrderBy(b => b.Left).ToList();
+                        int currentMiddleX = sortedByMiddleLeft[0].Left;
+                        foreach (var btn in sortedByMiddleLeft)
+                        {
+                            btn.Top = middleY - btn.Height / 2;
+                            btn.Left = currentMiddleX;
+                            currentMiddleX += btn.Width + spacing;
+                        }
+                        break;
+
+                    case "Bottom":
+                        int bottomY = buttons.Max(b => b.Bottom);
+                        var sortedByBottomLeft = buttons.OrderBy(b => b.Left).ToList();
+                        int currentBottomX = sortedByBottomLeft[0].Left;
+                        foreach (var btn in sortedByBottomLeft)
+                        {
+                            btn.Top = bottomY - btn.Height;
+                            btn.Left = currentBottomX;
+                            currentBottomX += btn.Width + spacing;
+                        }
+                        break;
+                }
+
+                // Update button positions in the library
+                foreach (var btn in buttons)
+                {
+                    string btnId = btn.Tag as string;
+                    if (!string.IsNullOrEmpty(btnId) && Units.ContainsKey(btnId))
+                    {
+                        var unit = Units[btnId];
+                        unit.X = btn.Left;
+                        unit.Y = btn.Top;
+                        Units[btnId] = unit;
+                    }
+                }
+
+                configModified = true;
+                status = $"Buttons aligned: {alignType}";
+            }
+        }
+
         private void AutoResizeGroup(GroupBox groupBox)
         {
             if (groupBox == null || groupBox.Controls.Count == 0)
