@@ -2598,6 +2598,91 @@ namespace Notes
             Groups[groupId] = group;
         }
 
+        private void groupMenuStrip_Opening(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            // Get the group box that triggered the context menu
+            if (groupMenuStrip.SourceControl is GroupBox groupBox)
+            {
+                string groupId = groupBox.Tag as string;
+                if (!string.IsNullOrEmpty(groupId) && Groups.ContainsKey(groupId))
+                {
+                    var group = Groups[groupId];
+                    string groupBoxType = group.GroupBoxType;
+
+                    // Uncheck all style menu items first
+                    groupMenuStyleDefault.Checked = false;
+                    groupMenuStyleGradientGlass.Checked = false;
+                    groupMenuStyleNeonGlow.Checked = false;
+                    groupMenuStyleEmbossed.Checked = false;
+                    groupMenuStyleRetro.Checked = false;
+                    groupMenuStyleCard.Checked = false;
+                    groupMenuStyleMinimal.Checked = false;
+                    groupMenuStyleDashed.Checked = false;
+                    groupMenuStyleDoubleBorder.Checked = false;
+                    groupMenuStyleShadowPanel.Checked = false;
+                    groupMenuStyleRoundedNeon.Checked = false;
+                    groupMenuStyleHolographic.Checked = false;
+                    groupMenuStyleVintagePaper.Checked = false;
+                    groupMenuStyleLiquidMetal.Checked = false;
+                    groupMenuStyleCosmic.Checked = false;
+                    groupMenuStyleRainbow.Checked = false;
+
+                    // Check the current style
+                    switch (groupBoxType)
+                    {
+                        case "GradientGlassGroupBox":
+                            groupMenuStyleGradientGlass.Checked = true;
+                            break;
+                        case "NeonGlowGroupBox":
+                            groupMenuStyleNeonGlow.Checked = true;
+                            break;
+                        case "EmbossedGroupBox":
+                            groupMenuStyleEmbossed.Checked = true;
+                            break;
+                        case "RetroGroupBox":
+                            groupMenuStyleRetro.Checked = true;
+                            break;
+                        case "CardGroupBox":
+                            groupMenuStyleCard.Checked = true;
+                            break;
+                        case "MinimalGroupBox":
+                            groupMenuStyleMinimal.Checked = true;
+                            break;
+                        case "DashedGroupBox":
+                            groupMenuStyleDashed.Checked = true;
+                            break;
+                        case "DoubleBorderGroupBox":
+                            groupMenuStyleDoubleBorder.Checked = true;
+                            break;
+                        case "ShadowPanelGroupBox":
+                            groupMenuStyleShadowPanel.Checked = true;
+                            break;
+                        case "RoundedNeonGroupBox":
+                            groupMenuStyleRoundedNeon.Checked = true;
+                            break;
+                        case "HolographicGroupBox":
+                            groupMenuStyleHolographic.Checked = true;
+                            break;
+                        case "VintagePaperGroupBox":
+                            groupMenuStyleVintagePaper.Checked = true;
+                            break;
+                        case "LiquidMetalGroupBox":
+                            groupMenuStyleLiquidMetal.Checked = true;
+                            break;
+                        case "CosmicGroupBox":
+                            groupMenuStyleCosmic.Checked = true;
+                            break;
+                        case "RainbowSpectrumGroupBox":
+                            groupMenuStyleRainbow.Checked = true;
+                            break;
+                        default: // ResizableGroupBox
+                            groupMenuStyleDefault.Checked = true;
+                            break;
+                    }
+                }
+            }
+        }
+
         private void unitMenuStrip_Opening(object sender, System.ComponentModel.CancelEventArgs e)
         {
             // Get the button that triggered the context menu
@@ -2609,6 +2694,111 @@ namespace Notes
                     var unit = Units[id];
                     // Enable "Remove from Group" only if button is in a group
                     unitMenuRemoveFromGroup.Enabled = !string.IsNullOrEmpty(unit.GroupId);
+
+                    // Uncheck all style menu items
+                    unitMenuStyleClassic.Checked = false;
+                    unitMenuStylePastel.Checked = false;
+                    unitMenuStyleDark.Checked = false;
+                    unitMenuStyleNeon.Checked = false;
+                    unitMenuStyleEarth.Checked = false;
+                    unitMenuStyleOcean.Checked = false;
+                    unitMenuStyleSunset.Checked = false;
+                    unitMenuStyleMonochrome.Checked = false;
+                    unitMenuStyleVibrant.Checked = false;
+                    unitMenuStyleGradient.Checked = false;
+                    unitMenuStyleGloss.Checked = false;
+                    unitMenuStyleEmbossed.Checked = false;
+                    unitMenuStyleRaised.Checked = false;
+                    unitMenuStyleInset.Checked = false;
+                    unitMenuStyleRetro.Checked = false;
+                    unitMenuStyleCyber.Checked = false;
+                    unitMenuStyleGlass.Checked = false;
+                    unitMenuStyleNeonGlow.Checked = false;
+                    unitMenuStyleGolden.Checked = false;
+                    unitMenuStyleMinimal.Checked = false;
+                    unitMenuStyleBold.Checked = false;
+                    unitMenuStyleElegant.Checked = false;
+                    unitMenuStylePlayful.Checked = false;
+                    unitMenuStyleProfessional.Checked = false;
+
+                    // Check the current button type
+                    string buttonType = btn.GetType().Name;
+                    
+                    // Map button type to menu item
+                    switch (buttonType)
+                    {
+                        case "GradientButton":
+                            // Could be Classic, Gradient, or Vibrant - check by color
+                            if (btn.BackColor == Color.LightSteelBlue)
+                                unitMenuStyleClassic.Checked = true;
+                            else if (btn.BackColor == Color.LightGreen)
+                                unitMenuStyleEarth.Checked = true;
+                            else if (btn.BackColor == Color.Orange)
+                                unitMenuStyleSunset.Checked = true;
+                            else if (btn.BackColor == Color.DeepPink)
+                                unitMenuStyleVibrant.Checked = true;
+                            else
+                                unitMenuStyleGradient.Checked = true;
+                            break;
+                        case "Button":
+                        case "DoubleClickButton":
+                            // Check by color for standard buttons
+                            if (btn.BackColor == Color.LightPink)
+                                unitMenuStylePastel.Checked = true;
+                            else if (btn.BackColor == Color.FromArgb(45, 45, 48))
+                                unitMenuStyleDark.Checked = true;
+                            else if (btn.BackColor == Color.Black)
+                                unitMenuStyleNeon.Checked = true;
+                            else if (btn.BackColor == Color.LightBlue)
+                                unitMenuStyleOcean.Checked = true;
+                            else if (btn.BackColor == Color.White)
+                                unitMenuStyleMonochrome.Checked = true;
+                            else if (btn.BackColor == Color.LightGray)
+                                unitMenuStyleMinimal.Checked = true;
+                            else if (btn.Font?.Bold == true)
+                                unitMenuStyleBold.Checked = true;
+                            else
+                                unitMenuStyleClassic.Checked = true;
+                            break;
+                        case "GlossButton":
+                            unitMenuStyleGloss.Checked = true;
+                            break;
+                        case "NeumorphismButton":
+                            unitMenuStyleEmbossed.Checked = true;
+                            break;
+                        case "Retro3DButton":
+                            if (btn.BackColor == Color.Crimson)
+                                unitMenuStyleRetro.Checked = true;
+                            else
+                                unitMenuStyleRaised.Checked = true;
+                            break;
+                        case "NeonGlowButton":
+                            if (btn.BackColor == Color.Purple)
+                                unitMenuStyleCyber.Checked = true;
+                            else if (btn.BackColor == Color.Cyan)
+                                unitMenuStyleNeonGlow.Checked = true;
+                            else
+                                unitMenuStyleInset.Checked = true;
+                            break;
+                        case "GlassMorphismButton":
+                            unitMenuStyleGlass.Checked = true;
+                            break;
+                        case "OutlineButton":
+                            unitMenuStyleElegant.Checked = true;
+                            break;
+                        case "SkeuomorphicButton":
+                            unitMenuStyleGolden.Checked = true;
+                            break;
+                        case "PremiumCardButton":
+                            unitMenuStylePlayful.Checked = true;
+                            break;
+                        case "MaterialButton":
+                            unitMenuStyleProfessional.Checked = true;
+                            break;
+                        case "PillButton":
+                            unitMenuStyleElegant.Checked = true;
+                            break;
+                    }
                 }
             }
         }

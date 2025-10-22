@@ -1037,6 +1037,7 @@ namespace Notes
             this.groupMenuStyles});
             this.groupMenuStrip.Name = "groupMenuStrip";
             this.groupMenuStrip.Size = new System.Drawing.Size(180, 120);
+            this.groupMenuStrip.Opening += new System.ComponentModel.CancelEventHandler(this.groupMenuStrip_Opening);
             // 
             // groupMenuEdit
             // 
