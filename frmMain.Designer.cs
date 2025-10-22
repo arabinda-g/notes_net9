@@ -96,6 +96,9 @@ namespace Notes
             this.saveFileDialog = new System.Windows.Forms.SaveFileDialog();
             this.unitMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.unitMenuStyles = new System.Windows.Forms.ToolStripMenuItem();
+            this.ctxToolStripSeparator4 = new System.Windows.Forms.ToolStripSeparator();
+            this.unitMenuStyleRandom = new System.Windows.Forms.ToolStripMenuItem();
+            this.ctxToolStripSeparator5 = new System.Windows.Forms.ToolStripSeparator();
             this.unitMenuStyleClassic = new System.Windows.Forms.ToolStripMenuItem();
             this.unitMenuStylePastel = new System.Windows.Forms.ToolStripMenuItem();
             this.unitMenuStyleDark = new System.Windows.Forms.ToolStripMenuItem();
@@ -151,6 +154,9 @@ namespace Notes
             this.toolStripSeparator17 = new System.Windows.Forms.ToolStripSeparator();
             this.groupMenuStyles = new System.Windows.Forms.ToolStripMenuItem();
             this.groupMenuStyleDefault = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripSeparator19 = new System.Windows.Forms.ToolStripSeparator();
+            this.groupMenuStyleRandom = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripSeparator20 = new System.Windows.Forms.ToolStripSeparator();
             this.groupMenuStyleGradientGlass = new System.Windows.Forms.ToolStripMenuItem();
             this.groupMenuStyleNeonGlow = new System.Windows.Forms.ToolStripMenuItem();
             this.groupMenuStyleEmbossed = new System.Windows.Forms.ToolStripMenuItem();
@@ -745,6 +751,9 @@ namespace Notes
             this.unitMenuStyles.Size = new System.Drawing.Size(210, 24);
             this.unitMenuStyles.Text = "&Styles";
             this.unitMenuStyles.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.ctxToolStripSeparator4,
+            this.unitMenuStyleRandom,
+            this.ctxToolStripSeparator5,
             this.unitMenuStyleClassic,
             this.unitMenuStylePastel,
             this.unitMenuStyleDark,
@@ -772,6 +781,23 @@ namespace Notes
             this.unitMenuStyleElegant,
             this.unitMenuStylePlayful,
             this.unitMenuStyleProfessional});
+            // 
+            // ctxToolStripSeparator4
+            // 
+            this.ctxToolStripSeparator4.Name = "ctxToolStripSeparator4";
+            this.ctxToolStripSeparator4.Size = new System.Drawing.Size(197, 6);
+            // 
+            // unitMenuStyleRandom
+            // 
+            this.unitMenuStyleRandom.Name = "unitMenuStyleRandom";
+            this.unitMenuStyleRandom.Size = new System.Drawing.Size(200, 26);
+            this.unitMenuStyleRandom.Text = "Random";
+            this.unitMenuStyleRandom.Click += new System.EventHandler(this.unitMenuStyleRandom_Click);
+            // 
+            // ctxToolStripSeparator5
+            // 
+            this.ctxToolStripSeparator5.Name = "ctxToolStripSeparator5";
+            this.ctxToolStripSeparator5.Size = new System.Drawing.Size(197, 6);
             // 
             // unitMenuStyleClassic
             // 
@@ -1102,6 +1128,9 @@ namespace Notes
             // 
             this.groupMenuStyles.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.groupMenuStyleDefault,
+            this.toolStripSeparator19,
+            this.groupMenuStyleRandom,
+            this.toolStripSeparator20,
             this.groupMenuStyleGradientGlass,
             this.groupMenuStyleNeonGlow,
             this.groupMenuStyleEmbossed,
@@ -1128,6 +1157,23 @@ namespace Notes
             this.groupMenuStyleDefault.Size = new System.Drawing.Size(180, 26);
             this.groupMenuStyleDefault.Text = "Default";
             this.groupMenuStyleDefault.Click += new System.EventHandler(this.groupMenuStyle_Click);
+            // 
+            // toolStripSeparator19
+            // 
+            this.toolStripSeparator19.Name = "toolStripSeparator19";
+            this.toolStripSeparator19.Size = new System.Drawing.Size(177, 6);
+            // 
+            // groupMenuStyleRandom
+            // 
+            this.groupMenuStyleRandom.Name = "groupMenuStyleRandom";
+            this.groupMenuStyleRandom.Size = new System.Drawing.Size(180, 26);
+            this.groupMenuStyleRandom.Text = "Random";
+            this.groupMenuStyleRandom.Click += new System.EventHandler(this.groupMenuStyleRandom_Click);
+            // 
+            // toolStripSeparator20
+            // 
+            this.toolStripSeparator20.Name = "toolStripSeparator20";
+            this.toolStripSeparator20.Size = new System.Drawing.Size(177, 6);
             // 
             // groupMenuStyleGradientGlass
             // 
@@ -1448,6 +1494,9 @@ namespace Notes
         private System.Windows.Forms.ToolStripMenuItem menuStylePlayful;
         private System.Windows.Forms.ToolStripMenuItem menuStyleProfessional;
         private System.Windows.Forms.ToolStripMenuItem unitMenuStyles;
+        private System.Windows.Forms.ToolStripSeparator ctxToolStripSeparator4;
+        private System.Windows.Forms.ToolStripMenuItem unitMenuStyleRandom;
+        private System.Windows.Forms.ToolStripSeparator ctxToolStripSeparator5;
         private System.Windows.Forms.ToolStripMenuItem unitMenuStyleClassic;
         private System.Windows.Forms.ToolStripMenuItem unitMenuStylePastel;
         private System.Windows.Forms.ToolStripMenuItem unitMenuStyleDark;
@@ -1494,6 +1543,9 @@ namespace Notes
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator17;
         private System.Windows.Forms.ToolStripMenuItem groupMenuStyles;
         private System.Windows.Forms.ToolStripMenuItem groupMenuStyleDefault;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator19;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuStyleRandom;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator20;
         private System.Windows.Forms.ToolStripMenuItem groupMenuStyleGradientGlass;
         private System.Windows.Forms.ToolStripMenuItem groupMenuStyleNeonGlow;
         private System.Windows.Forms.ToolStripMenuItem groupMenuStyleEmbossed;

@@ -2752,6 +2752,145 @@ namespace Notes
             }
         }
 
+        private void groupMenuStyleRandom_Click(object sender, EventArgs e)
+        {
+            Logger.Debug(">> groupMenuStyleRandom_Click triggered");
+            
+            // Get the root ContextMenuStrip
+            ToolStripMenuItem menuItem = sender as ToolStripMenuItem;
+            if (menuItem == null)
+            {
+                Logger.Warning("menuItem is null");
+                return;
+            }
+
+            ContextMenuStrip contextMenu = null;
+            ToolStripItem current = menuItem;
+            while (current != null)
+            {
+                if (current.Owner is ContextMenuStrip cms)
+                {
+                    contextMenu = cms;
+                    break;
+                }
+                current = current.OwnerItem;
+            }
+            
+            if (contextMenu?.SourceControl is GroupBox oldGroupBox)
+            {
+                string groupId = oldGroupBox.Tag as string;
+                Logger.Debug($"GroupBox found - GroupId: {groupId}, Title: {oldGroupBox.Text}");
+                
+                if (string.IsNullOrEmpty(groupId) || !Groups.ContainsKey(groupId))
+                {
+                    Logger.Warning($"Invalid groupId or not found in Groups dictionary");
+                    return;
+                }
+
+                SaveStateForUndo();
+
+                var group = Groups[groupId];
+                Logger.Debug($"Current group type: {group.GroupBoxType}");
+                
+                // Array of all available styles
+                string[] styles = new[]
+                {
+                    "ResizableGroupBox",
+                    "GradientGlassGroupBox",
+                    "NeonGlowGroupBox",
+                    "EmbossedGroupBox",
+                    "RetroGroupBox",
+                    "CardGroupBox",
+                    "MinimalGroupBox",
+                    "DashedGroupBox",
+                    "DoubleBorderGroupBox",
+                    "ShadowPanelGroupBox",
+                    "RoundedNeonGroupBox",
+                    "HolographicGroupBox",
+                    "VintagePaperGroupBox",
+                    "LiquidMetalGroupBox",
+                    "CosmicGroupBox",
+                    "RainbowSpectrumGroupBox"
+                };
+
+                // Pick a random style
+                Random rand = new Random();
+                string groupBoxType = styles[rand.Next(styles.Length)];
+
+                Logger.Info($"Randomly changing group box type from '{group.GroupBoxType}' to '{groupBoxType}'");
+                
+                group.GroupBoxType = groupBoxType;
+                Groups[groupId] = group;
+
+                // Get all buttons in the old group
+                var buttons = oldGroupBox.Controls.OfType<Button>().ToList();
+                var buttonData = new List<(Button btn, Point location)>();
+                
+                foreach (var btn in buttons)
+                {
+                    buttonData.Add((btn, btn.Location));
+                }
+
+                // Get properties from old group
+                Point location = oldGroupBox.Location;
+                Size size = oldGroupBox.Size;
+                Color backColor = oldGroupBox.BackColor;
+                Color foreColor = oldGroupBox.ForeColor;
+                string title = oldGroupBox.Text;
+
+                // Remove buttons from old group before disposing
+                foreach (var btn in buttons)
+                {
+                    oldGroupBox.Controls.Remove(btn);
+                }
+
+                // Remove old group
+                Logger.Debug($"Removing old GroupBox from panel");
+                panelContainer.Controls.Remove(oldGroupBox);
+                oldGroupBox.Dispose();
+
+                // Create new styled group directly
+                Logger.Debug($"Creating new GroupBox with type: {groupBoxType}");
+                var newGroupBox = CreateGroupBoxByType(groupBoxType);
+                Logger.Debug($"New GroupBox created - Actual type: {newGroupBox.GetType().Name}");
+                
+                newGroupBox.Tag = groupId;
+                newGroupBox.Text = title;
+                newGroupBox.Location = location;
+                newGroupBox.Size = size;
+                newGroupBox.BackColor = backColor;
+                newGroupBox.ForeColor = foreColor;
+
+                newGroupBox.MouseDown += GroupBox_MouseDown;
+                newGroupBox.MouseMove += GroupBox_MouseMove;
+                newGroupBox.MouseUp += GroupBox_MouseUp;
+                newGroupBox.ContextMenuStrip = groupMenuStrip;
+                newGroupBox.SizeChanged += GroupBox_SizeChanged;
+
+                panelContainer.Controls.Add(newGroupBox);
+                
+                // Re-add buttons
+                foreach (var (btn, loc) in buttonData)
+                {
+                    newGroupBox.Controls.Add(btn);
+                    btn.Location = loc;
+                    btn.BringToFront();
+                }
+
+                newGroupBox.Refresh();
+                
+                Logger.Info($"<< Group style successfully changed to Random ({groupBoxType}) - Type: {newGroupBox.GetType().Name}");
+
+                configModified = true;
+                status = $"Group style changed to Random ({groupBoxType.Replace("GroupBox", "")})";
+                UpdateUndoRedoMenuState();
+            }
+            else
+            {
+                Logger.Warning("ContextMenu or SourceControl is not a GroupBox");
+            }
+        }
+
 
 
 
@@ -3918,6 +4057,41 @@ namespace Notes
                 null,
                 contextInfo?.Button
             );
+        }
+
+        private void unitMenuStyleRandom_Click(object sender, EventArgs e)
+        {
+            Random rand = new Random();
+            int styleIndex = rand.Next(24);
+
+            // Call one of the 24 style handlers randomly
+            switch (styleIndex)
+            {
+                case 0: menuStyleClassic_Click(sender, e); break;
+                case 1: menuStylePastel_Click(sender, e); break;
+                case 2: menuStyleDark_Click(sender, e); break;
+                case 3: menuStyleNeon_Click(sender, e); break;
+                case 4: menuStyleEarth_Click(sender, e); break;
+                case 5: menuStyleOcean_Click(sender, e); break;
+                case 6: menuStyleSunset_Click(sender, e); break;
+                case 7: menuStyleMonochrome_Click(sender, e); break;
+                case 8: menuStyleVibrant_Click(sender, e); break;
+                case 9: menuStyleGradient_Click(sender, e); break;
+                case 10: menuStyleGloss_Click(sender, e); break;
+                case 11: menuStyleEmbossed_Click(sender, e); break;
+                case 12: menuStyleRaised_Click(sender, e); break;
+                case 13: menuStyleInset_Click(sender, e); break;
+                case 14: menuStyleRetro_Click(sender, e); break;
+                case 15: menuStyleCyber_Click(sender, e); break;
+                case 16: menuStyleGlass_Click(sender, e); break;
+                case 17: menuStyleNeonGlow_Click(sender, e); break;
+                case 18: menuStyleGolden_Click(sender, e); break;
+                case 19: menuStyleMinimal_Click(sender, e); break;
+                case 20: menuStyleBold_Click(sender, e); break;
+                case 21: menuStyleElegant_Click(sender, e); break;
+                case 22: menuStylePlayful_Click(sender, e); break;
+                case 23: menuStyleProfessional_Click(sender, e); break;
+            }
         }
 
         private IEnumerable<Button> GetAllButtonsInPanel()
