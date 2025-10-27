@@ -16,10 +16,23 @@ namespace Notes
     {
         private static frmMain.UnitStruct selectedUnit = new frmMain.UnitStruct();
 
+        private enum ContentKind
+        {
+            Text,
+            Image,
+            Object
+        }
+
+        private ContentKind currentContentKind = ContentKind.Text;
+        private string? imageBase64;
+        private string? imageFormat;
+        private ClipboardHelper.ClipboardPacket? objectPacket;
+
         public frmAdd()
         {
             InitializeComponent();
             InitializeModernUI();
+            InitializeContentControls();
         }
 
         private void InitializeModernUI()
@@ -47,19 +60,141 @@ namespace Notes
             selectedUnit.Tags = new string[0];
         }
 
-        private void frmAdd_Load(object sender, EventArgs e)
+        private void InitializeContentControls()
         {
-            // Populate group combobox
-            LoadGroups();
-            
-            // Initialize color buttons
-            UpdateColorButtons();
-            
-            // Set focus to title
-            tbTitle.Focus();
-            
-            // Add validation hints
-            this.Text = "Add New Note";
+            cmbContentType.SelectedIndex = 0;
+            UpdateContentPanels();
+        }
+
+        private void PrefillFromUnit(frmMain.UnitStruct unit)
+        {
+            cmbContentType.SelectedIndexChanged -= cmbContentType_SelectedIndexChanged;
+            switch ((unit.ContentType ?? "Text").ToLowerInvariant())
+            {
+                case "image":
+                    currentContentKind = ContentKind.Image;
+                    cmbContentType.SelectedIndex = 1;
+                    imageBase64 = unit.ContentData;
+                    imageFormat = unit.ContentFormat;
+                    if (!string.IsNullOrEmpty(unit.ContentData))
+                    {
+                        var bmp = ClipboardHelper.DecodeImage(unit.ContentData);
+                        if (bmp != null)
+                        {
+                            if (picImagePreview.Image != null)
+                                picImagePreview.Image.Dispose();
+                            picImagePreview.Image = bmp;
+                        }
+                    }
+                    tbContent.Text = string.Empty;
+                    objectPacket = null;
+                    lblObjectSummary.Text = string.Empty;
+                    break;
+                case "object":
+                    currentContentKind = ContentKind.Object;
+                    cmbContentType.SelectedIndex = 2;
+                    ClipboardHelper.TryDeserializePacket(unit.ContentData, out objectPacket, out var summary);
+                    lblObjectSummary.Text = string.IsNullOrWhiteSpace(summary) ? "Clipboard formats will appear here." : summary;
+                    imageBase64 = null;
+                    imageFormat = null;
+                    if (picImagePreview.Image != null)
+                    {
+                        picImagePreview.Image.Dispose();
+                        picImagePreview.Image = null;
+                    }
+                    tbContent.Text = string.Empty;
+                    break;
+                default:
+                    currentContentKind = ContentKind.Text;
+                    cmbContentType.SelectedIndex = 0;
+                    tbContent.Text = unit.Content;
+                    imageBase64 = null;
+                    imageFormat = null;
+                    objectPacket = null;
+                    if (picImagePreview.Image != null)
+                    {
+                        picImagePreview.Image.Dispose();
+                        picImagePreview.Image = null;
+                    }
+                    lblObjectSummary.Text = "Clipboard formats will appear here.";
+                    break;
+            }
+            UpdateContentPanels();
+            cmbContentType.SelectedIndexChanged += cmbContentType_SelectedIndexChanged;
+        }
+
+        private void cmbContentType_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            switch (cmbContentType.SelectedIndex)
+            {
+                case 1:
+                    currentContentKind = ContentKind.Image;
+                    break;
+                case 2:
+                    currentContentKind = ContentKind.Object;
+                    break;
+                default:
+                    currentContentKind = ContentKind.Text;
+                    break;
+            }
+
+            UpdateContentPanels();
+        }
+
+        private void UpdateContentPanels()
+        {
+            pnlTextContent.Visible = currentContentKind == ContentKind.Text;
+            pnlImageContent.Visible = currentContentKind == ContentKind.Image;
+            pnlObjectContent.Visible = currentContentKind == ContentKind.Object;
+        }
+
+        private void ClearContentBuffers()
+        {
+            imageBase64 = null;
+            imageFormat = null;
+            objectPacket = null;
+            tbContent.Text = string.Empty;
+            picImagePreview.Image = null;
+            lblObjectSummary.Text = "Clipboard formats will appear here.";
+        }
+
+        private void btnPasteImage_Click(object sender, EventArgs e)
+        {
+            if (ClipboardHelper.TryCaptureImageFromClipboard(out var base64, out var format, out var preview))
+            {
+                imageBase64 = base64;
+                imageFormat = format;
+                if (picImagePreview.Image != null)
+                {
+                    picImagePreview.Image.Dispose();
+                }
+                picImagePreview.Image = preview;
+                lblObjectSummary.Text = string.Empty;
+            }
+            else
+            {
+                MessageBox.Show("Clipboard does not contain an image.", NotesLibrary.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+
+        private void btnPasteObject_Click(object sender, EventArgs e)
+        {
+            if (ClipboardHelper.TryCaptureObjectFromClipboard(out var packet, out var summary))
+            {
+                objectPacket = packet;
+                lblObjectSummary.Text = summary;
+                if (picImagePreview.Image != null)
+                {
+                    picImagePreview.Image.Dispose();
+                    picImagePreview.Image = null;
+                }
+                imageBase64 = null;
+                imageFormat = null;
+            }
+            else
+            {
+                MessageBox.Show("Unable to capture clipboard object.", NotesLibrary.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
         }
 
         private void LoadGroups()
@@ -208,7 +343,36 @@ namespace Notes
             try
             {
                 selectedUnit.Title = tbTitle.Text.Trim();
-                selectedUnit.Content = tbContent.Text;
+
+                switch (currentContentKind)
+                {
+                    case ContentKind.Image:
+                        if (string.IsNullOrEmpty(imageBase64))
+                        {
+                            MessageBox.Show("Please paste an image from the clipboard.", NotesLibrary.AppName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            return;
+                        }
+                        selectedUnit.ContentType = "Image";
+                        selectedUnit.ContentFormat = imageFormat ?? "png";
+                        selectedUnit.ContentData = imageBase64;
+                        break;
+                    case ContentKind.Object:
+                        if (objectPacket == null)
+                        {
+                            MessageBox.Show("Please paste data from the clipboard.", NotesLibrary.AppName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            return;
+                        }
+                        selectedUnit.ContentType = "Object";
+                        selectedUnit.ContentFormat = "clipboard-packet";
+                        selectedUnit.ContentData = ClipboardHelper.SerializePacket(objectPacket);
+                        break;
+                    default:
+                        selectedUnit.ContentType = "Text";
+                        selectedUnit.ContentFormat = "plain";
+                        selectedUnit.ContentData = tbContent.Text;
+                        break;
+                }
+
                 selectedUnit.CreatedDate = DateTime.Now;
                 selectedUnit.ModifiedDate = DateTime.Now;
 

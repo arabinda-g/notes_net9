@@ -18,10 +18,23 @@ namespace Notes
         private frmMain.UnitStruct originalUnit;
         private bool hasChanges = false;
 
+        private enum ContentKind
+        {
+            Text,
+            Image,
+            Object
+        }
+
+        private ContentKind currentContentKind = ContentKind.Text;
+        private string? imageBase64;
+        private string? imageFormat;
+        private ClipboardHelper.ClipboardPacket? objectPacket;
+
         public frmEdit()
         {
             InitializeComponent();
             InitializeModernUI();
+            InitializeContentControls();
         }
 
         private void InitializeModernUI()
@@ -43,32 +56,35 @@ namespace Notes
             this.FormClosing += FrmEdit_FormClosing;
         }
 
+        private void InitializeContentControls()
+        {
+            cmbContentType.SelectedIndexChanged += cmbContentType_SelectedIndexChanged;
+            btnPasteImage.Click += btnPasteImage_Click;
+            btnPasteObject.Click += btnPasteObject_Click;
+        }
+
         private void frmEdit_Load(object sender, EventArgs e)
         {
             selectedUnit = frmMain.selectedUnit;
             originalUnit = selectedUnit; // Store original for comparison
-            
-            // Load data
+
             tbTitle.Text = selectedUnit.Title;
-            tbContent.Text = selectedUnit.Content;
-            
-            // Populate and select group
+
             LoadGroups();
-            
-            // Initialize styling
+
             UpdateColorButtons();
-            
-            // Set focus
+
+            LoadContentFromUnit(selectedUnit);
+
             tbTitle.Focus();
             tbTitle.SelectAll();
-            
-            // Update window title
+
             this.Text = string.Format("Edit Note - {0}", selectedUnit.Title);
-            
-            // Add change tracking events
+
             tbTitle.TextChanged += (s, args) => MarkAsChanged();
             tbContent.TextChanged += (s, args) => MarkAsChanged();
             cmbGroup.SelectedIndexChanged += (s, args) => MarkAsChanged();
+            cmbContentType.SelectedIndexChanged += (s, args) => MarkAsChanged();
         }
 
         private void LoadGroups()
@@ -242,7 +258,36 @@ namespace Notes
             try
             {
                 selectedUnit.Title = tbTitle.Text.Trim();
-                selectedUnit.Content = tbContent.Text;
+
+                switch (currentContentKind)
+                {
+                    case ContentKind.Image:
+                        if (string.IsNullOrEmpty(imageBase64))
+                        {
+                            MessageBox.Show("Please paste an image from the clipboard.", NotesLibrary.AppName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            return;
+                        }
+                        selectedUnit.ContentType = "Image";
+                        selectedUnit.ContentFormat = imageFormat ?? "png";
+                        selectedUnit.ContentData = imageBase64;
+                        break;
+                    case ContentKind.Object:
+                        if (objectPacket == null)
+                        {
+                            MessageBox.Show("Please paste data from the clipboard.", NotesLibrary.AppName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            return;
+                        }
+                        selectedUnit.ContentType = "Object";
+                        selectedUnit.ContentFormat = "clipboard-packet";
+                        selectedUnit.ContentData = ClipboardHelper.SerializePacket(objectPacket);
+                        break;
+                    default:
+                        selectedUnit.ContentType = "Text";
+                        selectedUnit.ContentFormat = "plain";
+                        selectedUnit.ContentData = tbContent.Text;
+                        break;
+                }
+
                 selectedUnit.ModifiedDate = DateTime.Now;
 
                 // Set GroupId from combobox
@@ -356,6 +401,134 @@ namespace Notes
         {
             // Could add word count, character count, etc.
             // Example: statusLabel.Text = string.Format("Characters: {0}", tbContent.Text.Length);
+        }
+
+        private void LoadContentFromUnit(frmMain.UnitStruct unit)
+        {
+            switch ((unit.ContentType ?? "Text").ToLowerInvariant())
+            {
+                case "image":
+                    currentContentKind = ContentKind.Image;
+                    cmbContentType.SelectedIndex = 1;
+                    imageBase64 = unit.ContentData;
+                    imageFormat = unit.ContentFormat;
+                    tbContent.Text = string.Empty;
+                    objectPacket = null;
+                    if (!string.IsNullOrEmpty(unit.ContentData))
+                    {
+                        var bmp = ClipboardHelper.DecodeImage(unit.ContentData);
+                        if (bmp != null)
+                        {
+                            if (picImagePreview.Image != null)
+                                picImagePreview.Image.Dispose();
+                            picImagePreview.Image = bmp;
+                        }
+                    }
+                    break;
+                case "object":
+                    currentContentKind = ContentKind.Object;
+                    cmbContentType.SelectedIndex = 2;
+                    imageBase64 = null;
+                    imageFormat = null;
+                    ClipboardHelper.TryDeserializePacket(unit.ContentData, out objectPacket, out var summary);
+                    lblObjectSummary.Text = string.IsNullOrWhiteSpace(summary) ? "Clipboard formats will appear here." : summary;
+                    tbContent.Text = string.Empty;
+                    if (picImagePreview.Image != null)
+                    {
+                        picImagePreview.Image.Dispose();
+                        picImagePreview.Image = null;
+                    }
+                    break;
+                default:
+                    currentContentKind = ContentKind.Text;
+                    cmbContentType.SelectedIndex = 0;
+                    tbContent.Text = unit.Content;
+                    imageBase64 = null;
+                    imageFormat = null;
+                    objectPacket = null;
+                    if (picImagePreview.Image != null)
+                    {
+                        picImagePreview.Image.Dispose();
+                        picImagePreview.Image = null;
+                    }
+                    lblObjectSummary.Text = "Clipboard formats will appear here.";
+                    break;
+            }
+
+            UpdateContentPanels();
+        }
+
+        private void UpdateContentPanels()
+        {
+            pnlTextContent.Visible = currentContentKind == ContentKind.Text;
+            pnlImageContent.Visible = currentContentKind == ContentKind.Image;
+            pnlObjectContent.Visible = currentContentKind == ContentKind.Object;
+        }
+
+        private void cmbContentType_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            var previousKind = currentContentKind;
+            switch (cmbContentType.SelectedIndex)
+            {
+                case 1:
+                    currentContentKind = ContentKind.Image;
+                    break;
+                case 2:
+                    currentContentKind = ContentKind.Object;
+                    break;
+                default:
+                    currentContentKind = ContentKind.Text;
+                    break;
+            }
+
+            if (currentContentKind != previousKind)
+            {
+                MarkAsChanged();
+            }
+
+            UpdateContentPanels();
+        }
+
+        private void btnPasteImage_Click(object sender, EventArgs e)
+        {
+            if (ClipboardHelper.TryCaptureImageFromClipboard(out var base64, out var format, out var preview))
+            {
+                imageBase64 = base64;
+                imageFormat = format;
+                if (picImagePreview.Image != null)
+                {
+                    picImagePreview.Image.Dispose();
+                }
+                picImagePreview.Image = preview;
+                objectPacket = null;
+                lblObjectSummary.Text = "";
+                MarkAsChanged();
+            }
+            else
+            {
+                MessageBox.Show("Clipboard does not contain an image.", NotesLibrary.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+
+        private void btnPasteObject_Click(object sender, EventArgs e)
+        {
+            if (ClipboardHelper.TryCaptureObjectFromClipboard(out var packet, out var summary))
+            {
+                objectPacket = packet;
+                lblObjectSummary.Text = summary;
+                imageBase64 = null;
+                imageFormat = null;
+                if (picImagePreview.Image != null)
+                {
+                    picImagePreview.Image.Dispose();
+                    picImagePreview.Image = null;
+                }
+                MarkAsChanged();
+            }
+            else
+            {
+                MessageBox.Show("Unable to capture clipboard object.", NotesLibrary.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
         }
 
         // Preview functionality - show how the note will look

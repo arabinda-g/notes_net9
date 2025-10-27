@@ -19,7 +19,6 @@ namespace Notes
         public struct UnitStruct
         {
             public string Title;
-            public string Content;
             public int BackgroundColor;
             public int TextColor;
             public Font Font;
@@ -31,6 +30,50 @@ namespace Notes
             public string[] Tags;
             public string ButtonType; // Store the custom button type name
             public string GroupId; // Optional group association
+            public string ContentType;
+            public string ContentData;
+            public string ContentFormat;
+
+            [JsonIgnore]
+            public string Content
+            {
+                readonly get
+                {
+                    if (string.IsNullOrWhiteSpace(ContentType) || string.Equals(ContentType, "Text", StringComparison.OrdinalIgnoreCase))
+                        return ContentData ?? string.Empty;
+                    if (string.Equals(ContentType, "Object", StringComparison.OrdinalIgnoreCase))
+                        return ContentData ?? string.Empty;
+                    return string.Empty;
+                }
+                set
+                {
+                    ContentType = "Text";
+                    ContentFormat ??= "plain";
+                    ContentData = value ?? string.Empty;
+                }
+            }
+
+            [JsonProperty("Content")]
+            private string? LegacyContent
+            {
+                readonly get
+                {
+                    if (string.IsNullOrWhiteSpace(ContentType) || string.Equals(ContentType, "Text", StringComparison.OrdinalIgnoreCase))
+                        return ContentData;
+                    if (string.Equals(ContentType, "Object", StringComparison.OrdinalIgnoreCase))
+                        return ContentData;
+                    return null;
+                }
+                set
+                {
+                    if (value != null)
+                    {
+                        ContentType = "Text";
+                        ContentFormat ??= "plain";
+                        ContentData = value;
+                    }
+                }
+            }
         }
 
         public struct GroupStruct
@@ -542,14 +585,16 @@ namespace Notes
             var welcomeNote = new UnitStruct
             {
                 Title = "Welcome to Notes!",
-                Content = "Welcome to your improved Notes application!\n\n" +
-                         "• Right-click to create new notes\n" +
-                         "• Single-click to copy content\n" +
-                         "• Double-click to edit\n" +
-                         "• Drag notes around when movable mode is enabled\n" +
-                         "• Use Ctrl+F to search your notes\n" +
-                         "• Auto-save is enabled by default\n\n" +
-                         "Enjoy your organized note-taking!",
+                ContentType = "Text",
+                ContentData = "Welcome to your improved Notes application!\n\n" +
+                               "• Right-click to create new notes\n" +
+                               "• Single-click to copy content\n" +
+                               "• Double-click to edit\n" +
+                               "• Drag notes around when movable mode is enabled\n" +
+                               "• Use Ctrl+F to search your notes\n" +
+                               "• Auto-save is enabled by default\n\n" +
+                               "Enjoy your organized note-taking!",
+                ContentFormat = "plain",
                 BackgroundColor = Color.LightSteelBlue.ToArgb(),
                 TextColor = Color.DarkBlue.ToArgb(),
                 Font = new Font("Segoe UI", 9f, FontStyle.Regular),
@@ -560,6 +605,8 @@ namespace Notes
                 Category = "System",
                 Tags = new string[] { "welcome", "help" }
             };
+
+            welcomeNote.Content = welcomeNote.ContentData;
             
             var id = NotesLibrary.Instance.GenerateId();
             Units.Add(id, welcomeNote);
@@ -779,10 +826,7 @@ namespace Notes
             searchTimer.Stop();
         }
 
-        private string getNewId()
-        {
-            return NotesLibrary.Instance.GenerateId();
-        }
+        private string getNewId() => NotesLibrary.Instance.GenerateId();
 
         private void SaveStateForUndo()
         {
@@ -1359,14 +1403,14 @@ namespace Notes
 
         private void unit_Click_Handle(object sender, EventArgs e)
         {
-            Button ct = sender as Button;
-            string id = (string)ct.Tag;
-
-            //Check if key exists
-            if (Units.ContainsKey(id))
+            if (sender is Button ct && ct.Tag is string id && Units.TryGetValue(id, out var unit))
             {
-                Clipboard.SetText(Units[id].Content);
-                status = "Copied to clipboard";
+                var message = ClipboardHelper.CopyUnitToClipboard(unit);
+                status = message;
+            }
+            else
+            {
+                status = "Unable to copy content";
             }
         }
 
@@ -2087,43 +2131,45 @@ namespace Notes
 
         private void unitMenuCopyInLowercase_Click(object sender, EventArgs e)
         {
-            //Get clicked item
             var item = getContextMenuInfo(sender);
+            if (item == null)
+                return;
 
-            if (item != null)
+            if (!Units.TryGetValue(item.Id, out var unit))
+                return;
+
+            selectedUnit = unit;
+            var text = unit.Content;
+            if (!string.IsNullOrEmpty(text))
             {
-                var btn = item.Button;
-                var id = item.Id;
-
-                if (Units.ContainsKey(id))
-                {
-                    // Load the selected button
-                    selectedUnit = Units[id];
-
-                    Clipboard.SetText(selectedUnit.Content.ToLower());
-                    status = "Copied to clipboard in lowercase";
-                }
+                Clipboard.SetText(text.ToLower());
+                status = "Copied to clipboard in lowercase";
+            }
+            else
+            {
+                status = "Note does not contain text content";
             }
         }
 
         private void unitMenuCopyInUppercase_Click(object sender, EventArgs e)
         {
-            //Get clicked item
             var item = getContextMenuInfo(sender);
+            if (item == null)
+                return;
 
-            if (item != null)
+            if (!Units.TryGetValue(item.Id, out var unit))
+                return;
+
+            selectedUnit = unit;
+            var text = unit.Content;
+            if (!string.IsNullOrEmpty(text))
             {
-                var btn = item.Button;
-                var id = item.Id;
-
-                if (Units.ContainsKey(id))
-                {
-                    // Load the selected button
-                    selectedUnit = Units[id];
-
-                    Clipboard.SetText(selectedUnit.Content.ToUpper());
-                    status = "Copied to clipboard in uppercase";
-                }
+                Clipboard.SetText(text.ToUpper());
+                status = "Copied to clipboard in uppercase";
+            }
+            else
+            {
+                status = "Note does not contain text content";
             }
         }
 
@@ -4761,6 +4807,28 @@ namespace Notes
             Groups = JsonConvert.DeserializeObject<Dictionary<string, GroupStruct>>(
                 JsonConvert.SerializeObject(state.Groups));
         }
+
+        private static string GetContentSummary(UnitStruct unit)
+        {
+            switch ((unit.ContentType ?? "Text").ToLowerInvariant())
+            {
+                case "image":
+                    return "Image";
+                case "object":
+                    if (ClipboardHelper.TryDeserializePacket(unit.ContentData, out var packet, out var summary))
+                    {
+                        return string.IsNullOrWhiteSpace(summary) ? "Object" : summary;
+                    }
+                    return "Object";
+                default:
+                    var text = unit.Content;
+                    if (string.IsNullOrWhiteSpace(text))
+                        return string.Empty;
+                    return text.Length > 200 ? text.Substring(0, 200) + "…" : text;
+            }
+        }
+
+        public static string GetContentSummaryFor(UnitStruct unit) => GetContentSummary(unit);
     }
 }
 
