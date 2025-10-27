@@ -1474,6 +1474,25 @@ namespace Notes
                         SelectButton(btn);
                     }
                 }
+                else if (control is GroupBox groupBox)
+                {
+                    // Search for buttons inside the groupbox
+                    foreach (Control childControl in groupBox.Controls)
+                    {
+                        if (childControl is Button childBtn)
+                        {
+                            // Convert child button bounds to panel coordinates
+                            Point childLocation = groupBox.PointToScreen(childBtn.Location);
+                            Point panelLocation = panelContainer.PointToClient(childLocation);
+                            Rectangle childBounds = new Rectangle(panelLocation, childBtn.Size);
+                            
+                            if (selectionRectangle.IntersectsWith(childBounds))
+                            {
+                                SelectButton(childBtn);
+                            }
+                        }
+                    }
+                }
             }
         }
 
