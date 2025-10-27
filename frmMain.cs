@@ -953,6 +953,58 @@ namespace Notes
             }
         }
 
+        private void ApplyUnitChangesToButton(Button btn, UnitStruct unit)
+        {
+            if (btn == null)
+                return;
+
+            btn.Text = unit.Title;
+            btn.BackColor = Color.FromArgb(unit.BackgroundColor);
+            btn.ForeColor = Color.FromArgb(unit.TextColor);
+            btn.Font = unit.Font ?? NotesLibrary.Instance.GetDefaultFont();
+
+            Control targetParent = panelContainer;
+            Point targetLocation = new Point(unit.X, unit.Y);
+
+            if (!string.IsNullOrEmpty(unit.GroupId))
+            {
+                GroupBox targetGroup = GetOrCreateGroupBox(unit.GroupId);
+                if (targetGroup != null)
+                {
+                    targetParent = targetGroup;
+
+                    int relativeX = unit.X - targetGroup.Location.X;
+                    int relativeY = unit.Y - targetGroup.Location.Y;
+
+                    int minX = 0;
+                    int minY = Math.Max(0, targetGroup.DisplayRectangle.Top);
+                    int maxX = Math.Max(minX, targetGroup.ClientSize.Width - btn.Width);
+                    int maxY = Math.Max(minY, targetGroup.ClientSize.Height - btn.Height);
+
+                    relativeX = Math.Min(Math.Max(relativeX, minX), maxX);
+                    relativeY = Math.Min(Math.Max(relativeY, minY), maxY);
+
+                    targetLocation = new Point(relativeX, relativeY);
+                }
+                else
+                {
+                    targetParent = panelContainer;
+                    targetLocation = new Point(unit.X, unit.Y);
+                }
+            }
+
+            if (btn.Parent != targetParent)
+            {
+                btn.Parent?.Controls.Remove(btn);
+                targetParent.Controls.Add(btn);
+            }
+
+            btn.Location = targetLocation;
+            btn.BringToFront();
+
+            SaveButtonLocationAndGroup(btn);
+        }
+
         private Button CreateButtonByType(string buttonType)
         {
             if (string.IsNullOrEmpty(buttonType))
@@ -1338,11 +1390,7 @@ namespace Notes
                     selectedUnitModified = false;
 
                     Units[id] = selectedUnit;
-                    btn.Text = selectedUnit.Title;
-                    btn.BackColor = Color.FromArgb(selectedUnit.BackgroundColor);
-                    btn.ForeColor = Color.FromArgb(selectedUnit.TextColor);
-                    btn.Font = selectedUnit.Font;
-                    btn.Location = new Point(selectedUnit.X, selectedUnit.Y);
+                    ApplyUnitChangesToButton(btn, selectedUnit);
 
                     configModified = true;
                     status = "Updated successfully";
@@ -1854,11 +1902,7 @@ namespace Notes
                         selectedUnitModified = false;
 
                         Units[id] = selectedUnit;
-                        btn.Text = selectedUnit.Title;
-                        btn.BackColor = Color.FromArgb(selectedUnit.BackgroundColor);
-                        btn.ForeColor = Color.FromArgb(selectedUnit.TextColor);
-                        btn.Font = selectedUnit.Font;
-                        btn.Location = new Point(selectedUnit.X, selectedUnit.Y);
+                        ApplyUnitChangesToButton(btn, selectedUnit);
 
                         configModified = true;
                         status = "Updated successfully";
