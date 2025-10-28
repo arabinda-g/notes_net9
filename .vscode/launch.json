@@ -2,7 +2,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": ".NET Core Launch (Windows Forms)",
+            "name": "Notes",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
@@ -11,8 +11,14 @@
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,
             "console": "internalConsole",
+            "internalConsoleOptions": "neverOpen",
+            "justMyCode": true,
+            "requireExactSource": true,
+            "suppressJITOptimizations": true,
             "env": {
-                "DOTNET_ENVIRONMENT": "Development"
+                "DOTNET_ENVIRONMENT": "Development",
+                "COMPlus_ReadyToRun": "0",
+                "COMPlus_TieredCompilation": "0"
             }
         }
     ]
