@@ -7,7 +7,6 @@ using System.Drawing;
 using System.Linq;
 using System.Media;
 using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace Notes
@@ -28,7 +27,7 @@ namespace Notes
         private ContentKind currentContentKind = ContentKind.Text;
         private string? imageBase64;
         private string? imageFormat;
-        private ClipboardHelper.ClipboardPacket? objectPacket;
+        private string? objectBinaryData;
 
         public frmEdit()
         {
@@ -58,9 +57,7 @@ namespace Notes
 
         private void InitializeContentControls()
         {
-            cmbContentType.SelectedIndexChanged += cmbContentType_SelectedIndexChanged;
-            btnPasteImage.Click += btnPasteImage_Click;
-            btnPasteObject.Click += btnPasteObject_Click;
+            UpdateContentPanels();
         }
 
         private void frmEdit_Load(object sender, EventArgs e)
@@ -272,19 +269,20 @@ namespace Notes
                         selectedUnit.ContentData = imageBase64;
                         break;
                     case ContentKind.Object:
-                        if (objectPacket == null)
+                        if (string.IsNullOrEmpty(objectBinaryData))
                         {
                             MessageBox.Show("Please paste data from the clipboard.", NotesLibrary.AppName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
                             return;
                         }
                         selectedUnit.ContentType = "Object";
-                        selectedUnit.ContentFormat = "clipboard-packet";
-                        selectedUnit.ContentData = ClipboardHelper.SerializePacket(objectPacket);
+                        selectedUnit.ContentFormat = "clipboard-binary";
+                        selectedUnit.ContentData = objectBinaryData;
                         break;
                     default:
                         selectedUnit.ContentType = "Text";
                         selectedUnit.ContentFormat = "plain";
                         selectedUnit.ContentData = tbContent.Text;
+                        objectBinaryData = null;
                         break;
                 }
 
@@ -412,8 +410,6 @@ namespace Notes
                     cmbContentType.SelectedIndex = 1;
                     imageBase64 = unit.ContentData;
                     imageFormat = unit.ContentFormat;
-                    tbContent.Text = string.Empty;
-                    objectPacket = null;
                     if (!string.IsNullOrEmpty(unit.ContentData))
                     {
                         var bmp = ClipboardHelper.DecodeImage(unit.ContentData);
@@ -424,15 +420,20 @@ namespace Notes
                             picImagePreview.Image = bmp;
                         }
                     }
+                    tbContent.Text = string.Empty;
+                    objectBinaryData = null;
+                    lblObjectSummary.Text = string.Empty;
                     break;
                 case "object":
                     currentContentKind = ContentKind.Object;
                     cmbContentType.SelectedIndex = 2;
+                    objectBinaryData = unit.ContentData;
+                    string summary;
+                    if (!ClipboardHelper.TryDescribeObject(objectBinaryData, out summary))
+                        summary = "Clipboard formats will appear here.";
+                    lblObjectSummary.Text = summary;
                     imageBase64 = null;
                     imageFormat = null;
-                    ClipboardHelper.TryDeserializePacket(unit.ContentData, out objectPacket, out var summary);
-                    lblObjectSummary.Text = string.IsNullOrWhiteSpace(summary) ? "Clipboard formats will appear here." : summary;
-                    tbContent.Text = string.Empty;
                     if (picImagePreview.Image != null)
                     {
                         picImagePreview.Image.Dispose();
@@ -445,7 +446,7 @@ namespace Notes
                     tbContent.Text = unit.Content;
                     imageBase64 = null;
                     imageFormat = null;
-                    objectPacket = null;
+                    objectBinaryData = null;
                     if (picImagePreview.Image != null)
                     {
                         picImagePreview.Image.Dispose();
@@ -463,6 +464,20 @@ namespace Notes
             pnlTextContent.Visible = currentContentKind == ContentKind.Text;
             pnlImageContent.Visible = currentContentKind == ContentKind.Image;
             pnlObjectContent.Visible = currentContentKind == ContentKind.Object;
+
+            if (currentContentKind != ContentKind.Object)
+            {
+                lblObjectSummary.Text = "Clipboard formats will appear here.";
+                if (currentContentKind != ContentKind.Image && picImagePreview.Image != null)
+                {
+                    picImagePreview.Image.Dispose();
+                    picImagePreview.Image = null;
+                }
+            }
+            else if (string.IsNullOrEmpty(objectBinaryData))
+            {
+                lblObjectSummary.Text = "Clipboard formats will appear here.";
+            }
         }
 
         private void cmbContentType_SelectedIndexChanged(object sender, EventArgs e)
@@ -491,7 +506,10 @@ namespace Notes
 
         private void btnPasteImage_Click(object sender, EventArgs e)
         {
-            if (ClipboardHelper.TryCaptureImageFromClipboard(out var base64, out var format, out var preview))
+            string base64;
+            string format;
+            Bitmap? preview;
+            if (ClipboardHelper.TryCaptureImageFromClipboard(out base64, out format, out preview))
             {
                 imageBase64 = base64;
                 imageFormat = format;
@@ -500,7 +518,7 @@ namespace Notes
                     picImagePreview.Image.Dispose();
                 }
                 picImagePreview.Image = preview;
-                objectPacket = null;
+                objectBinaryData = null;
                 lblObjectSummary.Text = "";
                 MarkAsChanged();
             }
@@ -512,9 +530,11 @@ namespace Notes
 
         private void btnPasteObject_Click(object sender, EventArgs e)
         {
-            if (ClipboardHelper.TryCaptureObjectFromClipboard(out var packet, out var summary))
+            string base64;
+            string summary;
+            if (ClipboardHelper.TryCaptureClipboardObject(out base64, out summary))
             {
-                objectPacket = packet;
+                objectBinaryData = base64;
                 lblObjectSummary.Text = summary;
                 imageBase64 = null;
                 imageFormat = null;

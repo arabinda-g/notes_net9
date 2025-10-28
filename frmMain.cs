@@ -1403,15 +1403,18 @@ namespace Notes
 
         private void unit_Click_Handle(object sender, EventArgs e)
         {
-            if (sender is Button ct && ct.Tag is string id && Units.TryGetValue(id, out var unit))
+            if (sender is Button ct && ct.Tag is string id)
             {
-                var message = ClipboardHelper.CopyUnitToClipboard(unit);
-                status = message;
+                UnitStruct unit;
+                if (Units.TryGetValue(id, out unit))
+                {
+                    var message = ClipboardHelper.CopyUnitToClipboard(unit);
+                    status = message;
+                    return;
+                }
             }
-            else
-            {
-                status = "Unable to copy content";
-            }
+
+            status = "Unable to copy content";
         }
 
         private void unit_DoubleClick_Handle(object sender, EventArgs e)
@@ -2135,7 +2138,8 @@ namespace Notes
             if (item == null)
                 return;
 
-            if (!Units.TryGetValue(item.Id, out var unit))
+            UnitStruct unit;
+            if (!Units.TryGetValue(item.Id, out unit))
                 return;
 
             selectedUnit = unit;
@@ -2157,7 +2161,8 @@ namespace Notes
             if (item == null)
                 return;
 
-            if (!Units.TryGetValue(item.Id, out var unit))
+            UnitStruct unit;
+            if (!Units.TryGetValue(item.Id, out unit))
                 return;
 
             selectedUnit = unit;
@@ -4815,7 +4820,8 @@ namespace Notes
                 case "image":
                     return "Image";
                 case "object":
-                    if (ClipboardHelper.TryDeserializePacket(unit.ContentData, out var packet, out var summary))
+                    string summary;
+                    if (ClipboardHelper.TryDescribeObject(unit.ContentData, out summary))
                     {
                         return string.IsNullOrWhiteSpace(summary) ? "Object" : summary;
                     }

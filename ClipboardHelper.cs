@@ -1,27 +1,31 @@
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Threading;
 using System.Windows.Forms;
 
 namespace Notes
 {
     public static class ClipboardHelper
     {
-        public class ClipboardPacket
+        private const uint GMEM_MOVEABLE = 0x0002;
+        private const int MAX_FORMAT_NAME = 512;
+
+        private sealed class ClipboardBinaryPacket
         {
-            public string Version { get; set; } = "1.0";
-            public List<ClipboardEntry> Entries { get; set; } = new List<ClipboardEntry>();
+            public List<ClipboardBinaryEntry> Entries { get; } = new List<ClipboardBinaryEntry>();
         }
 
-        public class ClipboardEntry
+        private sealed class ClipboardBinaryEntry
         {
-            public string Format { get; set; } = string.Empty;
-            public string Kind { get; set; } = string.Empty;
-            public string Data { get; set; } = string.Empty;
+            public uint FormatId { get; set; }
+            public string FormatName { get; set; } = string.Empty;
+            public byte[] Data { get; set; } = Array.Empty<byte>();
         }
 
         public static bool TryCaptureTextFromClipboard(out string text)
@@ -61,142 +65,39 @@ namespace Notes
             return false;
         }
 
-        public static bool TryCaptureObjectFromClipboard(out ClipboardPacket? packet, out string summary)
+        public static bool TryCaptureClipboardObject(out string base64, out string summary)
         {
-            packet = null;
+            base64 = string.Empty;
             summary = string.Empty;
 
-            var dataObject = Clipboard.GetDataObject();
-            if (dataObject == null)
-            {
-                return false;
-            }
-
-            var formats = dataObject.GetFormats();
-            var result = new ClipboardPacket();
-
-            foreach (var format in formats)
-            {
-                try
-                {
-                    var data = dataObject.GetData(format);
-                    if (data == null)
-                        continue;
-
-                    switch (data)
-                    {
-                        case string s:
-                            result.Entries.Add(new ClipboardEntry
-                            {
-                                Format = format,
-                                Kind = "string",
-                                Data = s
-                            });
-                            break;
-                        case string[] array:
-                            result.Entries.Add(new ClipboardEntry
-                            {
-                                Format = format,
-                                Kind = "string-array",
-                                Data = JsonConvert.SerializeObject(array)
-                            });
-                            break;
-                        case MemoryStream ms:
-                            result.Entries.Add(new ClipboardEntry
-                            {
-                                Format = format,
-                                Kind = "binary",
-                                Data = Convert.ToBase64String(ms.ToArray())
-                            });
-                            break;
-                        case byte[] bytes:
-                            result.Entries.Add(new ClipboardEntry
-                            {
-                                Format = format,
-                                Kind = "binary",
-                                Data = Convert.ToBase64String(bytes)
-                            });
-                            break;
-                        case Image image:
-                            using (image)
-                            {
-                                using var imageStream = new MemoryStream();
-                                image.Save(imageStream, ImageFormat.Png);
-                                result.Entries.Add(new ClipboardEntry
-                                {
-                                    Format = format,
-                                    Kind = "image",
-                                    Data = Convert.ToBase64String(imageStream.ToArray())
-                                });
-                            }
-                            break;
-                        default:
-                            if (data.GetType().IsSerializable)
-                            {
-#pragma warning disable SYSLIB0011
-                                using var serialized = new MemoryStream();
-                                var formatter = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
-                                formatter.Serialize(serialized, data);
-#pragma warning restore SYSLIB0011
-                                result.Entries.Add(new ClipboardEntry
-                                {
-                                    Format = format,
-                                    Kind = "binary",
-                                    Data = Convert.ToBase64String(serialized.ToArray())
-                                });
-                            }
-                            break;
-                    }
-                }
-                catch
-                {
-                    // Ignore formats we cannot capture
-                }
-            }
-
-            if (result.Entries.Count == 0)
-            {
-                return false;
-            }
-
-            packet = result;
-            summary = BuildSummary(result);
-            return true;
-        }
-
-        public static string BuildSummary(ClipboardPacket packet)
-        {
-            if (packet.Entries.Count == 0)
-                return string.Empty;
-
-            return "Formats:" + Environment.NewLine + string.Join(Environment.NewLine,
-                packet.Entries.Select(e => $"- {e.Format} ({e.Kind})"));
-        }
-
-        public static string SerializePacket(ClipboardPacket packet) => JsonConvert.SerializeObject(packet);
-
-        public static bool TryDeserializePacket(string? data, out ClipboardPacket? packet, out string summary)
-        {
-            packet = null;
-            summary = string.Empty;
-
-            if (string.IsNullOrWhiteSpace(data))
+            if (!TryOpenClipboard())
                 return false;
 
             try
             {
-                var parsed = JsonConvert.DeserializeObject<ClipboardPacket>(data);
-                if (parsed == null || parsed.Entries == null || parsed.Entries.Count == 0)
+                var packet = CapturePacketFromClipboard();
+                if (packet == null || packet.Entries.Count == 0)
                     return false;
 
-                packet = parsed;
-                summary = BuildSummary(parsed);
+                base64 = Convert.ToBase64String(SerializePacket(packet));
+                summary = BuildSummary(packet);
                 return true;
             }
-            catch
+            finally
             {
-                return false;
+                CloseClipboard();
             }
+        }
+
+        public static bool TryDescribeObject(string? base64, out string summary)
+        {
+            summary = string.Empty;
+            ClipboardBinaryPacket? packet;
+            if (!TryDeserializePacket(base64, out packet) || packet == null || packet.Entries.Count == 0)
+                return false;
+
+            summary = BuildSummary(packet);
+            return true;
         }
 
         public static string CopyUnitToClipboard(frmMain.UnitStruct unit)
@@ -220,45 +121,10 @@ namespace Notes
                         return "Image copied to clipboard";
 
                     case "object":
-                        if (!TryDeserializePacket(unit.ContentData, out var packet, out _))
-                            return "Object content unavailable";
-
-                        var dataObject = new DataObject();
-                        foreach (var entry in packet!.Entries)
-                        {
-                            try
-                            {
-                                switch (entry.Kind)
-                                {
-                                    case "string":
-                                        dataObject.SetData(entry.Format, entry.Data);
-                                        break;
-                                    case "string-array":
-                                        var array = JsonConvert.DeserializeObject<string[]>(entry.Data) ?? Array.Empty<string>();
-                                        dataObject.SetData(entry.Format, array);
-                                        break;
-                                    case "image":
-                                        var imageBytes = Convert.FromBase64String(entry.Data);
-                                        using (var ms = new MemoryStream(imageBytes))
-                                        {
-                                            using var image = Image.FromStream(ms);
-                                            dataObject.SetData(entry.Format, new Bitmap(image));
-                                        }
-                                        break;
-                                    case "binary":
-                                        var binary = Convert.FromBase64String(entry.Data);
-                                        dataObject.SetData(entry.Format, binary);
-                                        break;
-                                }
-                            }
-                            catch
-                            {
-                                // Ignore formats we cannot restore
-                            }
-                        }
-
-                        Clipboard.SetDataObject(dataObject, true);
-                        return "Object copied to clipboard";
+                        ClipboardBinaryPacket? packet;
+                        if (TryDeserializePacket(unit.ContentData, out packet) && packet != null && TrySetClipboardPacket(packet))
+                            return "Object copied to clipboard";
+                        return "Object content unavailable";
 
                     default:
                         Clipboard.SetText(unit.ContentData ?? string.Empty);
@@ -269,6 +135,19 @@ namespace Notes
             {
                 return "Clipboard operation failed: " + ex.Message;
             }
+        }
+
+        public static bool TrySetClipboardObject(string? base64, out string message)
+        {
+            ClipboardBinaryPacket? packet;
+            if (TryDeserializePacket(base64, out packet) && packet != null && TrySetClipboardPacket(packet))
+            {
+                message = "Object copied to clipboard";
+                return true;
+            }
+
+            message = "Object content unavailable";
+            return false;
         }
 
         public static Bitmap? DecodeImage(string? base64)
@@ -287,6 +166,281 @@ namespace Notes
                 return null;
             }
         }
+
+        private static ClipboardBinaryPacket? CapturePacketFromClipboard()
+        {
+            var packet = new ClipboardBinaryPacket();
+            uint format = 0;
+
+            while (true)
+            {
+                format = EnumClipboardFormats(format);
+                if (format == 0)
+                    break;
+
+                var entry = CaptureEntry(format);
+                if (entry != null)
+                    packet.Entries.Add(entry);
+            }
+
+            return packet;
+        }
+
+        private static ClipboardBinaryEntry? CaptureEntry(uint format)
+        {
+            var handle = GetClipboardData(format);
+            if (handle == IntPtr.Zero)
+                return null;
+
+            var sizePtr = GlobalSize(handle);
+            if (sizePtr == IntPtr.Zero)
+                return null;
+
+            long size = sizePtr.ToInt64();
+            if (size <= 0 || size > int.MaxValue)
+                return null;
+
+            var locked = GlobalLock(handle);
+            if (locked == IntPtr.Zero)
+                return null;
+
+            try
+            {
+                int length = (int)size;
+                var data = new byte[length];
+                Marshal.Copy(locked, data, 0, length);
+
+                return new ClipboardBinaryEntry
+                {
+                    FormatId = format,
+                    FormatName = ResolveFormatName(format),
+                    Data = data
+                };
+            }
+            finally
+            {
+                GlobalUnlock(handle);
+            }
+        }
+
+        private static string ResolveFormatName(uint format)
+        {
+            try
+            {
+                var df = DataFormats.GetFormat((int)format);
+                if (!string.IsNullOrEmpty(df.Name))
+                    return df.Name;
+            }
+            catch
+            {
+                // Ignore and fall back
+            }
+
+            if (format >= 0xC000)
+            {
+                var sb = new StringBuilder(MAX_FORMAT_NAME);
+                var len = GetClipboardFormatName(format, sb, sb.Capacity);
+                if (len > 0)
+                    return sb.ToString();
+            }
+
+            return "Format_" + format;
+        }
+
+        private static string BuildSummary(ClipboardBinaryPacket packet)
+        {
+            if (packet.Entries.Count == 0)
+                return string.Empty;
+
+            return "Formats:" + Environment.NewLine + string.Join(Environment.NewLine,
+                packet.Entries.Select(e => $"- {e.FormatName} ({e.Data.Length} bytes)"));
+        }
+
+        private static byte[] SerializePacket(ClipboardBinaryPacket packet)
+        {
+            using var ms = new MemoryStream();
+            using var writer = new BinaryWriter(ms, Encoding.UTF8, leaveOpen: true);
+
+            writer.Write(packet.Entries.Count);
+            foreach (var entry in packet.Entries)
+            {
+                writer.Write(entry.FormatId);
+                writer.Write(entry.FormatName ?? string.Empty);
+                writer.Write(entry.Data.Length);
+                writer.Write(entry.Data);
+            }
+
+            writer.Flush();
+            return ms.ToArray();
+        }
+
+        private static bool TryDeserializePacket(string? base64, out ClipboardBinaryPacket? packet)
+        {
+            packet = null;
+            if (string.IsNullOrWhiteSpace(base64))
+                return false;
+
+            try
+            {
+                var bytes = Convert.FromBase64String(base64);
+                using var ms = new MemoryStream(bytes);
+                using var reader = new BinaryReader(ms, Encoding.UTF8, leaveOpen: true);
+
+                var result = new ClipboardBinaryPacket();
+                int count = reader.ReadInt32();
+                for (int i = 0; i < count; i++)
+                {
+                    var entry = new ClipboardBinaryEntry
+                    {
+                        FormatId = reader.ReadUInt32(),
+                        FormatName = reader.ReadString(),
+                    };
+
+                    int length = reader.ReadInt32();
+                    if (length < 0 || length > bytes.Length)
+                        return false;
+
+                    entry.Data = reader.ReadBytes(length);
+                    result.Entries.Add(entry);
+                }
+
+                packet = result;
+                return true;
+            }
+            catch
+            {
+                packet = null;
+                return false;
+            }
+        }
+
+        private static bool TrySetClipboardPacket(ClipboardBinaryPacket packet)
+        {
+            if (!TryOpenClipboard())
+                return false;
+
+            try
+            {
+                if (!EmptyClipboard())
+                    return false;
+
+                foreach (var entry in packet.Entries)
+                {
+                    var formatId = ResolveFormatId(entry);
+                    if (formatId == 0)
+                        continue;
+
+                    var data = entry.Data ?? Array.Empty<byte>();
+                    var length = Math.Max(1, data.Length);
+                    var hMem = GlobalAlloc(GMEM_MOVEABLE, (UIntPtr)length);
+                    if (hMem == IntPtr.Zero)
+                        return false;
+
+                    var target = GlobalLock(hMem);
+                    if (target == IntPtr.Zero)
+                    {
+                        GlobalFree(hMem);
+                        return false;
+                    }
+
+                    try
+                    {
+                        if (data.Length > 0)
+                        {
+                            Marshal.Copy(data, 0, target, data.Length);
+                        }
+                        else
+                        {
+                            Marshal.WriteByte(target, 0, 0);
+                        }
+                    }
+                    finally
+                    {
+                        GlobalUnlock(hMem);
+                    }
+
+                    if (SetClipboardData(formatId, hMem) == IntPtr.Zero)
+                    {
+                        GlobalFree(hMem);
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+            finally
+            {
+                CloseClipboard();
+            }
+        }
+
+        private static uint ResolveFormatId(ClipboardBinaryEntry entry)
+        {
+            if (!string.IsNullOrEmpty(entry.FormatName))
+            {
+                try
+                {
+                    var dfByName = DataFormats.GetFormat(entry.FormatName);
+                    if (dfByName != null)
+                        return (uint)dfByName.Id;
+                }
+                catch
+                {
+                    // Ignore and fall back to stored id
+                }
+            }
+
+            return entry.FormatId;
+        }
+
+        private static bool TryOpenClipboard()
+        {
+            for (int i = 0; i < 5; i++)
+            {
+                if (OpenClipboard(IntPtr.Zero))
+                    return true;
+
+                Thread.Sleep(20);
+            }
+
+            return false;
+        }
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool OpenClipboard(IntPtr hWndNewOwner);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool CloseClipboard();
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool EmptyClipboard();
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern uint EnumClipboardFormats(uint format);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern IntPtr GetClipboardData(uint uFormat);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern int GetClipboardFormatName(uint format, StringBuilder lpszFormatName, int cchMaxCount);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern IntPtr SetClipboardData(uint uFormat, IntPtr hMem);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern IntPtr GlobalLock(IntPtr hMem);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool GlobalUnlock(IntPtr hMem);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern IntPtr GlobalSize(IntPtr hMem);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern IntPtr GlobalAlloc(uint uFlags, UIntPtr dwBytes);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern IntPtr GlobalFree(IntPtr hMem);
     }
 }
 
