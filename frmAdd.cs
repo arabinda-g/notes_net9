@@ -49,7 +49,9 @@ namespace Notes
             var config = NotesLibrary.Instance.Config;
             ThemeManager.ApplyTheme(this, config.General.Theme);
             
-            // Initialize with default values
+            // Initialize with default values, preserving position from frmMain
+            selectedUnit.X = frmMain.selectedUnit.X;
+            selectedUnit.Y = frmMain.selectedUnit.Y;
             selectedUnit.BackgroundColor = config.DefaultUnitStyle.BackgroundColor;
             selectedUnit.TextColor = config.DefaultUnitStyle.TextColor;
             selectedUnit.Font = NotesLibrary.Instance.GetDefaultFont();
