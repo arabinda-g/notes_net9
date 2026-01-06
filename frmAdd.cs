@@ -63,6 +63,7 @@ namespace Notes
 
         private void InitializeContentControls()
         {
+            LoadGroups();
             cmbContentType.SelectedIndex = 0;
             UpdateContentPanels();
         }
