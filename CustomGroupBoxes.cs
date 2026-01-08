@@ -2501,5 +2501,1029 @@ namespace Notes
             base.Dispose(disposing);
         }
     }
+
+    // 26. Snowfall GroupBox - White background with falling snowflakes
+    public class SnowfallGroupBox : CustomGroupBoxBase
+    {
+        private System.Windows.Forms.Timer snowTimer;
+        private List<Snowflake> snowflakes = new List<Snowflake>();
+        private Random rand = new Random();
+
+        private class Snowflake { public float X, Y, Speed, Size, Sway; }
+
+        public SnowfallGroupBox()
+        {
+            for (int i = 0; i < 40; i++)
+            {
+                snowflakes.Add(new Snowflake
+                {
+                    X = rand.Next(0, 400),
+                    Y = rand.Next(0, 300),
+                    Speed = 1 + (float)rand.NextDouble() * 2,
+                    Size = 2 + (float)rand.NextDouble() * 4,
+                    Sway = (float)rand.NextDouble() * 2
+                });
+            }
+
+            snowTimer = new System.Windows.Forms.Timer { Interval = 40 };
+            snowTimer.Tick += (s, e) => { UpdateSnow(); this.Invalidate(); };
+            snowTimer.Start();
+        }
+
+        private void UpdateSnow()
+        {
+            Rectangle rect = new Rectangle(3, 20, Width - 10, Height - 26);
+            foreach (var flake in snowflakes)
+            {
+                flake.Y += flake.Speed;
+                flake.X += (float)Math.Sin(flake.Y / 20 + flake.Sway) * 0.5f;
+                
+                if (flake.Y > rect.Bottom)
+                {
+                    flake.Y = rect.Y;
+                    flake.X = rect.X + rand.Next(rect.Width);
+                }
+            }
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            Rectangle rect = new Rectangle(3, 20, Width - 10, Height - 26);
+
+            using (GraphicsPath path = GetRoundedRect(rect, 12))
+            {
+                // White/light blue gradient background
+                using (LinearGradientBrush bgBrush = new LinearGradientBrush(
+                    rect, Color.FromArgb(250, 252, 255), Color.FromArgb(230, 240, 250), LinearGradientMode.Vertical))
+                {
+                    g.FillPath(bgBrush, path);
+                }
+
+                // Snowflakes
+                foreach (var flake in snowflakes)
+                {
+                    if (flake.X >= rect.X && flake.X <= rect.Right && flake.Y >= rect.Y && flake.Y <= rect.Bottom)
+                    {
+                        using (SolidBrush snowBrush = new SolidBrush(Color.FromArgb(200, 255, 255, 255)))
+                        {
+                            g.FillEllipse(snowBrush, flake.X - flake.Size/2, flake.Y - flake.Size/2, flake.Size, flake.Size);
+                        }
+                        // Sparkle effect
+                        using (Pen sparklePen = new Pen(Color.FromArgb(100, 200, 220, 255), 1))
+                        {
+                            g.DrawLine(sparklePen, flake.X - flake.Size/2, flake.Y, flake.X + flake.Size/2, flake.Y);
+                            g.DrawLine(sparklePen, flake.X, flake.Y - flake.Size/2, flake.X, flake.Y + flake.Size/2);
+                        }
+                    }
+                }
+
+                // Subtle border
+                using (Pen borderPen = new Pen(Color.FromArgb(180, 200, 220), 2))
+                {
+                    g.DrawPath(borderPen, path);
+                }
+            }
+
+            // Title
+            SizeF titleSize = g.MeasureString(this.Text, this.Font);
+            using (SolidBrush bgBrush = new SolidBrush(Color.FromArgb(245, 250, 255)))
+            {
+                g.FillRectangle(bgBrush, 15, 6, titleSize.Width + 14, titleSize.Height + 8);
+            }
+            using (SolidBrush textBrush = new SolidBrush(Color.FromArgb(80, 120, 160)))
+            {
+                g.DrawString(this.Text, new Font(this.Font, FontStyle.Bold), textBrush, 22, 10);
+            }
+        }
+
+        private GraphicsPath GetRoundedRect(Rectangle bounds, int radius)
+        {
+            GraphicsPath path = new GraphicsPath();
+            int diameter = radius * 2;
+            path.AddArc(bounds.X, bounds.Y, diameter, diameter, 180, 90);
+            path.AddArc(bounds.Right - diameter, bounds.Y, diameter, diameter, 270, 90);
+            path.AddArc(bounds.Right - diameter, bounds.Bottom - diameter, diameter, diameter, 0, 90);
+            path.AddArc(bounds.X, bounds.Bottom - diameter, diameter, diameter, 90, 90);
+            path.CloseFigure();
+            return path;
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && snowTimer != null) { snowTimer.Stop(); snowTimer.Dispose(); }
+            base.Dispose(disposing);
+        }
+    }
+
+    // 27. Cloud Drift GroupBox - White/blue sky with drifting clouds
+    public class CloudDriftGroupBox : CustomGroupBoxBase
+    {
+        private System.Windows.Forms.Timer cloudTimer;
+        private float cloudOffset = 0;
+
+        public CloudDriftGroupBox()
+        {
+            cloudTimer = new System.Windows.Forms.Timer { Interval = 50 };
+            cloudTimer.Tick += (s, e) => { cloudOffset += 0.5f; if (cloudOffset > 200) cloudOffset = -100; this.Invalidate(); };
+            cloudTimer.Start();
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            Rectangle rect = new Rectangle(3, 20, Width - 10, Height - 26);
+
+            using (GraphicsPath path = GetRoundedRect(rect, 12))
+            {
+                // Sky gradient
+                using (LinearGradientBrush skyBrush = new LinearGradientBrush(
+                    rect, Color.FromArgb(220, 235, 255), Color.FromArgb(245, 250, 255), LinearGradientMode.Vertical))
+                {
+                    g.FillPath(skyBrush, path);
+                }
+
+                // Draw clouds
+                DrawCloud(g, rect.X + cloudOffset, rect.Y + 30, 60);
+                DrawCloud(g, rect.X + cloudOffset + 120, rect.Y + 60, 45);
+                DrawCloud(g, rect.X + cloudOffset - 80, rect.Y + 90, 50);
+                DrawCloud(g, rect.X + cloudOffset + 200, rect.Y + 40, 55);
+
+                // Border
+                using (Pen borderPen = new Pen(Color.FromArgb(180, 210, 240), 2))
+                {
+                    g.DrawPath(borderPen, path);
+                }
+            }
+
+            // Title
+            SizeF titleSize = g.MeasureString(this.Text, this.Font);
+            using (SolidBrush bgBrush = new SolidBrush(Color.FromArgb(240, 248, 255)))
+            {
+                g.FillRectangle(bgBrush, 15, 6, titleSize.Width + 14, titleSize.Height + 8);
+            }
+            using (SolidBrush textBrush = new SolidBrush(Color.FromArgb(100, 140, 180)))
+            {
+                g.DrawString(this.Text, new Font(this.Font, FontStyle.Bold), textBrush, 22, 10);
+            }
+        }
+
+        private void DrawCloud(Graphics g, float x, float y, float size)
+        {
+            using (SolidBrush cloudBrush = new SolidBrush(Color.FromArgb(200, 255, 255, 255)))
+            {
+                g.FillEllipse(cloudBrush, x, y, size, size * 0.6f);
+                g.FillEllipse(cloudBrush, x + size * 0.3f, y - size * 0.2f, size * 0.8f, size * 0.5f);
+                g.FillEllipse(cloudBrush, x + size * 0.6f, y, size * 0.7f, size * 0.5f);
+                g.FillEllipse(cloudBrush, x - size * 0.2f, y + size * 0.1f, size * 0.6f, size * 0.4f);
+            }
+        }
+
+        private GraphicsPath GetRoundedRect(Rectangle bounds, int radius)
+        {
+            GraphicsPath path = new GraphicsPath();
+            int diameter = radius * 2;
+            path.AddArc(bounds.X, bounds.Y, diameter, diameter, 180, 90);
+            path.AddArc(bounds.Right - diameter, bounds.Y, diameter, diameter, 270, 90);
+            path.AddArc(bounds.Right - diameter, bounds.Bottom - diameter, diameter, diameter, 0, 90);
+            path.AddArc(bounds.X, bounds.Bottom - diameter, diameter, diameter, 90, 90);
+            path.CloseFigure();
+            return path;
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && cloudTimer != null) { cloudTimer.Stop(); cloudTimer.Dispose(); }
+            base.Dispose(disposing);
+        }
+    }
+
+    // 28. Sparkle Shine GroupBox - White with animated sparkle effects
+    public class SparkleShineGroupBox : CustomGroupBoxBase
+    {
+        private System.Windows.Forms.Timer sparkleTimer;
+        private float sparklePhase = 0;
+
+        public SparkleShineGroupBox()
+        {
+            sparkleTimer = new System.Windows.Forms.Timer { Interval = 60 };
+            sparkleTimer.Tick += (s, e) => { sparklePhase += 5; if (sparklePhase >= 360) sparklePhase = 0; this.Invalidate(); };
+            sparkleTimer.Start();
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            Rectangle rect = new Rectangle(3, 20, Width - 10, Height - 26);
+
+            using (GraphicsPath path = GetRoundedRect(rect, 15))
+            {
+                // Pearl white gradient
+                using (LinearGradientBrush bgBrush = new LinearGradientBrush(
+                    rect, Color.FromArgb(255, 255, 255), Color.FromArgb(248, 248, 252), LinearGradientMode.ForwardDiagonal))
+                {
+                    g.FillPath(bgBrush, path);
+                }
+
+                // Animated sparkles
+                Random rand = new Random(42);
+                for (int i = 0; i < 15; i++)
+                {
+                    int sx = rect.X + rand.Next(rect.Width);
+                    int sy = rect.Y + rand.Next(rect.Height);
+                    float phase = (sparklePhase + i * 24) % 360;
+                    float intensity = (float)Math.Sin(phase * Math.PI / 180);
+                    
+                    if (intensity > 0)
+                    {
+                        int alpha = (int)(intensity * 255);
+                        float size = 3 + intensity * 4;
+                        
+                        // Star sparkle
+                        using (Pen sparklePen = new Pen(Color.FromArgb(alpha, 255, 215, 0), 2))
+                        {
+                            g.DrawLine(sparklePen, sx - size, sy, sx + size, sy);
+                            g.DrawLine(sparklePen, sx, sy - size, sx, sy + size);
+                            g.DrawLine(sparklePen, sx - size*0.7f, sy - size*0.7f, sx + size*0.7f, sy + size*0.7f);
+                            g.DrawLine(sparklePen, sx + size*0.7f, sy - size*0.7f, sx - size*0.7f, sy + size*0.7f);
+                        }
+                        
+                        // Center glow
+                        using (SolidBrush glowBrush = new SolidBrush(Color.FromArgb(alpha, 255, 255, 200)))
+                        {
+                            g.FillEllipse(glowBrush, sx - 2, sy - 2, 4, 4);
+                        }
+                    }
+                }
+
+                // Elegant gold border
+                using (Pen borderPen = new Pen(Color.FromArgb(200, 218, 165, 32), 2))
+                {
+                    g.DrawPath(borderPen, path);
+                }
+            }
+
+            // Title with gold accent
+            SizeF titleSize = g.MeasureString(this.Text, this.Font);
+            using (LinearGradientBrush titleBgBrush = new LinearGradientBrush(
+                new Rectangle(15, 6, (int)titleSize.Width + 14, (int)titleSize.Height + 8),
+                Color.FromArgb(255, 250, 240), Color.FromArgb(255, 248, 220), LinearGradientMode.Vertical))
+            {
+                g.FillRectangle(titleBgBrush, 15, 6, titleSize.Width + 14, titleSize.Height + 8);
+            }
+            using (SolidBrush textBrush = new SolidBrush(Color.FromArgb(180, 140, 50)))
+            {
+                g.DrawString(this.Text, new Font(this.Font, FontStyle.Bold), textBrush, 22, 10);
+            }
+        }
+
+        private GraphicsPath GetRoundedRect(Rectangle bounds, int radius)
+        {
+            GraphicsPath path = new GraphicsPath();
+            int diameter = radius * 2;
+            path.AddArc(bounds.X, bounds.Y, diameter, diameter, 180, 90);
+            path.AddArc(bounds.Right - diameter, bounds.Y, diameter, diameter, 270, 90);
+            path.AddArc(bounds.Right - diameter, bounds.Bottom - diameter, diameter, diameter, 0, 90);
+            path.AddArc(bounds.X, bounds.Bottom - diameter, diameter, diameter, 90, 90);
+            path.CloseFigure();
+            return path;
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && sparkleTimer != null) { sparkleTimer.Stop(); sparkleTimer.Dispose(); }
+            base.Dispose(disposing);
+        }
+    }
+
+    // 29. Ripple Water GroupBox - Light with water ripple effect
+    public class RippleWaterGroupBox : CustomGroupBoxBase
+    {
+        private System.Windows.Forms.Timer rippleTimer;
+        private float ripplePhase = 0;
+
+        public RippleWaterGroupBox()
+        {
+            rippleTimer = new System.Windows.Forms.Timer { Interval = 40 };
+            rippleTimer.Tick += (s, e) => { ripplePhase += 2; if (ripplePhase >= 100) ripplePhase = 0; this.Invalidate(); };
+            rippleTimer.Start();
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            Rectangle rect = new Rectangle(3, 20, Width - 10, Height - 26);
+
+            using (GraphicsPath path = GetRoundedRect(rect, 12))
+            {
+                // Light aqua gradient
+                using (LinearGradientBrush bgBrush = new LinearGradientBrush(
+                    rect, Color.FromArgb(240, 255, 255), Color.FromArgb(224, 255, 255), LinearGradientMode.Vertical))
+                {
+                    g.FillPath(bgBrush, path);
+                }
+
+                // Ripple circles
+                float centerX = rect.X + rect.Width / 2;
+                float centerY = rect.Y + rect.Height / 2;
+                
+                for (int i = 0; i < 4; i++)
+                {
+                    float rippleRadius = (ripplePhase + i * 25) % 100 * (Math.Max(rect.Width, rect.Height) / 100f);
+                    int alpha = (int)(80 * (1 - (ripplePhase + i * 25) % 100 / 100f));
+                    
+                    if (rippleRadius > 0 && alpha > 0)
+                    {
+                        using (Pen ripplePen = new Pen(Color.FromArgb(alpha, 0, 180, 200), 2))
+                        {
+                            float rx = centerX - rippleRadius;
+                            float ry = centerY - rippleRadius;
+                            if (rippleRadius * 2 > 0)
+                            {
+                                g.DrawEllipse(ripplePen, rx, ry, rippleRadius * 2, rippleRadius * 2);
+                            }
+                        }
+                    }
+                }
+
+                // Water shimmer lines
+                using (Pen shimmerPen = new Pen(Color.FromArgb(40, 0, 150, 180), 1))
+                {
+                    for (int y = rect.Y + 20; y < rect.Bottom - 10; y += 15)
+                    {
+                        float wave = (float)Math.Sin((ripplePhase + y) * Math.PI / 30) * 5;
+                        g.DrawLine(shimmerPen, rect.X + 10 + wave, y, rect.Right - 10 + wave, y);
+                    }
+                }
+
+                // Border
+                using (Pen borderPen = new Pen(Color.FromArgb(0, 180, 200), 2))
+                {
+                    g.DrawPath(borderPen, path);
+                }
+            }
+
+            // Title
+            SizeF titleSize = g.MeasureString(this.Text, this.Font);
+            using (SolidBrush bgBrush = new SolidBrush(Color.FromArgb(240, 255, 255)))
+            {
+                g.FillRectangle(bgBrush, 15, 6, titleSize.Width + 14, titleSize.Height + 8);
+            }
+            using (SolidBrush textBrush = new SolidBrush(Color.FromArgb(0, 140, 160)))
+            {
+                g.DrawString(this.Text, new Font(this.Font, FontStyle.Bold), textBrush, 22, 10);
+            }
+        }
+
+        private GraphicsPath GetRoundedRect(Rectangle bounds, int radius)
+        {
+            GraphicsPath path = new GraphicsPath();
+            int diameter = radius * 2;
+            path.AddArc(bounds.X, bounds.Y, diameter, diameter, 180, 90);
+            path.AddArc(bounds.Right - diameter, bounds.Y, diameter, diameter, 270, 90);
+            path.AddArc(bounds.Right - diameter, bounds.Bottom - diameter, diameter, diameter, 0, 90);
+            path.AddArc(bounds.X, bounds.Bottom - diameter, diameter, diameter, 90, 90);
+            path.CloseFigure();
+            return path;
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && rippleTimer != null) { rippleTimer.Stop(); rippleTimer.Dispose(); }
+            base.Dispose(disposing);
+        }
+    }
+
+    // 30. Bubbles Float GroupBox - Light with floating soap bubbles
+    public class BubblesFloatGroupBox : CustomGroupBoxBase
+    {
+        private System.Windows.Forms.Timer bubbleTimer;
+        private List<Bubble> bubbles = new List<Bubble>();
+        private Random rand = new Random();
+
+        private class Bubble { public float X, Y, Size, Speed, Wobble; }
+
+        public BubblesFloatGroupBox()
+        {
+            for (int i = 0; i < 20; i++)
+            {
+                bubbles.Add(new Bubble
+                {
+                    X = rand.Next(0, 400),
+                    Y = rand.Next(0, 300),
+                    Size = 8 + rand.Next(20),
+                    Speed = 0.5f + (float)rand.NextDouble() * 1.5f,
+                    Wobble = (float)rand.NextDouble() * 10
+                });
+            }
+
+            bubbleTimer = new System.Windows.Forms.Timer { Interval = 50 };
+            bubbleTimer.Tick += (s, e) => { UpdateBubbles(); this.Invalidate(); };
+            bubbleTimer.Start();
+        }
+
+        private void UpdateBubbles()
+        {
+            Rectangle rect = new Rectangle(3, 20, Width - 10, Height - 26);
+            foreach (var bubble in bubbles)
+            {
+                bubble.Y -= bubble.Speed;
+                bubble.X += (float)Math.Sin(bubble.Y / 15 + bubble.Wobble) * 0.5f;
+                
+                if (bubble.Y < rect.Y - bubble.Size)
+                {
+                    bubble.Y = rect.Bottom + bubble.Size;
+                    bubble.X = rect.X + rand.Next(rect.Width);
+                }
+            }
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            Rectangle rect = new Rectangle(3, 20, Width - 10, Height - 26);
+
+            using (GraphicsPath path = GetRoundedRect(rect, 12))
+            {
+                // Light gradient background
+                using (LinearGradientBrush bgBrush = new LinearGradientBrush(
+                    rect, Color.FromArgb(255, 253, 250), Color.FromArgb(250, 248, 255), LinearGradientMode.Vertical))
+                {
+                    g.FillPath(bgBrush, path);
+                }
+
+                // Bubbles
+                foreach (var bubble in bubbles)
+                {
+                    if (bubble.X >= rect.X && bubble.X <= rect.Right && bubble.Y >= rect.Y && bubble.Y <= rect.Bottom)
+                    {
+                        RectangleF bubbleRect = new RectangleF(bubble.X - bubble.Size/2, bubble.Y - bubble.Size/2, bubble.Size, bubble.Size);
+                        
+                        // Bubble gradient
+                        using (GraphicsPath bubblePath = new GraphicsPath())
+                        {
+                            bubblePath.AddEllipse(bubbleRect);
+                            using (PathGradientBrush bubbleBrush = new PathGradientBrush(bubblePath))
+                            {
+                                bubbleBrush.CenterColor = Color.FromArgb(60, 200, 230, 255);
+                                bubbleBrush.SurroundColors = new Color[] { Color.FromArgb(100, 150, 200, 255) };
+                                g.FillPath(bubbleBrush, bubblePath);
+                            }
+                        }
+                        
+                        // Bubble outline
+                        using (Pen outlinePen = new Pen(Color.FromArgb(80, 100, 180, 220), 1))
+                        {
+                            g.DrawEllipse(outlinePen, bubbleRect);
+                        }
+                        
+                        // Highlight
+                        using (SolidBrush highlightBrush = new SolidBrush(Color.FromArgb(150, 255, 255, 255)))
+                        {
+                            g.FillEllipse(highlightBrush, bubble.X - bubble.Size * 0.25f, bubble.Y - bubble.Size * 0.3f, bubble.Size * 0.3f, bubble.Size * 0.2f);
+                        }
+                    }
+                }
+
+                // Border
+                using (Pen borderPen = new Pen(Color.FromArgb(180, 200, 220), 2))
+                {
+                    g.DrawPath(borderPen, path);
+                }
+            }
+
+            // Title
+            SizeF titleSize = g.MeasureString(this.Text, this.Font);
+            using (SolidBrush bgBrush = new SolidBrush(Color.FromArgb(252, 250, 255)))
+            {
+                g.FillRectangle(bgBrush, 15, 6, titleSize.Width + 14, titleSize.Height + 8);
+            }
+            using (SolidBrush textBrush = new SolidBrush(Color.FromArgb(120, 140, 180)))
+            {
+                g.DrawString(this.Text, new Font(this.Font, FontStyle.Bold), textBrush, 22, 10);
+            }
+        }
+
+        private GraphicsPath GetRoundedRect(Rectangle bounds, int radius)
+        {
+            GraphicsPath path = new GraphicsPath();
+            int diameter = radius * 2;
+            path.AddArc(bounds.X, bounds.Y, diameter, diameter, 180, 90);
+            path.AddArc(bounds.Right - diameter, bounds.Y, diameter, diameter, 270, 90);
+            path.AddArc(bounds.Right - diameter, bounds.Bottom - diameter, diameter, diameter, 0, 90);
+            path.AddArc(bounds.X, bounds.Bottom - diameter, diameter, diameter, 90, 90);
+            path.CloseFigure();
+            return path;
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && bubbleTimer != null) { bubbleTimer.Stop(); bubbleTimer.Dispose(); }
+            base.Dispose(disposing);
+        }
+    }
+
+    // 31. Confetti Party GroupBox - White with colorful falling confetti
+    public class ConfettiPartyGroupBox : CustomGroupBoxBase
+    {
+        private System.Windows.Forms.Timer confettiTimer;
+        private List<Confetti> confettiList = new List<Confetti>();
+        private Random rand = new Random();
+
+        private class Confetti { public float X, Y, Speed, Rotation, RotSpeed; public Color Color; public int Shape; }
+
+        public ConfettiPartyGroupBox()
+        {
+            Color[] colors = { Color.Red, Color.Orange, Color.Yellow, Color.Green, Color.Blue, Color.Purple, Color.Pink, Color.Cyan };
+            
+            for (int i = 0; i < 30; i++)
+            {
+                confettiList.Add(new Confetti
+                {
+                    X = rand.Next(0, 400),
+                    Y = rand.Next(0, 300),
+                    Speed = 1 + (float)rand.NextDouble() * 2,
+                    Rotation = rand.Next(360),
+                    RotSpeed = -3 + rand.Next(6),
+                    Color = colors[rand.Next(colors.Length)],
+                    Shape = rand.Next(3)
+                });
+            }
+
+            confettiTimer = new System.Windows.Forms.Timer { Interval = 40 };
+            confettiTimer.Tick += (s, e) => { UpdateConfetti(); this.Invalidate(); };
+            confettiTimer.Start();
+        }
+
+        private void UpdateConfetti()
+        {
+            Rectangle rect = new Rectangle(3, 20, Width - 10, Height - 26);
+            Color[] colors = { Color.Red, Color.Orange, Color.Yellow, Color.Green, Color.Blue, Color.Purple, Color.Pink, Color.Cyan };
+            
+            foreach (var c in confettiList)
+            {
+                c.Y += c.Speed;
+                c.X += (float)Math.Sin(c.Y / 20) * 1.5f;
+                c.Rotation += c.RotSpeed;
+                
+                if (c.Y > rect.Bottom + 10)
+                {
+                    c.Y = rect.Y - 10;
+                    c.X = rect.X + rand.Next(rect.Width);
+                    c.Color = colors[rand.Next(colors.Length)];
+                }
+            }
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            Rectangle rect = new Rectangle(3, 20, Width - 10, Height - 26);
+
+            using (GraphicsPath path = GetRoundedRect(rect, 12))
+            {
+                // White background
+                using (SolidBrush bgBrush = new SolidBrush(Color.FromArgb(255, 255, 255)))
+                {
+                    g.FillPath(bgBrush, path);
+                }
+
+                // Confetti
+                foreach (var c in confettiList)
+                {
+                    if (c.X >= rect.X && c.X <= rect.Right && c.Y >= rect.Y && c.Y <= rect.Bottom)
+                    {
+                        var state = g.Save();
+                        g.TranslateTransform(c.X, c.Y);
+                        g.RotateTransform(c.Rotation);
+                        
+                        using (SolidBrush confettiBrush = new SolidBrush(c.Color))
+                        {
+                            switch (c.Shape)
+                            {
+                                case 0: // Rectangle
+                                    g.FillRectangle(confettiBrush, -4, -2, 8, 4);
+                                    break;
+                                case 1: // Circle
+                                    g.FillEllipse(confettiBrush, -3, -3, 6, 6);
+                                    break;
+                                case 2: // Triangle
+                                    g.FillPolygon(confettiBrush, new PointF[] { new PointF(0, -4), new PointF(-4, 3), new PointF(4, 3) });
+                                    break;
+                            }
+                        }
+                        
+                        g.Restore(state);
+                    }
+                }
+
+                // Festive border
+                using (Pen borderPen = new Pen(Color.FromArgb(255, 180, 200), 2))
+                {
+                    borderPen.DashStyle = DashStyle.Dash;
+                    g.DrawPath(borderPen, path);
+                }
+            }
+
+            // Title
+            SizeF titleSize = g.MeasureString(this.Text, this.Font);
+            using (LinearGradientBrush titleBgBrush = new LinearGradientBrush(
+                new Rectangle(15, 6, (int)titleSize.Width + 14, (int)titleSize.Height + 8),
+                Color.FromArgb(255, 230, 240), Color.FromArgb(230, 240, 255), LinearGradientMode.Horizontal))
+            {
+                g.FillRectangle(titleBgBrush, 15, 6, titleSize.Width + 14, titleSize.Height + 8);
+            }
+            using (SolidBrush textBrush = new SolidBrush(Color.FromArgb(200, 100, 150)))
+            {
+                g.DrawString(this.Text, new Font(this.Font, FontStyle.Bold), textBrush, 22, 10);
+            }
+        }
+
+        private GraphicsPath GetRoundedRect(Rectangle bounds, int radius)
+        {
+            GraphicsPath path = new GraphicsPath();
+            int diameter = radius * 2;
+            path.AddArc(bounds.X, bounds.Y, diameter, diameter, 180, 90);
+            path.AddArc(bounds.Right - diameter, bounds.Y, diameter, diameter, 270, 90);
+            path.AddArc(bounds.Right - diameter, bounds.Bottom - diameter, diameter, diameter, 0, 90);
+            path.AddArc(bounds.X, bounds.Bottom - diameter, diameter, diameter, 90, 90);
+            path.CloseFigure();
+            return path;
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && confettiTimer != null) { confettiTimer.Stop(); confettiTimer.Dispose(); }
+            base.Dispose(disposing);
+        }
+    }
+
+    // 32. Sunburst Rays GroupBox - White/yellow with animated sun rays
+    public class SunburstRaysGroupBox : CustomGroupBoxBase
+    {
+        private System.Windows.Forms.Timer sunTimer;
+        private float rayPhase = 0;
+
+        public SunburstRaysGroupBox()
+        {
+            sunTimer = new System.Windows.Forms.Timer { Interval = 50 };
+            sunTimer.Tick += (s, e) => { rayPhase += 1; if (rayPhase >= 360) rayPhase = 0; this.Invalidate(); };
+            sunTimer.Start();
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            Rectangle rect = new Rectangle(3, 20, Width - 10, Height - 26);
+
+            using (GraphicsPath path = GetRoundedRect(rect, 12))
+            {
+                // Warm gradient background
+                using (LinearGradientBrush bgBrush = new LinearGradientBrush(
+                    rect, Color.FromArgb(255, 255, 250), Color.FromArgb(255, 250, 235), LinearGradientMode.Vertical))
+                {
+                    g.FillPath(bgBrush, path);
+                }
+
+                // Sun rays from corner
+                float sunX = rect.X + 30;
+                float sunY = rect.Y + 30;
+                
+                for (int i = 0; i < 12; i++)
+                {
+                    float angle = (rayPhase + i * 30) * (float)Math.PI / 180;
+                    float rayLength = 150 + (float)Math.Sin((rayPhase + i * 15) * Math.PI / 90) * 30;
+                    float endX = sunX + (float)Math.Cos(angle) * rayLength;
+                    float endY = sunY + (float)Math.Sin(angle) * rayLength;
+                    
+                    int alpha = 40 + (int)((float)Math.Sin((rayPhase + i * 15) * Math.PI / 90) * 30);
+                    using (Pen rayPen = new Pen(Color.FromArgb(alpha, 255, 200, 50), 15))
+                    {
+                        rayPen.StartCap = LineCap.Round;
+                        rayPen.EndCap = LineCap.Round;
+                        g.DrawLine(rayPen, sunX, sunY, endX, endY);
+                    }
+                }
+
+                // Sun center
+                using (GraphicsPath sunPath = new GraphicsPath())
+                {
+                    sunPath.AddEllipse(sunX - 25, sunY - 25, 50, 50);
+                    using (PathGradientBrush sunBrush = new PathGradientBrush(sunPath))
+                    {
+                        sunBrush.CenterColor = Color.FromArgb(200, 255, 220, 100);
+                        sunBrush.SurroundColors = new Color[] { Color.FromArgb(100, 255, 200, 50) };
+                        g.FillPath(sunBrush, sunPath);
+                    }
+                }
+
+                // Border
+                using (Pen borderPen = new Pen(Color.FromArgb(255, 200, 100), 2))
+                {
+                    g.DrawPath(borderPen, path);
+                }
+            }
+
+            // Title
+            SizeF titleSize = g.MeasureString(this.Text, this.Font);
+            using (SolidBrush bgBrush = new SolidBrush(Color.FromArgb(255, 252, 240)))
+            {
+                g.FillRectangle(bgBrush, 15, 6, titleSize.Width + 14, titleSize.Height + 8);
+            }
+            using (SolidBrush textBrush = new SolidBrush(Color.FromArgb(200, 150, 50)))
+            {
+                g.DrawString(this.Text, new Font(this.Font, FontStyle.Bold), textBrush, 22, 10);
+            }
+        }
+
+        private GraphicsPath GetRoundedRect(Rectangle bounds, int radius)
+        {
+            GraphicsPath path = new GraphicsPath();
+            int diameter = radius * 2;
+            path.AddArc(bounds.X, bounds.Y, diameter, diameter, 180, 90);
+            path.AddArc(bounds.Right - diameter, bounds.Y, diameter, diameter, 270, 90);
+            path.AddArc(bounds.Right - diameter, bounds.Bottom - diameter, diameter, diameter, 0, 90);
+            path.AddArc(bounds.X, bounds.Bottom - diameter, diameter, diameter, 90, 90);
+            path.CloseFigure();
+            return path;
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && sunTimer != null) { sunTimer.Stop(); sunTimer.Dispose(); }
+            base.Dispose(disposing);
+        }
+    }
+
+    // 33. Cherry Blossom GroupBox - White/pink with falling petals
+    public class CherryBlossomGroupBox : CustomGroupBoxBase
+    {
+        private System.Windows.Forms.Timer petalTimer;
+        private List<Petal> petals = new List<Petal>();
+        private Random rand = new Random();
+
+        private class Petal { public float X, Y, Speed, Rotation, RotSpeed, Size; }
+
+        public CherryBlossomGroupBox()
+        {
+            for (int i = 0; i < 25; i++)
+            {
+                petals.Add(new Petal
+                {
+                    X = rand.Next(0, 400),
+                    Y = rand.Next(0, 300),
+                    Speed = 0.5f + (float)rand.NextDouble() * 1.5f,
+                    Rotation = rand.Next(360),
+                    RotSpeed = -2 + rand.Next(4),
+                    Size = 6 + rand.Next(8)
+                });
+            }
+
+            petalTimer = new System.Windows.Forms.Timer { Interval = 45 };
+            petalTimer.Tick += (s, e) => { UpdatePetals(); this.Invalidate(); };
+            petalTimer.Start();
+        }
+
+        private void UpdatePetals()
+        {
+            Rectangle rect = new Rectangle(3, 20, Width - 10, Height - 26);
+            foreach (var p in petals)
+            {
+                p.Y += p.Speed;
+                p.X += (float)Math.Sin(p.Y / 25) * 1f + 0.3f;
+                p.Rotation += p.RotSpeed;
+                
+                if (p.Y > rect.Bottom + 10)
+                {
+                    p.Y = rect.Y - 10;
+                    p.X = rect.X + rand.Next(rect.Width);
+                }
+            }
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            Rectangle rect = new Rectangle(3, 20, Width - 10, Height - 26);
+
+            using (GraphicsPath path = GetRoundedRect(rect, 12))
+            {
+                // Soft pink/white gradient
+                using (LinearGradientBrush bgBrush = new LinearGradientBrush(
+                    rect, Color.FromArgb(255, 250, 252), Color.FromArgb(255, 245, 248), LinearGradientMode.Vertical))
+                {
+                    g.FillPath(bgBrush, path);
+                }
+
+                // Petals
+                foreach (var p in petals)
+                {
+                    if (p.X >= rect.X - 10 && p.X <= rect.Right + 10 && p.Y >= rect.Y && p.Y <= rect.Bottom)
+                    {
+                        var state = g.Save();
+                        g.TranslateTransform(p.X, p.Y);
+                        g.RotateTransform(p.Rotation);
+                        
+                        // Petal shape (5 ellipses in a flower pattern)
+                        Color[] petalColors = { 
+                            Color.FromArgb(180, 255, 182, 193),
+                            Color.FromArgb(160, 255, 192, 203),
+                            Color.FromArgb(170, 255, 175, 185)
+                        };
+                        
+                        using (SolidBrush petalBrush = new SolidBrush(petalColors[rand.Next(3)]))
+                        {
+                            g.FillEllipse(petalBrush, -p.Size/2, -p.Size/4, p.Size, p.Size/2);
+                        }
+                        
+                        g.Restore(state);
+                    }
+                }
+
+                // Branch accent in corner
+                using (Pen branchPen = new Pen(Color.FromArgb(100, 139, 90, 43), 2))
+                {
+                    g.DrawBezier(branchPen, rect.Right - 50, rect.Y, rect.Right - 30, rect.Y + 40, rect.Right - 20, rect.Y + 60, rect.Right - 10, rect.Y + 80);
+                }
+
+                // Soft pink border
+                using (Pen borderPen = new Pen(Color.FromArgb(255, 182, 193), 2))
+                {
+                    g.DrawPath(borderPen, path);
+                }
+            }
+
+            // Title
+            SizeF titleSize = g.MeasureString(this.Text, this.Font);
+            using (SolidBrush bgBrush = new SolidBrush(Color.FromArgb(255, 248, 250)))
+            {
+                g.FillRectangle(bgBrush, 15, 6, titleSize.Width + 14, titleSize.Height + 8);
+            }
+            using (SolidBrush textBrush = new SolidBrush(Color.FromArgb(200, 130, 150)))
+            {
+                g.DrawString(this.Text, new Font(this.Font, FontStyle.Bold), textBrush, 22, 10);
+            }
+        }
+
+        private GraphicsPath GetRoundedRect(Rectangle bounds, int radius)
+        {
+            GraphicsPath path = new GraphicsPath();
+            int diameter = radius * 2;
+            path.AddArc(bounds.X, bounds.Y, diameter, diameter, 180, 90);
+            path.AddArc(bounds.Right - diameter, bounds.Y, diameter, diameter, 270, 90);
+            path.AddArc(bounds.Right - diameter, bounds.Bottom - diameter, diameter, diameter, 0, 90);
+            path.AddArc(bounds.X, bounds.Bottom - diameter, diameter, diameter, 90, 90);
+            path.CloseFigure();
+            return path;
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && petalTimer != null) { petalTimer.Stop(); petalTimer.Dispose(); }
+            base.Dispose(disposing);
+        }
+    }
+
+    // 34. Floating Hearts GroupBox - White/pink with floating hearts
+    public class FloatingHeartsGroupBox : CustomGroupBoxBase
+    {
+        private System.Windows.Forms.Timer heartTimer;
+        private List<Heart> hearts = new List<Heart>();
+        private Random rand = new Random();
+
+        private class Heart { public float X, Y, Speed, Size, Wobble; public Color Color; }
+
+        public FloatingHeartsGroupBox()
+        {
+            Color[] colors = { 
+                Color.FromArgb(255, 105, 180), Color.FromArgb(255, 20, 147), 
+                Color.FromArgb(255, 182, 193), Color.FromArgb(220, 20, 60) 
+            };
+            
+            for (int i = 0; i < 15; i++)
+            {
+                hearts.Add(new Heart
+                {
+                    X = rand.Next(0, 400),
+                    Y = rand.Next(0, 300),
+                    Speed = 0.5f + (float)rand.NextDouble() * 1f,
+                    Size = 8 + rand.Next(12),
+                    Wobble = (float)rand.NextDouble() * 5,
+                    Color = colors[rand.Next(colors.Length)]
+                });
+            }
+
+            heartTimer = new System.Windows.Forms.Timer { Interval = 50 };
+            heartTimer.Tick += (s, e) => { UpdateHearts(); this.Invalidate(); };
+            heartTimer.Start();
+        }
+
+        private void UpdateHearts()
+        {
+            Rectangle rect = new Rectangle(3, 20, Width - 10, Height - 26);
+            Color[] colors = { 
+                Color.FromArgb(255, 105, 180), Color.FromArgb(255, 20, 147), 
+                Color.FromArgb(255, 182, 193), Color.FromArgb(220, 20, 60) 
+            };
+            
+            foreach (var h in hearts)
+            {
+                h.Y -= h.Speed;
+                h.X += (float)Math.Sin(h.Y / 20 + h.Wobble) * 0.8f;
+                
+                if (h.Y < rect.Y - h.Size)
+                {
+                    h.Y = rect.Bottom + h.Size;
+                    h.X = rect.X + rand.Next(rect.Width);
+                    h.Color = colors[rand.Next(colors.Length)];
+                }
+            }
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            Rectangle rect = new Rectangle(3, 20, Width - 10, Height - 26);
+
+            using (GraphicsPath path = GetRoundedRect(rect, 12))
+            {
+                // Soft white/pink gradient
+                using (LinearGradientBrush bgBrush = new LinearGradientBrush(
+                    rect, Color.FromArgb(255, 255, 255), Color.FromArgb(255, 245, 250), LinearGradientMode.Vertical))
+                {
+                    g.FillPath(bgBrush, path);
+                }
+
+                // Hearts
+                foreach (var h in hearts)
+                {
+                    if (h.X >= rect.X && h.X <= rect.Right && h.Y >= rect.Y && h.Y <= rect.Bottom)
+                    {
+                        DrawHeart(g, h.X, h.Y, h.Size, h.Color);
+                    }
+                }
+
+                // Pink border
+                using (Pen borderPen = new Pen(Color.FromArgb(255, 150, 180), 2))
+                {
+                    g.DrawPath(borderPen, path);
+                }
+            }
+
+            // Title
+            SizeF titleSize = g.MeasureString(this.Text, this.Font);
+            using (SolidBrush bgBrush = new SolidBrush(Color.FromArgb(255, 250, 252)))
+            {
+                g.FillRectangle(bgBrush, 15, 6, titleSize.Width + 14, titleSize.Height + 8);
+            }
+            using (SolidBrush textBrush = new SolidBrush(Color.FromArgb(220, 100, 140)))
+            {
+                g.DrawString(this.Text, new Font(this.Font, FontStyle.Bold), textBrush, 22, 10);
+            }
+        }
+
+        private void DrawHeart(Graphics g, float x, float y, float size, Color color)
+        {
+            using (GraphicsPath heartPath = new GraphicsPath())
+            {
+                float w = size;
+                float h = size;
+                heartPath.AddBezier(x, y + h * 0.3f, x - w * 0.5f, y - h * 0.3f, x - w * 0.5f, y + h * 0.3f, x, y + h);
+                heartPath.AddBezier(x, y + h, x + w * 0.5f, y + h * 0.3f, x + w * 0.5f, y - h * 0.3f, x, y + h * 0.3f);
+                
+                using (SolidBrush heartBrush = new SolidBrush(Color.FromArgb(180, color)))
+                {
+                    g.FillPath(heartBrush, heartPath);
+                }
+            }
+        }
+
+        private GraphicsPath GetRoundedRect(Rectangle bounds, int radius)
+        {
+            GraphicsPath path = new GraphicsPath();
+            int diameter = radius * 2;
+            path.AddArc(bounds.X, bounds.Y, diameter, diameter, 180, 90);
+            path.AddArc(bounds.Right - diameter, bounds.Y, diameter, diameter, 270, 90);
+            path.AddArc(bounds.Right - diameter, bounds.Bottom - diameter, diameter, diameter, 0, 90);
+            path.AddArc(bounds.X, bounds.Bottom - diameter, diameter, diameter, 90, 90);
+            path.CloseFigure();
+            return path;
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && heartTimer != null) { heartTimer.Stop(); heartTimer.Dispose(); }
+            base.Dispose(disposing);
+        }
+    }
 }
 

@@ -2779,6 +2779,15 @@ namespace Notes
                     groupMenuStyleElectricStorm.Checked = false;
                     groupMenuStyleStarfieldWarp.Checked = false;
                     groupMenuStyleHeartbeatPulse.Checked = false;
+                    groupMenuStyleSnowfall.Checked = false;
+                    groupMenuStyleCloudDrift.Checked = false;
+                    groupMenuStyleSparkleShine.Checked = false;
+                    groupMenuStyleRippleWater.Checked = false;
+                    groupMenuStyleBubblesFloat.Checked = false;
+                    groupMenuStyleConfettiParty.Checked = false;
+                    groupMenuStyleSunburstRays.Checked = false;
+                    groupMenuStyleCherryBlossom.Checked = false;
+                    groupMenuStyleFloatingHearts.Checked = false;
 
                     // Check the current style
                     switch (groupBoxType)
@@ -2857,6 +2866,33 @@ namespace Notes
                             break;
                         case "HeartbeatPulseGroupBox":
                             groupMenuStyleHeartbeatPulse.Checked = true;
+                            break;
+                        case "SnowfallGroupBox":
+                            groupMenuStyleSnowfall.Checked = true;
+                            break;
+                        case "CloudDriftGroupBox":
+                            groupMenuStyleCloudDrift.Checked = true;
+                            break;
+                        case "SparkleShineGroupBox":
+                            groupMenuStyleSparkleShine.Checked = true;
+                            break;
+                        case "RippleWaterGroupBox":
+                            groupMenuStyleRippleWater.Checked = true;
+                            break;
+                        case "BubblesFloatGroupBox":
+                            groupMenuStyleBubblesFloat.Checked = true;
+                            break;
+                        case "ConfettiPartyGroupBox":
+                            groupMenuStyleConfettiParty.Checked = true;
+                            break;
+                        case "SunburstRaysGroupBox":
+                            groupMenuStyleSunburstRays.Checked = true;
+                            break;
+                        case "CherryBlossomGroupBox":
+                            groupMenuStyleCherryBlossom.Checked = true;
+                            break;
+                        case "FloatingHeartsGroupBox":
+                            groupMenuStyleFloatingHearts.Checked = true;
                             break;
                         default: // ResizableGroupBox
                             groupMenuStyleDefault.Checked = true;
@@ -3058,6 +3094,15 @@ namespace Notes
                     "groupMenuStyleElectricStorm" => "ElectricStormGroupBox",
                     "groupMenuStyleStarfieldWarp" => "StarfieldWarpGroupBox",
                     "groupMenuStyleHeartbeatPulse" => "HeartbeatPulseGroupBox",
+                    "groupMenuStyleSnowfall" => "SnowfallGroupBox",
+                    "groupMenuStyleCloudDrift" => "CloudDriftGroupBox",
+                    "groupMenuStyleSparkleShine" => "SparkleShineGroupBox",
+                    "groupMenuStyleRippleWater" => "RippleWaterGroupBox",
+                    "groupMenuStyleBubblesFloat" => "BubblesFloatGroupBox",
+                    "groupMenuStyleConfettiParty" => "ConfettiPartyGroupBox",
+                    "groupMenuStyleSunburstRays" => "SunburstRaysGroupBox",
+                    "groupMenuStyleCherryBlossom" => "CherryBlossomGroupBox",
+                    "groupMenuStyleFloatingHearts" => "FloatingHeartsGroupBox",
                     _ => "ResizableGroupBox"
                 };
 
@@ -3203,7 +3248,16 @@ namespace Notes
                     "OceanWaveGroupBox",
                     "ElectricStormGroupBox",
                     "StarfieldWarpGroupBox",
-                    "HeartbeatPulseGroupBox"
+                    "HeartbeatPulseGroupBox",
+                    "SnowfallGroupBox",
+                    "CloudDriftGroupBox",
+                    "SparkleShineGroupBox",
+                    "RippleWaterGroupBox",
+                    "BubblesFloatGroupBox",
+                    "ConfettiPartyGroupBox",
+                    "SunburstRaysGroupBox",
+                    "CherryBlossomGroupBox",
+                    "FloatingHeartsGroupBox"
                 };
 
                 // Pick a random style
@@ -4636,6 +4690,33 @@ namespace Notes
                     break;
                 case "HeartbeatPulseGroupBox":
                     groupBox = new HeartbeatPulseGroupBox();
+                    break;
+                case "SnowfallGroupBox":
+                    groupBox = new SnowfallGroupBox();
+                    break;
+                case "CloudDriftGroupBox":
+                    groupBox = new CloudDriftGroupBox();
+                    break;
+                case "SparkleShineGroupBox":
+                    groupBox = new SparkleShineGroupBox();
+                    break;
+                case "RippleWaterGroupBox":
+                    groupBox = new RippleWaterGroupBox();
+                    break;
+                case "BubblesFloatGroupBox":
+                    groupBox = new BubblesFloatGroupBox();
+                    break;
+                case "ConfettiPartyGroupBox":
+                    groupBox = new ConfettiPartyGroupBox();
+                    break;
+                case "SunburstRaysGroupBox":
+                    groupBox = new SunburstRaysGroupBox();
+                    break;
+                case "CherryBlossomGroupBox":
+                    groupBox = new CherryBlossomGroupBox();
+                    break;
+                case "FloatingHeartsGroupBox":
+                    groupBox = new FloatingHeartsGroupBox();
                     break;
                 default:
                     groupBox = new ResizableGroupBox();

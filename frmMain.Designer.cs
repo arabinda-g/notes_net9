@@ -184,6 +184,16 @@ namespace Notes
             this.groupMenuStyleElectricStorm = new System.Windows.Forms.ToolStripMenuItem();
             this.groupMenuStyleStarfieldWarp = new System.Windows.Forms.ToolStripMenuItem();
             this.groupMenuStyleHeartbeatPulse = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripSeparator22 = new System.Windows.Forms.ToolStripSeparator();
+            this.groupMenuStyleSnowfall = new System.Windows.Forms.ToolStripMenuItem();
+            this.groupMenuStyleCloudDrift = new System.Windows.Forms.ToolStripMenuItem();
+            this.groupMenuStyleSparkleShine = new System.Windows.Forms.ToolStripMenuItem();
+            this.groupMenuStyleRippleWater = new System.Windows.Forms.ToolStripMenuItem();
+            this.groupMenuStyleBubblesFloat = new System.Windows.Forms.ToolStripMenuItem();
+            this.groupMenuStyleConfettiParty = new System.Windows.Forms.ToolStripMenuItem();
+            this.groupMenuStyleSunburstRays = new System.Windows.Forms.ToolStripMenuItem();
+            this.groupMenuStyleCherryBlossom = new System.Windows.Forms.ToolStripMenuItem();
+            this.groupMenuStyleFloatingHearts = new System.Windows.Forms.ToolStripMenuItem();
             this.panelContainer = new System.Windows.Forms.Panel();
             this.statusStrip = new System.Windows.Forms.StatusStrip();
             this.statusLabel = new System.Windows.Forms.ToolStripStatusLabel();
@@ -1169,7 +1179,17 @@ namespace Notes
             this.groupMenuStyleOceanWave,
             this.groupMenuStyleElectricStorm,
             this.groupMenuStyleStarfieldWarp,
-            this.groupMenuStyleHeartbeatPulse});
+            this.groupMenuStyleHeartbeatPulse,
+            this.toolStripSeparator22,
+            this.groupMenuStyleSnowfall,
+            this.groupMenuStyleCloudDrift,
+            this.groupMenuStyleSparkleShine,
+            this.groupMenuStyleRippleWater,
+            this.groupMenuStyleBubblesFloat,
+            this.groupMenuStyleConfettiParty,
+            this.groupMenuStyleSunburstRays,
+            this.groupMenuStyleCherryBlossom,
+            this.groupMenuStyleFloatingHearts});
             this.groupMenuStyles.Name = "groupMenuStyles";
             this.groupMenuStyles.Size = new System.Drawing.Size(179, 24);
             this.groupMenuStyles.Text = "&Styles";
@@ -1382,6 +1402,74 @@ namespace Notes
             this.groupMenuStyleHeartbeatPulse.Size = new System.Drawing.Size(180, 26);
             this.groupMenuStyleHeartbeatPulse.Text = "Heartbeat Pulse";
             this.groupMenuStyleHeartbeatPulse.Click += new System.EventHandler(this.groupMenuStyle_Click);
+            // 
+            // toolStripSeparator22
+            // 
+            this.toolStripSeparator22.Name = "toolStripSeparator22";
+            this.toolStripSeparator22.Size = new System.Drawing.Size(177, 6);
+            // 
+            // groupMenuStyleSnowfall
+            // 
+            this.groupMenuStyleSnowfall.Name = "groupMenuStyleSnowfall";
+            this.groupMenuStyleSnowfall.Size = new System.Drawing.Size(180, 26);
+            this.groupMenuStyleSnowfall.Text = "Snowfall";
+            this.groupMenuStyleSnowfall.Click += new System.EventHandler(this.groupMenuStyle_Click);
+            // 
+            // groupMenuStyleCloudDrift
+            // 
+            this.groupMenuStyleCloudDrift.Name = "groupMenuStyleCloudDrift";
+            this.groupMenuStyleCloudDrift.Size = new System.Drawing.Size(180, 26);
+            this.groupMenuStyleCloudDrift.Text = "Cloud Drift";
+            this.groupMenuStyleCloudDrift.Click += new System.EventHandler(this.groupMenuStyle_Click);
+            // 
+            // groupMenuStyleSparkleShine
+            // 
+            this.groupMenuStyleSparkleShine.Name = "groupMenuStyleSparkleShine";
+            this.groupMenuStyleSparkleShine.Size = new System.Drawing.Size(180, 26);
+            this.groupMenuStyleSparkleShine.Text = "Sparkle Shine";
+            this.groupMenuStyleSparkleShine.Click += new System.EventHandler(this.groupMenuStyle_Click);
+            // 
+            // groupMenuStyleRippleWater
+            // 
+            this.groupMenuStyleRippleWater.Name = "groupMenuStyleRippleWater";
+            this.groupMenuStyleRippleWater.Size = new System.Drawing.Size(180, 26);
+            this.groupMenuStyleRippleWater.Text = "Ripple Water";
+            this.groupMenuStyleRippleWater.Click += new System.EventHandler(this.groupMenuStyle_Click);
+            // 
+            // groupMenuStyleBubblesFloat
+            // 
+            this.groupMenuStyleBubblesFloat.Name = "groupMenuStyleBubblesFloat";
+            this.groupMenuStyleBubblesFloat.Size = new System.Drawing.Size(180, 26);
+            this.groupMenuStyleBubblesFloat.Text = "Bubbles Float";
+            this.groupMenuStyleBubblesFloat.Click += new System.EventHandler(this.groupMenuStyle_Click);
+            // 
+            // groupMenuStyleConfettiParty
+            // 
+            this.groupMenuStyleConfettiParty.Name = "groupMenuStyleConfettiParty";
+            this.groupMenuStyleConfettiParty.Size = new System.Drawing.Size(180, 26);
+            this.groupMenuStyleConfettiParty.Text = "Confetti Party";
+            this.groupMenuStyleConfettiParty.Click += new System.EventHandler(this.groupMenuStyle_Click);
+            // 
+            // groupMenuStyleSunburstRays
+            // 
+            this.groupMenuStyleSunburstRays.Name = "groupMenuStyleSunburstRays";
+            this.groupMenuStyleSunburstRays.Size = new System.Drawing.Size(180, 26);
+            this.groupMenuStyleSunburstRays.Text = "Sunburst Rays";
+            this.groupMenuStyleSunburstRays.Click += new System.EventHandler(this.groupMenuStyle_Click);
+            // 
+            // groupMenuStyleCherryBlossom
+            // 
+            this.groupMenuStyleCherryBlossom.Name = "groupMenuStyleCherryBlossom";
+            this.groupMenuStyleCherryBlossom.Size = new System.Drawing.Size(180, 26);
+            this.groupMenuStyleCherryBlossom.Text = "Cherry Blossom";
+            this.groupMenuStyleCherryBlossom.Click += new System.EventHandler(this.groupMenuStyle_Click);
+            // 
+            // groupMenuStyleFloatingHearts
+            // 
+            this.groupMenuStyleFloatingHearts.Name = "groupMenuStyleFloatingHearts";
+            this.groupMenuStyleFloatingHearts.Size = new System.Drawing.Size(180, 26);
+            this.groupMenuStyleFloatingHearts.Text = "Floating Hearts";
+            this.groupMenuStyleFloatingHearts.Click += new System.EventHandler(this.groupMenuStyle_Click);
             // 
             // panelContainer
             // 
@@ -1671,6 +1759,16 @@ namespace Notes
         private System.Windows.Forms.ToolStripMenuItem groupMenuStyleElectricStorm;
         private System.Windows.Forms.ToolStripMenuItem groupMenuStyleStarfieldWarp;
         private System.Windows.Forms.ToolStripMenuItem groupMenuStyleHeartbeatPulse;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator22;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuStyleSnowfall;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuStyleCloudDrift;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuStyleSparkleShine;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuStyleRippleWater;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuStyleBubblesFloat;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuStyleConfettiParty;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuStyleSunburstRays;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuStyleCherryBlossom;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuStyleFloatingHearts;
     }
 }
 
