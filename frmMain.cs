@@ -2769,6 +2769,16 @@ namespace Notes
                     groupMenuStyleLiquidMetal.Checked = false;
                     groupMenuStyleCosmic.Checked = false;
                     groupMenuStyleRainbow.Checked = false;
+                    groupMenuStyleAuroraBorealis.Checked = false;
+                    groupMenuStyleCyberCircuit.Checked = false;
+                    groupMenuStyleFireLava.Checked = false;
+                    groupMenuStyleMatrixRain.Checked = false;
+                    groupMenuStyleCrystalIce.Checked = false;
+                    groupMenuStylePlasmaEnergy.Checked = false;
+                    groupMenuStyleOceanWave.Checked = false;
+                    groupMenuStyleElectricStorm.Checked = false;
+                    groupMenuStyleStarfieldWarp.Checked = false;
+                    groupMenuStyleHeartbeatPulse.Checked = false;
 
                     // Check the current style
                     switch (groupBoxType)
@@ -2817,6 +2827,36 @@ namespace Notes
                             break;
                         case "RainbowSpectrumGroupBox":
                             groupMenuStyleRainbow.Checked = true;
+                            break;
+                        case "AuroraBorealisGroupBox":
+                            groupMenuStyleAuroraBorealis.Checked = true;
+                            break;
+                        case "CyberCircuitGroupBox":
+                            groupMenuStyleCyberCircuit.Checked = true;
+                            break;
+                        case "FireLavaGroupBox":
+                            groupMenuStyleFireLava.Checked = true;
+                            break;
+                        case "MatrixRainGroupBox":
+                            groupMenuStyleMatrixRain.Checked = true;
+                            break;
+                        case "CrystalIceGroupBox":
+                            groupMenuStyleCrystalIce.Checked = true;
+                            break;
+                        case "PlasmaEnergyGroupBox":
+                            groupMenuStylePlasmaEnergy.Checked = true;
+                            break;
+                        case "OceanWaveGroupBox":
+                            groupMenuStyleOceanWave.Checked = true;
+                            break;
+                        case "ElectricStormGroupBox":
+                            groupMenuStyleElectricStorm.Checked = true;
+                            break;
+                        case "StarfieldWarpGroupBox":
+                            groupMenuStyleStarfieldWarp.Checked = true;
+                            break;
+                        case "HeartbeatPulseGroupBox":
+                            groupMenuStyleHeartbeatPulse.Checked = true;
                             break;
                         default: // ResizableGroupBox
                             groupMenuStyleDefault.Checked = true;
@@ -3008,6 +3048,16 @@ namespace Notes
                     "groupMenuStyleLiquidMetal" => "LiquidMetalGroupBox",
                     "groupMenuStyleCosmic" => "CosmicGroupBox",
                     "groupMenuStyleRainbow" => "RainbowSpectrumGroupBox",
+                    "groupMenuStyleAuroraBorealis" => "AuroraBorealisGroupBox",
+                    "groupMenuStyleCyberCircuit" => "CyberCircuitGroupBox",
+                    "groupMenuStyleFireLava" => "FireLavaGroupBox",
+                    "groupMenuStyleMatrixRain" => "MatrixRainGroupBox",
+                    "groupMenuStyleCrystalIce" => "CrystalIceGroupBox",
+                    "groupMenuStylePlasmaEnergy" => "PlasmaEnergyGroupBox",
+                    "groupMenuStyleOceanWave" => "OceanWaveGroupBox",
+                    "groupMenuStyleElectricStorm" => "ElectricStormGroupBox",
+                    "groupMenuStyleStarfieldWarp" => "StarfieldWarpGroupBox",
+                    "groupMenuStyleHeartbeatPulse" => "HeartbeatPulseGroupBox",
                     _ => "ResizableGroupBox"
                 };
 
@@ -3143,7 +3193,17 @@ namespace Notes
                     "VintagePaperGroupBox",
                     "LiquidMetalGroupBox",
                     "CosmicGroupBox",
-                    "RainbowSpectrumGroupBox"
+                    "RainbowSpectrumGroupBox",
+                    "AuroraBorealisGroupBox",
+                    "CyberCircuitGroupBox",
+                    "FireLavaGroupBox",
+                    "MatrixRainGroupBox",
+                    "CrystalIceGroupBox",
+                    "PlasmaEnergyGroupBox",
+                    "OceanWaveGroupBox",
+                    "ElectricStormGroupBox",
+                    "StarfieldWarpGroupBox",
+                    "HeartbeatPulseGroupBox"
                 };
 
                 // Pick a random style
@@ -4546,6 +4606,36 @@ namespace Notes
                     break;
                 case "RainbowSpectrumGroupBox":
                     groupBox = new RainbowSpectrumGroupBox();
+                    break;
+                case "AuroraBorealisGroupBox":
+                    groupBox = new AuroraBorealisGroupBox();
+                    break;
+                case "CyberCircuitGroupBox":
+                    groupBox = new CyberCircuitGroupBox();
+                    break;
+                case "FireLavaGroupBox":
+                    groupBox = new FireLavaGroupBox();
+                    break;
+                case "MatrixRainGroupBox":
+                    groupBox = new MatrixRainGroupBox();
+                    break;
+                case "CrystalIceGroupBox":
+                    groupBox = new CrystalIceGroupBox();
+                    break;
+                case "PlasmaEnergyGroupBox":
+                    groupBox = new PlasmaEnergyGroupBox();
+                    break;
+                case "OceanWaveGroupBox":
+                    groupBox = new OceanWaveGroupBox();
+                    break;
+                case "ElectricStormGroupBox":
+                    groupBox = new ElectricStormGroupBox();
+                    break;
+                case "StarfieldWarpGroupBox":
+                    groupBox = new StarfieldWarpGroupBox();
+                    break;
+                case "HeartbeatPulseGroupBox":
+                    groupBox = new HeartbeatPulseGroupBox();
                     break;
                 default:
                     groupBox = new ResizableGroupBox();

@@ -173,6 +173,17 @@ namespace Notes
             this.groupMenuStyleLiquidMetal = new System.Windows.Forms.ToolStripMenuItem();
             this.groupMenuStyleCosmic = new System.Windows.Forms.ToolStripMenuItem();
             this.groupMenuStyleRainbow = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripSeparator21 = new System.Windows.Forms.ToolStripSeparator();
+            this.groupMenuStyleAuroraBorealis = new System.Windows.Forms.ToolStripMenuItem();
+            this.groupMenuStyleCyberCircuit = new System.Windows.Forms.ToolStripMenuItem();
+            this.groupMenuStyleFireLava = new System.Windows.Forms.ToolStripMenuItem();
+            this.groupMenuStyleMatrixRain = new System.Windows.Forms.ToolStripMenuItem();
+            this.groupMenuStyleCrystalIce = new System.Windows.Forms.ToolStripMenuItem();
+            this.groupMenuStylePlasmaEnergy = new System.Windows.Forms.ToolStripMenuItem();
+            this.groupMenuStyleOceanWave = new System.Windows.Forms.ToolStripMenuItem();
+            this.groupMenuStyleElectricStorm = new System.Windows.Forms.ToolStripMenuItem();
+            this.groupMenuStyleStarfieldWarp = new System.Windows.Forms.ToolStripMenuItem();
+            this.groupMenuStyleHeartbeatPulse = new System.Windows.Forms.ToolStripMenuItem();
             this.panelContainer = new System.Windows.Forms.Panel();
             this.statusStrip = new System.Windows.Forms.StatusStrip();
             this.statusLabel = new System.Windows.Forms.ToolStripStatusLabel();
@@ -1147,7 +1158,18 @@ namespace Notes
             this.groupMenuStyleVintagePaper,
             this.groupMenuStyleLiquidMetal,
             this.groupMenuStyleCosmic,
-            this.groupMenuStyleRainbow});
+            this.groupMenuStyleRainbow,
+            this.toolStripSeparator21,
+            this.groupMenuStyleAuroraBorealis,
+            this.groupMenuStyleCyberCircuit,
+            this.groupMenuStyleFireLava,
+            this.groupMenuStyleMatrixRain,
+            this.groupMenuStyleCrystalIce,
+            this.groupMenuStylePlasmaEnergy,
+            this.groupMenuStyleOceanWave,
+            this.groupMenuStyleElectricStorm,
+            this.groupMenuStyleStarfieldWarp,
+            this.groupMenuStyleHeartbeatPulse});
             this.groupMenuStyles.Name = "groupMenuStyles";
             this.groupMenuStyles.Size = new System.Drawing.Size(179, 24);
             this.groupMenuStyles.Text = "&Styles";
@@ -1285,6 +1307,81 @@ namespace Notes
             this.groupMenuStyleRainbow.Size = new System.Drawing.Size(180, 26);
             this.groupMenuStyleRainbow.Text = "Rainbow Spectrum";
             this.groupMenuStyleRainbow.Click += new System.EventHandler(this.groupMenuStyle_Click);
+            // 
+            // toolStripSeparator21
+            // 
+            this.toolStripSeparator21.Name = "toolStripSeparator21";
+            this.toolStripSeparator21.Size = new System.Drawing.Size(177, 6);
+            // 
+            // groupMenuStyleAuroraBorealis
+            // 
+            this.groupMenuStyleAuroraBorealis.Name = "groupMenuStyleAuroraBorealis";
+            this.groupMenuStyleAuroraBorealis.Size = new System.Drawing.Size(180, 26);
+            this.groupMenuStyleAuroraBorealis.Text = "Aurora Borealis";
+            this.groupMenuStyleAuroraBorealis.Click += new System.EventHandler(this.groupMenuStyle_Click);
+            // 
+            // groupMenuStyleCyberCircuit
+            // 
+            this.groupMenuStyleCyberCircuit.Name = "groupMenuStyleCyberCircuit";
+            this.groupMenuStyleCyberCircuit.Size = new System.Drawing.Size(180, 26);
+            this.groupMenuStyleCyberCircuit.Text = "Cyber Circuit";
+            this.groupMenuStyleCyberCircuit.Click += new System.EventHandler(this.groupMenuStyle_Click);
+            // 
+            // groupMenuStyleFireLava
+            // 
+            this.groupMenuStyleFireLava.Name = "groupMenuStyleFireLava";
+            this.groupMenuStyleFireLava.Size = new System.Drawing.Size(180, 26);
+            this.groupMenuStyleFireLava.Text = "Fire Lava";
+            this.groupMenuStyleFireLava.Click += new System.EventHandler(this.groupMenuStyle_Click);
+            // 
+            // groupMenuStyleMatrixRain
+            // 
+            this.groupMenuStyleMatrixRain.Name = "groupMenuStyleMatrixRain";
+            this.groupMenuStyleMatrixRain.Size = new System.Drawing.Size(180, 26);
+            this.groupMenuStyleMatrixRain.Text = "Matrix Rain";
+            this.groupMenuStyleMatrixRain.Click += new System.EventHandler(this.groupMenuStyle_Click);
+            // 
+            // groupMenuStyleCrystalIce
+            // 
+            this.groupMenuStyleCrystalIce.Name = "groupMenuStyleCrystalIce";
+            this.groupMenuStyleCrystalIce.Size = new System.Drawing.Size(180, 26);
+            this.groupMenuStyleCrystalIce.Text = "Crystal Ice";
+            this.groupMenuStyleCrystalIce.Click += new System.EventHandler(this.groupMenuStyle_Click);
+            // 
+            // groupMenuStylePlasmaEnergy
+            // 
+            this.groupMenuStylePlasmaEnergy.Name = "groupMenuStylePlasmaEnergy";
+            this.groupMenuStylePlasmaEnergy.Size = new System.Drawing.Size(180, 26);
+            this.groupMenuStylePlasmaEnergy.Text = "Plasma Energy";
+            this.groupMenuStylePlasmaEnergy.Click += new System.EventHandler(this.groupMenuStyle_Click);
+            // 
+            // groupMenuStyleOceanWave
+            // 
+            this.groupMenuStyleOceanWave.Name = "groupMenuStyleOceanWave";
+            this.groupMenuStyleOceanWave.Size = new System.Drawing.Size(180, 26);
+            this.groupMenuStyleOceanWave.Text = "Ocean Wave";
+            this.groupMenuStyleOceanWave.Click += new System.EventHandler(this.groupMenuStyle_Click);
+            // 
+            // groupMenuStyleElectricStorm
+            // 
+            this.groupMenuStyleElectricStorm.Name = "groupMenuStyleElectricStorm";
+            this.groupMenuStyleElectricStorm.Size = new System.Drawing.Size(180, 26);
+            this.groupMenuStyleElectricStorm.Text = "Electric Storm";
+            this.groupMenuStyleElectricStorm.Click += new System.EventHandler(this.groupMenuStyle_Click);
+            // 
+            // groupMenuStyleStarfieldWarp
+            // 
+            this.groupMenuStyleStarfieldWarp.Name = "groupMenuStyleStarfieldWarp";
+            this.groupMenuStyleStarfieldWarp.Size = new System.Drawing.Size(180, 26);
+            this.groupMenuStyleStarfieldWarp.Text = "Starfield Warp";
+            this.groupMenuStyleStarfieldWarp.Click += new System.EventHandler(this.groupMenuStyle_Click);
+            // 
+            // groupMenuStyleHeartbeatPulse
+            // 
+            this.groupMenuStyleHeartbeatPulse.Name = "groupMenuStyleHeartbeatPulse";
+            this.groupMenuStyleHeartbeatPulse.Size = new System.Drawing.Size(180, 26);
+            this.groupMenuStyleHeartbeatPulse.Text = "Heartbeat Pulse";
+            this.groupMenuStyleHeartbeatPulse.Click += new System.EventHandler(this.groupMenuStyle_Click);
             // 
             // panelContainer
             // 
@@ -1563,6 +1660,17 @@ namespace Notes
         private System.Windows.Forms.ToolStripMenuItem groupMenuStyleLiquidMetal;
         private System.Windows.Forms.ToolStripMenuItem groupMenuStyleCosmic;
         private System.Windows.Forms.ToolStripMenuItem groupMenuStyleRainbow;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator21;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuStyleAuroraBorealis;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuStyleCyberCircuit;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuStyleFireLava;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuStyleMatrixRain;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuStyleCrystalIce;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuStylePlasmaEnergy;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuStyleOceanWave;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuStyleElectricStorm;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuStyleStarfieldWarp;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuStyleHeartbeatPulse;
     }
 }
 
