@@ -3,24 +3,44 @@ echo Notes Application - .NET 9 Build Script
 echo ========================================
 echo.
 
-REM Check if dotnet SDK is available
+REM Find dotnet CLI
+set DOTNET_PATH=""
+
+REM Check PATH first
 where dotnet >nul 2>nul
-if %ERRORLEVEL% neq 0 (
-    echo ERROR: .NET SDK not found!
-    echo Please install .NET 9 SDK from https://dotnet.microsoft.com/download
-    pause
-    exit /b 1
+if %ERRORLEVEL% equ 0 (
+    set DOTNET_PATH=dotnet
+    echo Found: dotnet CLI in PATH
+    goto :use_dotnet
 )
 
-REM Display .NET version
+REM Check standard installation locations
+if exist "C:\Program Files\dotnet\dotnet.exe" (
+    set DOTNET_PATH="C:\Program Files\dotnet\dotnet.exe"
+    echo Found: dotnet CLI at C:\Program Files\dotnet
+    goto :use_dotnet
+)
+
+if exist "C:\Program Files (x86)\dotnet\dotnet.exe" (
+    set DOTNET_PATH="C:\Program Files (x86)\dotnet\dotnet.exe"
+    echo Found: dotnet CLI at C:\Program Files (x86)\dotnet
+    goto :use_dotnet
+)
+
+echo ERROR: .NET SDK not found!
+echo Please install .NET 9 SDK from https://dotnet.microsoft.com/download
+pause
+exit /b 1
+
+:use_dotnet
+echo.
 echo Checking .NET SDK version...
-dotnet --version
+%DOTNET_PATH% --version
 echo.
 
 REM Check if icon exists
 if not exist "Resources\Notes.ico" (
     echo WARNING: Icon file not found at Resources\Notes.ico
-    echo The build will continue without a custom icon.
     echo.
 )
 
@@ -32,32 +52,22 @@ echo.
 
 REM Build the project in Release mode
 echo Building Notes application...
-echo Configuration: Release
-echo Platform: x64
-echo Target Framework: net9.0-windows
-echo.
-
-dotnet build Notes.csproj --configuration Release --verbosity minimal
+%DOTNET_PATH% build Notes.csproj --configuration Release --verbosity minimal
 
 if %ERRORLEVEL% neq 0 (
     echo.
-    echo ✗ Build failed!
-    echo Check the error messages above for details.
+    echo Build failed!
     pause
     exit /b 1
 )
 
 echo.
-echo ========================================
 echo Publishing self-contained executable...
-echo ========================================
 echo.
 
-REM Create publish directory
 if not exist "publish" mkdir publish
 
-REM Publish as a single-file, self-contained executable
-dotnet publish Notes.csproj ^
+%DOTNET_PATH% publish Notes.csproj ^
     --configuration Release ^
     --runtime win-x64 ^
     --self-contained true ^
@@ -70,36 +80,20 @@ dotnet publish Notes.csproj ^
 
 if %ERRORLEVEL% neq 0 (
     echo.
-    echo ✗ Publishing failed!
-    echo Check the error messages above for details.
+    echo Publishing failed!
     pause
     exit /b 1
 )
 
 echo.
-echo ╔════════════════════════════════════════════════════════════════╗
-echo ║                   ✓ BUILD SUCCESSFUL!                          ║
-echo ╠════════════════════════════════════════════════════════════════╣
-echo ║                                                                ║
-echo ║  Output locations:                                             ║
-echo ║  • Debug build:   bin\Debug\net9.0-windows\Notes.exe           ║
-echo ║  • Release build: bin\Release\net9.0-windows\Notes.exe         ║
-echo ║  • Published:     publish\Notes.exe (self-contained)           ║
-echo ║                                                                ║
-echo ║  The published executable includes:                            ║
-echo ║  ✓ Embedded application icon                                   ║
-echo ║  ✓ All dependencies bundled                                    ║
-echo ║  ✓ Ready to run on any Windows 10+ x64 machine                 ║
-echo ║  ✓ No .NET runtime installation required                       ║
-echo ║                                                                ║
-echo ╚════════════════════════════════════════════════════════════════╝
+echo ========================================
+echo        BUILD SUCCESSFUL!
+echo ========================================
 echo.
-
-REM Display file sizes
-echo File Information:
-for %%F in ("publish\Notes.exe") do echo  • publish\Notes.exe - %%~zF bytes
+echo Output locations:
+echo   Release build: bin\Release\net9.0-windows\Notes.exe
+echo   Published:     publish\Notes.exe (self-contained)
 echo.
-
-echo Ready to distribute: publish\Notes.exe
+for %%F in ("publish\Notes.exe") do echo File size: %%~zF bytes
 echo.
 pause
