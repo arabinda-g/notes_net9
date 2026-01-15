@@ -9,12 +9,12 @@
     <ApplicationIcon>Resources\Notes.ico</ApplicationIcon>
     <AssemblyName>Notes</AssemblyName>
     <RootNamespace>Notes</RootNamespace>
-    <AssemblyVersion>2.0.0.0</AssemblyVersion>
-    <FileVersion>2.0.0.0</FileVersion>
-    <Company></Company>
+    <Version>1.0.2</Version>
+    <AssemblyVersion>1.0.2.0</AssemblyVersion>
+    <FileVersion>1.0.2.0</FileVersion>
     <Product>Notes</Product>
-    <Description>A modern note-taking application for Windows</Description>
-    <Copyright>Copyright © 2024</Copyright>
+    <Description>A fast, lightweight note-taking app with rich text editing and cloud sync</Description>
+    <Copyright>Copyright © 2024-2026 Arabinda. All rights reserved.</Copyright>
     <PlatformTarget>x64</PlatformTarget>
   </PropertyGroup>
 
