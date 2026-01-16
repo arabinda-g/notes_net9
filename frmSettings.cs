@@ -19,6 +19,12 @@ namespace Notes
         private NotesLibrary.Configuration config;
         private bool hasChanges = false;
 
+        private class NotesData
+        {
+            public Dictionary<string, frmMain.UnitStruct> Units { get; set; } = new Dictionary<string, frmMain.UnitStruct>();
+            public Dictionary<string, frmMain.GroupStruct> Groups { get; set; } = new Dictionary<string, frmMain.GroupStruct>();
+        }
+
         public frmSettings()
         {
             InitializeComponent();
@@ -419,7 +425,13 @@ namespace Notes
                 NotesLibrary.Instance.SaveConfiguration();
                 
                 // Apply startup setting
-                NotesLibrary.Instance.SetStartupEntry(config.General.StartWithWindows);
+                bool startupApplied = NotesLibrary.Instance.SetStartupEntry(config.General.StartWithWindows);
+                if (!startupApplied)
+                {
+                    config.General.StartWithWindows = NotesLibrary.Instance.IsStartupEntrySet();
+                    chkStartWithWindows.Checked = config.General.StartWithWindows;
+                    NotesLibrary.Instance.SaveConfiguration();
+                }
                 
                 // Apply logging setting
                 Logger.Initialize(config.General.LogLevel);
@@ -427,6 +439,13 @@ namespace Notes
                 
                 hasChanges = false;
                 
+                if (!startupApplied)
+                {
+                    MessageBox.Show("Settings saved, but startup setting could not be applied.", NotesLibrary.AppName, 
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
                 MessageBox.Show("Settings saved successfully!", NotesLibrary.AppName, 
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
@@ -649,7 +668,30 @@ namespace Notes
                         if (confirmResult == DialogResult.Yes)
                         {
                             string backupContent = File.ReadAllText(openFileDialog.FileName);
-                            Properties.Settings.Default.JsonData = backupContent;
+                            var data = JsonConvert.DeserializeObject<NotesData>(backupContent);
+                            if (data == null || data.Units == null)
+                            {
+                                MessageBox.Show("Backup file is invalid or corrupted.", NotesLibrary.AppName, 
+                                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                return;
+                            }
+                            foreach (var key in data.Groups.Keys.ToList())
+                            {
+                                var group = data.Groups[key];
+                                if (string.IsNullOrEmpty(group.Id))
+                                    group.Id = key;
+                                data.Groups[key] = group;
+                            }
+                            foreach (var key in data.Units.Keys.ToList())
+                            {
+                                var unit = data.Units[key];
+                                if (!string.IsNullOrEmpty(unit.GroupId) && !data.Groups.ContainsKey(unit.GroupId))
+                                {
+                                    unit.GroupId = null;
+                                    data.Units[key] = unit;
+                                }
+                            }
+                            Properties.Settings.Default.JsonData = JsonConvert.SerializeObject(data, Formatting.Indented);
                             Properties.Settings.Default.Save();
 
                             MessageBox.Show("Backup restored successfully! Please restart the application.", 

@@ -32,6 +32,16 @@ namespace Notes
             InitializeComponent();
             InitializeModernUI();
             InitializeContentControls();
+            this.FormClosed += frmAdd_FormClosed;
+        }
+
+        private void frmAdd_FormClosed(object sender, FormClosedEventArgs e)
+        {
+            if (picImagePreview.Image != null)
+            {
+                picImagePreview.Image.Dispose();
+                picImagePreview.Image = null;
+            }
         }
 
         private void InitializeModernUI()

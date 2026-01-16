@@ -135,6 +135,7 @@ namespace Notes
         private bool isMovable = false;
         private bool isAutofocus = false;
         private bool autoSaveEnabled = true;
+        private bool isAutoSaving = false;
 
         // Button movement variables
         private bool btnMovingArrow = false;
@@ -257,7 +258,11 @@ namespace Notes
             else if (intervalSeconds > 300)
                 intervalSeconds = 300;
             autoSaveTimer.Interval = intervalSeconds * 1000;
-            config.General.AutoSaveInterval = intervalSeconds;
+            if (config.General.AutoSaveInterval != intervalSeconds)
+            {
+                config.General.AutoSaveInterval = intervalSeconds;
+                NotesLibrary.Instance.SaveConfiguration();
+            }
             
             // Update menu checkbox state
             menuEditAutoSave.Checked = autoSaveEnabled;
@@ -476,12 +481,20 @@ namespace Notes
                 
                 // Apply startup window state from configuration
                 this.WindowState = config.Window.State;
+                if (this.WindowState == FormWindowState.Normal && Properties.Settings.Default.WindowMaximized)
+                {
+                    this.WindowState = FormWindowState.Maximized;
+                }
                 
                 // If minimized and tray icon is not shown, start as normal instead
                 if (config.Window.State == FormWindowState.Minimized && !config.General.ShowTrayIcon)
                 {
                     this.WindowState = FormWindowState.Normal;
                     status = "Cannot start minimized without system tray icon enabled";
+                }
+                if (this.WindowState == FormWindowState.Normal && Properties.Settings.Default.WindowMaximized)
+                {
+                    this.WindowState = FormWindowState.Maximized;
                 }
             }
             catch (Exception)
@@ -859,14 +872,17 @@ namespace Notes
         {
             this.StartPosition = FormStartPosition.CenterScreen;
             this.CenterToScreen();
+            SaveWindowState();
             status = "Window position reset to center";
         }
 
         private void trayMenuResetSize_Click(object sender, EventArgs e)
         {
+            this.WindowState = FormWindowState.Normal;
             this.Size = new Size(800, 600);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.CenterToScreen();
+            SaveWindowState();
             status = "Window size reset to 800x600";
         }
 
@@ -881,10 +897,21 @@ namespace Notes
 
         private void AutoSaveTimer_Tick(object sender, EventArgs e)
         {
+            if (isAutoSaving)
+                return;
+
             if (configModified && autoSaveEnabled)
             {
-                saveJson();
-                status = "Auto-saved";
+                try
+                {
+                    isAutoSaving = true;
+                    saveJson();
+                    status = configModified ? "Auto-save failed" : "Auto-saved";
+                }
+                finally
+                {
+                    isAutoSaving = false;
+                }
             }
         }
 
@@ -1001,6 +1028,7 @@ namespace Notes
                     var group = loadedGroups[key];
                     if (string.IsNullOrEmpty(group.Id) || !string.Equals(group.Id, key, StringComparison.Ordinal))
                         group.Id = key;
+                    group.GroupBoxType = NormalizeGroupBoxType(group.GroupBoxType);
                     loadedGroups[key] = group;
                 }
                 Groups = loadedGroups;
@@ -1092,6 +1120,21 @@ namespace Notes
                     unit.X - targetGroupBox.Location.X,
                     unit.Y - targetGroupBox.Location.Y
                 );
+                int minX = 0;
+                int minY = Math.Max(0, targetGroupBox.DisplayRectangle.Top);
+                int maxX = Math.Max(minX, targetGroupBox.ClientSize.Width - newButton.Width);
+                int maxY = Math.Max(minY, targetGroupBox.ClientSize.Height - newButton.Height);
+
+                int clampedX = Math.Min(Math.Max(relativePos.X, minX), maxX);
+                int clampedY = Math.Min(Math.Max(relativePos.Y, minY), maxY);
+                if (clampedX != relativePos.X || clampedY != relativePos.Y)
+                {
+                    relativePos = new Point(clampedX, clampedY);
+                    unit.X = targetGroupBox.Location.X + relativePos.X;
+                    unit.Y = targetGroupBox.Location.Y + relativePos.Y;
+                    if (Units.ContainsKey(id))
+                        Units[id] = unit;
+                }
                 newButton.Location = relativePos;
                 targetGroupBox.Controls.Add(newButton);
                 newButton.Visible = true;
@@ -1241,7 +1284,10 @@ namespace Notes
                     Groups = Groups
                 };
 
-                Properties.Settings.Default.JsonData = JsonConvert.SerializeObject(data, Formatting.Indented);
+                var formatting = NotesLibrary.Instance.Config.General.OptimizeForLargeFiles
+                    ? Formatting.None
+                    : Formatting.Indented;
+                Properties.Settings.Default.JsonData = JsonConvert.SerializeObject(data, formatting);
                 Properties.Settings.Default.configAutofocus = isAutofocus;
                 
                 // Also save window state when saving other data
@@ -1809,7 +1855,7 @@ namespace Notes
         private void menuFileSave_Click(object sender, EventArgs e)
         {
             saveJson();
-            status = "Saved successfully";
+            status = configModified ? "Save failed" : "Saved successfully";
         }
 
         private void menuFileReset_Click(object sender, EventArgs e)
@@ -1865,10 +1911,13 @@ namespace Notes
                 if (File.Exists(openFileDialog.FileName))
                 {
                     var preImportState = CreateStateSnapshot();
+                    bool previousConfigModified = configModified;
                     try
                     {
                         string json = File.ReadAllText(openFileDialog.FileName);
                         var data = JsonConvert.DeserializeObject<NotesData>(json);
+                        if (data == null || data.Units == null)
+                            throw new InvalidDataException("Import file is invalid or corrupted.");
                         var newUnits = data?.Units ?? new Dictionary<string, UnitStruct>();
                         var newGroups = data?.Groups ?? new Dictionary<string, GroupStruct>();
 
@@ -1916,6 +1965,7 @@ namespace Notes
                     {
                         RestoreState(preImportState);
                         RefreshAllButtons();
+                        configModified = previousConfigModified;
                         status = "Import failed";
                         MessageBox.Show("Import failed: " + ex.Message, AppName, 
                             MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -2613,6 +2663,12 @@ namespace Notes
             // Get absolute position
             Point absolutePos = btn.Parent.PointToScreen(btn.Location);
             absolutePos = panelContainer.PointToClient(absolutePos);
+            int maxX = panelContainer.ClientSize.Width - btn.Width;
+            int maxY = panelContainer.ClientSize.Height - btn.Height;
+            if (maxX < 0) maxX = 0;
+            if (maxY < 0) maxY = 0;
+            absolutePos.X = Math.Max(0, Math.Min(absolutePos.X, maxX));
+            absolutePos.Y = Math.Max(0, Math.Min(absolutePos.Y, maxY));
 
             // Remove from group
             if (btn.Parent is GroupBox groupBox)
@@ -2700,6 +2756,12 @@ namespace Notes
                             // Get absolute position
                             Point absolutePos = groupBox.PointToScreen(btn.Location);
                             absolutePos = panelContainer.PointToClient(absolutePos);
+                            int maxX = panelContainer.ClientSize.Width - btn.Width;
+                            int maxY = panelContainer.ClientSize.Height - btn.Height;
+                            if (maxX < 0) maxX = 0;
+                            if (maxY < 0) maxY = 0;
+                            absolutePos.X = Math.Max(0, Math.Min(absolutePos.X, maxX));
+                            absolutePos.Y = Math.Max(0, Math.Min(absolutePos.Y, maxY));
 
                             var unit = Units[btnId];
                             unit.GroupId = null;
@@ -3340,6 +3402,7 @@ namespace Notes
                 newGroupBox.MouseUp += GroupBox_MouseUp;
                 newGroupBox.ContextMenuStrip = groupMenuStrip;
                 newGroupBox.SizeChanged += GroupBox_SizeChanged;
+                ApplyGroupBoxBehavior(newGroupBox);
 
                 panelContainer.Controls.Add(newGroupBox);
                 
@@ -3498,6 +3561,7 @@ namespace Notes
                 newGroupBox.MouseUp += GroupBox_MouseUp;
                 newGroupBox.ContextMenuStrip = groupMenuStrip;
                 newGroupBox.SizeChanged += GroupBox_SizeChanged;
+                ApplyGroupBoxBehavior(newGroupBox);
 
                 panelContainer.Controls.Add(newGroupBox);
                 
@@ -4798,8 +4862,9 @@ namespace Notes
         private GroupBox CreateGroupBoxByType(string groupBoxType)
         {
             GroupBox groupBox;
+            var normalizedType = NormalizeGroupBoxType(groupBoxType);
             
-            switch (groupBoxType)
+            switch (normalizedType)
             {
                 case "GradientGlassGroupBox":
                     groupBox = new GradientGlassGroupBox();
@@ -4916,6 +4981,68 @@ namespace Notes
             return groupBox;
         }
 
+        private void ApplyGroupBoxBehavior(GroupBox groupBox)
+        {
+            if (groupBox is ResizableGroupBox resizableGroupBox)
+            {
+                resizableGroupBox.AllowResize = isMovable;
+                resizableGroupBox.UpdateResizeHandleVisibility();
+            }
+            else if (groupBox is CustomGroupBoxBase customGroupBox)
+            {
+                customGroupBox.AllowResize = isMovable;
+                customGroupBox.UpdateResizeHandleVisibility();
+            }
+        }
+
+        private static string NormalizeGroupBoxType(string groupBoxType)
+        {
+            if (string.IsNullOrWhiteSpace(groupBoxType))
+                return "Default";
+
+            switch (groupBoxType)
+            {
+                case "GradientGlassGroupBox":
+                case "NeonGlowGroupBox":
+                case "EmbossedGroupBox":
+                case "RetroGroupBox":
+                case "CardGroupBox":
+                case "MinimalGroupBox":
+                case "DashedGroupBox":
+                case "DoubleBorderGroupBox":
+                case "ShadowPanelGroupBox":
+                case "RoundedNeonGroupBox":
+                case "HolographicGroupBox":
+                case "VintagePaperGroupBox":
+                case "LiquidMetalGroupBox":
+                case "CosmicGroupBox":
+                case "RainbowSpectrumGroupBox":
+                case "AuroraBorealisGroupBox":
+                case "CyberCircuitGroupBox":
+                case "FireLavaGroupBox":
+                case "MatrixRainGroupBox":
+                case "CrystalIceGroupBox":
+                case "PlasmaEnergyGroupBox":
+                case "OceanWaveGroupBox":
+                case "ElectricStormGroupBox":
+                case "StarfieldWarpGroupBox":
+                case "HeartbeatPulseGroupBox":
+                case "SnowfallGroupBox":
+                case "CloudDriftGroupBox":
+                case "SparkleShineGroupBox":
+                case "RippleWaterGroupBox":
+                case "BubblesFloatGroupBox":
+                case "ConfettiPartyGroupBox":
+                case "SunburstRaysGroupBox":
+                case "CherryBlossomGroupBox":
+                case "FloatingHeartsGroupBox":
+                case "ResizableGroupBox":
+                    return groupBoxType;
+                default:
+                    return "Default";
+            }
+        }
+
         private GroupBox GetOrCreateGroupBox(string groupId)
         {
             Logger.Debug($"GetOrCreateGroupBox called for: {groupId}");
@@ -5014,11 +5141,16 @@ namespace Notes
             if (string.IsNullOrEmpty(groupId) || !Groups.ContainsKey(groupId))
                 return;
 
-            MoveGroupBoxTo(groupBox, newLocation);
+            var clampedLocation = ClampGroupBoxLocation(groupBox, newLocation);
+            if (clampedLocation != groupBox.Location)
+            {
+                SaveStateForUndo();
+                MoveGroupBoxTo(groupBox, clampedLocation);
+                configModified = true;
+                status = "Group moved";
+                UpdateUndoRedoMenuState();
+            }
 
-            configModified = true;
-            status = "Group moved";
-            UpdateUndoRedoMenuState();
         }
 
         private void AddGroupBoxToPanel(GroupStruct group)
@@ -5101,6 +5233,8 @@ namespace Notes
                 mouseInPanel.X - groupBoxMoveStart.X,
                 mouseInPanel.Y - groupBoxMoveStart.Y);
 
+            newLocation = ClampGroupBoxLocation(currentGroupBoxDrag, newLocation);
+
             currentGroupBoxDrag.Location = newLocation;
         }
 
@@ -5134,6 +5268,8 @@ namespace Notes
             if (string.IsNullOrEmpty(groupId) || !Groups.ContainsKey(groupId))
                 return;
 
+            newLocation = ClampGroupBoxLocation(groupBox, newLocation);
+
             groupBox.Location = newLocation;
 
             // Update button absolute positions in the data model
@@ -5161,23 +5297,50 @@ namespace Notes
             Groups[groupId] = groupStruct;
         }
 
+        private Point ClampGroupBoxLocation(GroupBox groupBox, Point newLocation)
+        {
+            int maxX = panelContainer.ClientSize.Width - groupBox.Width;
+            int maxY = panelContainer.ClientSize.Height - groupBox.Height;
+            if (maxX < 0) maxX = 0;
+            if (maxY < 0) maxY = 0;
+            newLocation.X = Math.Max(0, Math.Min(newLocation.X, maxX));
+            newLocation.Y = Math.Max(0, Math.Min(newLocation.Y, maxY));
+            return newLocation;
+        }
+
         private AppState CreateStateSnapshot()
         {
             return new AppState
             {
-                Units = JsonConvert.DeserializeObject<Dictionary<string, UnitStruct>>(
-                    JsonConvert.SerializeObject(Units)),
-                Groups = JsonConvert.DeserializeObject<Dictionary<string, GroupStruct>>(
-                    JsonConvert.SerializeObject(Groups))
+                Units = CloneUnits(Units),
+                Groups = CloneGroups(Groups)
             };
         }
 
         private void RestoreState(AppState state)
         {
-            Units = JsonConvert.DeserializeObject<Dictionary<string, UnitStruct>>(
-                JsonConvert.SerializeObject(state.Units));
-            Groups = JsonConvert.DeserializeObject<Dictionary<string, GroupStruct>>(
-                JsonConvert.SerializeObject(state.Groups));
+            Units = CloneUnits(state.Units);
+            Groups = CloneGroups(state.Groups);
+        }
+
+        private static Dictionary<string, UnitStruct> CloneUnits(Dictionary<string, UnitStruct> source)
+        {
+            var result = new Dictionary<string, UnitStruct>(source.Count);
+            foreach (var kvp in source)
+            {
+                var unit = kvp.Value;
+                unit.Tags = unit.Tags?.ToArray();
+                result[kvp.Key] = unit;
+            }
+            return result;
+        }
+
+        private static Dictionary<string, GroupStruct> CloneGroups(Dictionary<string, GroupStruct> source)
+        {
+            var result = new Dictionary<string, GroupStruct>(source.Count);
+            foreach (var kvp in source)
+                result[kvp.Key] = kvp.Value;
+            return result;
         }
 
         private static string GetContentSummary(UnitStruct unit)
