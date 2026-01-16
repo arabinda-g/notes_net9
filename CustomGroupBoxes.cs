@@ -6,6 +6,17 @@ using System.Windows.Forms;
 
 namespace Notes
 {
+    internal static class AnimationHelper
+    {
+        public static bool Enabled => NotesLibrary.Instance.Config.General.EnableAnimations;
+
+        public static void StartTimer(System.Windows.Forms.Timer timer)
+        {
+            if (Enabled)
+                timer.Start();
+        }
+    }
+
     // Base class for custom group boxes
     public class CustomGroupBoxBase : GroupBox
     {
@@ -667,7 +678,7 @@ namespace Notes
         {
             animationTimer = new System.Windows.Forms.Timer { Interval = 50 };
             animationTimer.Tick += (s, e) => { glowOffset += 0.1f; if (glowOffset > 360) glowOffset = 0; this.Invalidate(); };
-            animationTimer.Start();
+            AnimationHelper.StartTimer(animationTimer);
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -946,7 +957,7 @@ namespace Notes
         {
             starTimer = new System.Windows.Forms.Timer { Interval = 100 };
             starTimer.Tick += (s, e) => { starPhase = (starPhase + 1) % 20; this.Invalidate(); };
-            starTimer.Start();
+            AnimationHelper.StartTimer(starTimer);
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -1090,7 +1101,7 @@ namespace Notes
                 }
                 this.Invalidate();
             };
-            colorTimer.Start();
+            AnimationHelper.StartTimer(colorTimer);
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -1250,7 +1261,7 @@ namespace Notes
         {
             auroraTimer = new System.Windows.Forms.Timer { Interval = 50 };
             auroraTimer.Tick += (s, e) => { waveOffset += 2; if (waveOffset >= 360) waveOffset = 0; this.Invalidate(); };
-            auroraTimer.Start();
+            AnimationHelper.StartTimer(auroraTimer);
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -1368,7 +1379,7 @@ namespace Notes
         {
             pulseTimer = new System.Windows.Forms.Timer { Interval = 60 };
             pulseTimer.Tick += (s, e) => { pulsePhase += 5; if (pulsePhase >= 100) pulsePhase = 0; this.Invalidate(); };
-            pulseTimer.Start();
+            AnimationHelper.StartTimer(pulseTimer);
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -1488,7 +1499,7 @@ namespace Notes
         {
             fireTimer = new System.Windows.Forms.Timer { Interval = 40 };
             fireTimer.Tick += (s, e) => { flamePhase += 4; if (flamePhase >= 360) flamePhase = 0; this.Invalidate(); };
-            fireTimer.Start();
+            AnimationHelper.StartTimer(fireTimer);
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -1628,7 +1639,7 @@ namespace Notes
         {
             matrixTimer = new System.Windows.Forms.Timer { Interval = 50 };
             matrixTimer.Tick += (s, e) => { UpdateDrops(); this.Invalidate(); };
-            matrixTimer.Start();
+            AnimationHelper.StartTimer(matrixTimer);
         }
 
         private void UpdateDrops()
@@ -1737,7 +1748,7 @@ namespace Notes
         {
             shimmerTimer = new System.Windows.Forms.Timer { Interval = 80 };
             shimmerTimer.Tick += (s, e) => { shimmerPhase += 3; if (shimmerPhase >= 360) shimmerPhase = 0; this.Invalidate(); };
-            shimmerTimer.Start();
+            AnimationHelper.StartTimer(shimmerTimer);
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -1868,7 +1879,7 @@ namespace Notes
         {
             plasmaTimer = new System.Windows.Forms.Timer { Interval = 30 };
             plasmaTimer.Tick += (s, e) => { plasmaPhase += 2; if (plasmaPhase >= 360) plasmaPhase = 0; this.Invalidate(); };
-            plasmaTimer.Start();
+            AnimationHelper.StartTimer(plasmaTimer);
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -1981,7 +1992,7 @@ namespace Notes
         {
             waveTimer = new System.Windows.Forms.Timer { Interval = 40 };
             waveTimer.Tick += (s, e) => { wavePhase += 3; if (wavePhase >= 360) wavePhase = 0; this.Invalidate(); };
-            waveTimer.Start();
+            AnimationHelper.StartTimer(waveTimer);
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -2104,7 +2115,7 @@ namespace Notes
         {
             stormTimer = new System.Windows.Forms.Timer { Interval = 50 };
             stormTimer.Tick += (s, e) => { UpdateStorm(); this.Invalidate(); };
-            stormTimer.Start();
+            AnimationHelper.StartTimer(stormTimer);
         }
 
         private void UpdateStorm()
@@ -2270,7 +2281,7 @@ namespace Notes
 
             warpTimer = new System.Windows.Forms.Timer { Interval = 30 };
             warpTimer.Tick += (s, e) => { UpdateStars(); this.Invalidate(); };
-            warpTimer.Start();
+            AnimationHelper.StartTimer(warpTimer);
         }
 
         private void UpdateStars()
@@ -2382,7 +2393,7 @@ namespace Notes
         {
             pulseTimer = new System.Windows.Forms.Timer { Interval = 30 };
             pulseTimer.Tick += (s, e) => { pulsePhase += 3; if (pulsePhase >= 360) pulsePhase = 0; this.Invalidate(); };
-            pulseTimer.Start();
+            AnimationHelper.StartTimer(pulseTimer);
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -2527,7 +2538,7 @@ namespace Notes
 
             snowTimer = new System.Windows.Forms.Timer { Interval = 40 };
             snowTimer.Tick += (s, e) => { UpdateSnow(); this.Invalidate(); };
-            snowTimer.Start();
+            AnimationHelper.StartTimer(snowTimer);
         }
 
         private void UpdateSnow()
@@ -2627,7 +2638,7 @@ namespace Notes
         {
             cloudTimer = new System.Windows.Forms.Timer { Interval = 50 };
             cloudTimer.Tick += (s, e) => { cloudOffset += 0.5f; if (cloudOffset > 200) cloudOffset = -100; this.Invalidate(); };
-            cloudTimer.Start();
+            AnimationHelper.StartTimer(cloudTimer);
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -2710,7 +2721,7 @@ namespace Notes
         {
             sparkleTimer = new System.Windows.Forms.Timer { Interval = 60 };
             sparkleTimer.Tick += (s, e) => { sparklePhase += 5; if (sparklePhase >= 360) sparklePhase = 0; this.Invalidate(); };
-            sparkleTimer.Start();
+            AnimationHelper.StartTimer(sparkleTimer);
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -2809,7 +2820,7 @@ namespace Notes
         {
             rippleTimer = new System.Windows.Forms.Timer { Interval = 40 };
             rippleTimer.Tick += (s, e) => { ripplePhase += 2; if (ripplePhase >= 100) ripplePhase = 0; this.Invalidate(); };
-            rippleTimer.Start();
+            AnimationHelper.StartTimer(rippleTimer);
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -2923,7 +2934,7 @@ namespace Notes
 
             bubbleTimer = new System.Windows.Forms.Timer { Interval = 50 };
             bubbleTimer.Tick += (s, e) => { UpdateBubbles(); this.Invalidate(); };
-            bubbleTimer.Start();
+            AnimationHelper.StartTimer(bubbleTimer);
         }
 
         private void UpdateBubbles()
@@ -3057,7 +3068,7 @@ namespace Notes
 
             confettiTimer = new System.Windows.Forms.Timer { Interval = 40 };
             confettiTimer.Tick += (s, e) => { UpdateConfetti(); this.Invalidate(); };
-            confettiTimer.Start();
+            AnimationHelper.StartTimer(confettiTimer);
         }
 
         private void UpdateConfetti()
@@ -3174,7 +3185,7 @@ namespace Notes
         {
             sunTimer = new System.Windows.Forms.Timer { Interval = 50 };
             sunTimer.Tick += (s, e) => { rayPhase += 1; if (rayPhase >= 360) rayPhase = 0; this.Invalidate(); };
-            sunTimer.Start();
+            AnimationHelper.StartTimer(sunTimer);
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -3288,7 +3299,7 @@ namespace Notes
 
             petalTimer = new System.Windows.Forms.Timer { Interval = 45 };
             petalTimer.Tick += (s, e) => { UpdatePetals(); this.Invalidate(); };
-            petalTimer.Start();
+            AnimationHelper.StartTimer(petalTimer);
         }
 
         private void UpdatePetals()
@@ -3423,7 +3434,7 @@ namespace Notes
 
             heartTimer = new System.Windows.Forms.Timer { Interval = 50 };
             heartTimer.Tick += (s, e) => { UpdateHearts(); this.Invalidate(); };
-            heartTimer.Start();
+            AnimationHelper.StartTimer(heartTimer);
         }
 
         private void UpdateHearts()

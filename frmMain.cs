@@ -251,7 +251,13 @@ namespace Notes
             var config = NotesLibrary.Instance.Config;
             
             autoSaveEnabled = config.General.AutoSave;
-            autoSaveTimer.Interval = config.General.AutoSaveInterval * 1000;
+            int intervalSeconds = config.General.AutoSaveInterval;
+            if (intervalSeconds < 5)
+                intervalSeconds = 5;
+            else if (intervalSeconds > 300)
+                intervalSeconds = 300;
+            autoSaveTimer.Interval = intervalSeconds * 1000;
+            config.General.AutoSaveInterval = intervalSeconds;
             
             // Update menu checkbox state
             menuEditAutoSave.Checked = autoSaveEnabled;
@@ -296,7 +302,7 @@ namespace Notes
 
                 // Calculate modifier flags
                 int modifiers = 0;
-                foreach (var modifier in config.Hotkey.Modifiers)
+                foreach (var modifier in (config.Hotkey.Modifiers ?? Array.Empty<Keys>()))
                 {
                     if (modifier == Keys.Control)
                         modifiers |= 0x0002; // MOD_CONTROL
@@ -323,7 +329,7 @@ namespace Notes
                 }
                 else
                 {
-                    Logger.Info($"Global hotkey registered successfully: {string.Join("+", config.Hotkey.Modifiers.Select(m => m.ToString()))}+{config.Hotkey.Key}");
+                Logger.Info($"Global hotkey registered successfully: {string.Join("+", (config.Hotkey.Modifiers ?? Array.Empty<Keys>()).Select(m => m.ToString()))}+{config.Hotkey.Key}");
                 }
             }
             catch (Exception ex)
@@ -406,47 +412,61 @@ namespace Notes
             {
                 var config = NotesLibrary.Instance.Config;
                 
-                // Restore window size
-                int width = Properties.Settings.Default.WindowWidth;
-                int height = Properties.Settings.Default.WindowHeight;
-                
-                // Ensure minimum window size
-                if (width < 400) width = 800;
-                if (height < 300) height = 600;
-                
-                this.Size = new Size(width, height);
-                
-                // Restore window position if valid
-                int x = Properties.Settings.Default.WindowX;
-                int y = Properties.Settings.Default.WindowY;
-                
-                if (x >= 0 && y >= 0)
+                if (config.Window.RememberSize)
                 {
-                    // Check if the position is within screen bounds
-                    bool isOnScreen = false;
-                    foreach (Screen screen in Screen.AllScreens)
-                    {
-                        if (screen.WorkingArea.Contains(x, y))
-                        {
-                            isOnScreen = true;
-                            break;
-                        }
-                    }
+                    // Restore window size
+                    int width = Properties.Settings.Default.WindowWidth;
+                    int height = Properties.Settings.Default.WindowHeight;
                     
-                    if (isOnScreen)
+                    // Ensure minimum window size
+                    if (width < 400) width = 800;
+                    if (height < 300) height = 600;
+                    
+                    this.Size = new Size(width, height);
+                }
+                else
+                {
+                    this.StartPosition = FormStartPosition.CenterScreen;
+                }
+
+                if (config.Window.RememberPosition)
+                {
+                    // Restore window position if valid
+                    int x = Properties.Settings.Default.WindowX;
+                    int y = Properties.Settings.Default.WindowY;
+                    
+                    if (x >= 0 && y >= 0)
                     {
-                        this.Location = new Point(x, y);
-                        this.StartPosition = FormStartPosition.Manual;
+                        // Check if the position is within screen bounds
+                        bool isOnScreen = false;
+                        foreach (Screen screen in Screen.AllScreens)
+                        {
+                            if (screen.WorkingArea.Contains(x, y))
+                            {
+                                isOnScreen = true;
+                                break;
+                            }
+                        }
+                        
+                        if (isOnScreen)
+                        {
+                            this.Location = new Point(x, y);
+                            this.StartPosition = FormStartPosition.Manual;
+                        }
+                        else
+                        {
+                            // Position is off-screen, center the window
+                            this.StartPosition = FormStartPosition.CenterScreen;
+                        }
                     }
                     else
                     {
-                        // Position is off-screen, center the window
+                        // First time running, center the window
                         this.StartPosition = FormStartPosition.CenterScreen;
                     }
                 }
                 else
                 {
-                    // First time running, center the window
                     this.StartPosition = FormStartPosition.CenterScreen;
                 }
                 
@@ -479,24 +499,38 @@ namespace Notes
                 if (this.WindowState == FormWindowState.Minimized)
                     return;
                 
+                var config = NotesLibrary.Instance.Config;
+                
                 // Save maximized state
                 Properties.Settings.Default.WindowMaximized = (this.WindowState == FormWindowState.Maximized);
                 
                 // If maximized, we need to get the restored bounds
                 if (this.WindowState == FormWindowState.Maximized)
                 {
-                    Properties.Settings.Default.WindowWidth = this.RestoreBounds.Width;
-                    Properties.Settings.Default.WindowHeight = this.RestoreBounds.Height;
-                    Properties.Settings.Default.WindowX = this.RestoreBounds.X;
-                    Properties.Settings.Default.WindowY = this.RestoreBounds.Y;
+                    if (config.Window.RememberSize)
+                    {
+                        Properties.Settings.Default.WindowWidth = this.RestoreBounds.Width;
+                        Properties.Settings.Default.WindowHeight = this.RestoreBounds.Height;
+                    }
+                    if (config.Window.RememberPosition)
+                    {
+                        Properties.Settings.Default.WindowX = this.RestoreBounds.X;
+                        Properties.Settings.Default.WindowY = this.RestoreBounds.Y;
+                    }
                 }
                 else
                 {
                     // Window is in normal state
-                    Properties.Settings.Default.WindowWidth = this.Width;
-                    Properties.Settings.Default.WindowHeight = this.Height;
-                    Properties.Settings.Default.WindowX = this.Left;
-                    Properties.Settings.Default.WindowY = this.Top;
+                    if (config.Window.RememberSize)
+                    {
+                        Properties.Settings.Default.WindowWidth = this.Width;
+                        Properties.Settings.Default.WindowHeight = this.Height;
+                    }
+                    if (config.Window.RememberPosition)
+                    {
+                        Properties.Settings.Default.WindowX = this.Left;
+                        Properties.Settings.Default.WindowY = this.Top;
+                    }
                 }
                 
                 // Save the settings
@@ -556,6 +590,17 @@ namespace Notes
             RestoreWindowState();
             
             ResizePanel();
+
+            var config = NotesLibrary.Instance.Config;
+            if (config.General.StartMinimized)
+            {
+                this.WindowState = FormWindowState.Minimized;
+                if (config.General.ShowTrayIcon)
+                {
+                    this.Hide();
+                    this.ShowInTaskbar = false;
+                }
+            }
             
             if (string.IsNullOrEmpty(Properties.Settings.Default.JsonData))
             {
@@ -673,11 +718,16 @@ namespace Notes
             if (selectedButtons.Count == 0)
                 return;
 
-            DialogResult result = MessageBox.Show(
-                $"Do you want to delete {selectedButtons.Count} selected button(s)?", 
-                AppName, 
-                MessageBoxButtons.YesNo, 
-                MessageBoxIcon.Question);
+            var config = NotesLibrary.Instance.Config;
+            DialogResult result = DialogResult.Yes;
+            if (config.General.ConfirmDelete)
+            {
+                result = MessageBox.Show(
+                    $"Do you want to delete {selectedButtons.Count} selected button(s)?", 
+                    AppName, 
+                    MessageBoxButtons.YesNo, 
+                    MessageBoxIcon.Question);
+            }
 
             if (result == DialogResult.Yes)
             {
@@ -719,6 +769,17 @@ namespace Notes
                 this.ShowInTaskbar = false;
                 Logger.Debug("Application hidden to tray (close to tray enabled) - keeping in RAM for instant reopening");
                 return;
+            }
+
+            if (config.General.ConfirmExit && e.CloseReason == CloseReason.UserClosing)
+            {
+                DialogResult exitResult = MessageBox.Show("Are you sure you want to exit?", AppName, 
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                if (exitResult != DialogResult.Yes)
+                {
+                    e.Cancel = true;
+                    return;
+                }
             }
             
             // Only cleanup if actually closing (not just hiding to tray)
@@ -833,9 +894,13 @@ namespace Notes
             var snapshot = CreateStateSnapshot();
             undoStack.Push(snapshot);
             
-            if (undoStack.Count > 20)
+            int maxUndoLevels = NotesLibrary.Instance.Config.General.UndoLevels;
+            if (maxUndoLevels < 1)
+                maxUndoLevels = 1;
+
+            if (undoStack.Count > maxUndoLevels)
             {
-                var temp = undoStack.ToArray().Take(20).Reverse().ToArray();
+                var temp = undoStack.ToArray().Take(maxUndoLevels).Reverse().ToArray();
                 undoStack.Clear();
                 foreach (var item in temp)
                     undoStack.Push(item);
@@ -877,6 +942,10 @@ namespace Notes
         private void RefreshAllButtons()
         {
             ClearSelection();
+            bool optimize = NotesLibrary.Instance.Config.General.OptimizeForLargeFiles;
+            if (optimize)
+                panelContainer.SuspendLayout();
+
             panelContainer.Controls.Clear();
 
             foreach (var group in Groups.Values.OrderBy(g => g.X).ThenBy(g => g.Y))
@@ -890,6 +959,9 @@ namespace Notes
             }
 
             UpdateUndoRedoMenuState();
+
+            if (optimize)
+                panelContainer.ResumeLayout(true);
         }
 
         private bool loadJson(string json)
@@ -1456,13 +1528,18 @@ namespace Notes
             }
             else
             {
+                var config = NotesLibrary.Instance.Config;
                 if (_unitDoubleClicked)
                 {
-                    unit_DoubleClick_Handle(_unitClickSender, _unitClickE);
+                    if (config.General.DoubleClickToEdit)
+                        unit_DoubleClick_Handle(_unitClickSender, _unitClickE);
+                    else if (config.General.SingleClickToCopy)
+                        unit_Click_Handle(_unitClickSender, _unitClickE);
                 }
                 else
                 {
-                    unit_Click_Handle(_unitClickSender, _unitClickE);
+                    if (config.General.SingleClickToCopy)
+                        unit_Click_Handle(_unitClickSender, _unitClickE);
                 }
             }
 
@@ -1701,7 +1778,12 @@ namespace Notes
 
         private void menuFileReset_Click(object sender, EventArgs e)
         {
-            DialogResult result = MessageBox.Show("Do you want to delete all buttons?", AppName, MessageBoxButtons.OKCancel);
+            var config = NotesLibrary.Instance.Config;
+            DialogResult result = DialogResult.OK;
+            if (config.General.ConfirmReset)
+            {
+                result = MessageBox.Show("Do you want to delete all buttons?", AppName, MessageBoxButtons.OKCancel);
+            }
 
             if (result == DialogResult.OK)
             {
@@ -1740,13 +1822,13 @@ namespace Notes
                 {
                     string json = File.ReadAllText(openFileDialog.FileName);
 
+                    var preImportState = CreateStateSnapshot();
                     try
                     {
                         var data = JsonConvert.DeserializeObject<NotesData>(json);
                         var newUnits = data?.Units ?? new Dictionary<string, UnitStruct>();
                         var newGroups = data?.Groups ?? new Dictionary<string, GroupStruct>();
 
-                        var preImportState = CreateStateSnapshot();
                         SaveStateForUndo();
                         
                         // Map old group IDs to new group IDs
@@ -1805,18 +1887,20 @@ namespace Notes
             DialogResult result = saveFileDialog.ShowDialog();
             if (result == DialogResult.OK)
             {
-                Stream stream;
-
-                if ((stream = saveFileDialog.OpenFile()) != null)
+                using (var stream = saveFileDialog.OpenFile())
                 {
-                    StreamWriter writer = new StreamWriter(stream);
-                    var data = new NotesData
+                    if (stream != null)
                     {
-                        Units = Units,
-                        Groups = Groups
-                    };
-                    writer.Write(JsonConvert.SerializeObject(data));
-                    writer.Close();
+                        using (var writer = new StreamWriter(stream))
+                        {
+                            var data = new NotesData
+                            {
+                                Units = Units,
+                                Groups = Groups
+                            };
+                            writer.Write(JsonConvert.SerializeObject(data));
+                        }
+                    }
 
                     status = string.Format("{0} notes and {1} groups exported successfully", Units.Count(), Groups.Count());
                 }
@@ -1979,6 +2063,17 @@ namespace Notes
 
                 if (Units.ContainsKey(id))
                 {
+                    var config = NotesLibrary.Instance.Config;
+                    DialogResult result = DialogResult.Yes;
+                    if (config.General.ConfirmDelete)
+                    {
+                        result = MessageBox.Show("Do you want to delete this button?", AppName, 
+                            MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                    }
+
+                    if (result != DialogResult.Yes)
+                        return;
+
                     SaveStateForUndo();
                     Units.Remove(id);
                     RemoveButtonControl(btn);
