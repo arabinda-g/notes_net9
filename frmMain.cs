@@ -946,6 +946,10 @@ namespace Notes
             if (optimize)
                 panelContainer.SuspendLayout();
 
+            foreach (var control in panelContainer.Controls.OfType<Control>().ToList())
+            {
+                control.Dispose();
+            }
             panelContainer.Controls.Clear();
 
             foreach (var group in Groups.Values.OrderBy(g => g.X).ThenBy(g => g.Y))
@@ -978,9 +982,16 @@ namespace Notes
                     return false;
                 }
 
-                panelContainer.Controls.Clear();
                 Units = data.Units;
-                Groups = data.Groups ?? new Dictionary<string, GroupStruct>();
+                var loadedGroups = data.Groups ?? new Dictionary<string, GroupStruct>();
+                foreach (var key in loadedGroups.Keys.ToList())
+                {
+                    var group = loadedGroups[key];
+                    if (string.IsNullOrEmpty(group.Id))
+                        group.Id = key;
+                    loadedGroups[key] = group;
+                }
+                Groups = loadedGroups;
 
                 RefreshAllButtons();
 
@@ -1211,6 +1222,7 @@ namespace Notes
                 
                 // Also save window state when saving other data
                 SaveWindowState();
+                Properties.Settings.Default.Save();
                 
                 configModified = false;
                 status = "Saved successfully";
@@ -1788,8 +1800,13 @@ namespace Notes
             if (result == DialogResult.OK)
             {
                 SaveStateForUndo();
+                foreach (var control in panelContainer.Controls.OfType<Control>().ToList())
+                {
+                    control.Dispose();
+                }
                 panelContainer.Controls.Clear();
                 Units.Clear();
+                Groups.Clear();
 
                 configModified = true;
                 status = "All buttons deleted successfully";
@@ -1820,11 +1837,10 @@ namespace Notes
             {
                 if (File.Exists(openFileDialog.FileName))
                 {
-                    string json = File.ReadAllText(openFileDialog.FileName);
-
                     var preImportState = CreateStateSnapshot();
                     try
                     {
+                        string json = File.ReadAllText(openFileDialog.FileName);
                         var data = JsonConvert.DeserializeObject<NotesData>(json);
                         var newUnits = data?.Units ?? new Dictionary<string, UnitStruct>();
                         var newGroups = data?.Groups ?? new Dictionary<string, GroupStruct>();
@@ -1887,22 +1903,30 @@ namespace Notes
             DialogResult result = saveFileDialog.ShowDialog();
             if (result == DialogResult.OK)
             {
-                using (var stream = saveFileDialog.OpenFile())
+                try
                 {
-                    if (stream != null)
+                    using (var stream = saveFileDialog.OpenFile())
                     {
-                        using (var writer = new StreamWriter(stream))
+                        if (stream != null)
                         {
-                            var data = new NotesData
+                            using (var writer = new StreamWriter(stream))
                             {
-                                Units = Units,
-                                Groups = Groups
-                            };
-                            writer.Write(JsonConvert.SerializeObject(data));
+                                var data = new NotesData
+                                {
+                                    Units = Units,
+                                    Groups = Groups
+                                };
+                                writer.Write(JsonConvert.SerializeObject(data));
+                            }
                         }
-                    }
 
-                    status = string.Format("{0} notes and {1} groups exported successfully", Units.Count(), Groups.Count());
+                        status = string.Format("{0} notes and {1} groups exported successfully", Units.Count(), Groups.Count());
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Error exporting notes: " + ex.Message, AppName, 
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
 
@@ -2376,9 +2400,11 @@ namespace Notes
                 Font = new Font("Segoe UI", 9f)
             };
 
+            List<string> groupIds = new List<string>();
             foreach (var group in Groups.Values)
             {
                 comboBox.Items.Add($"{group.Title}");
+                groupIds.Add(group.Id);
             }
 
             if (comboBox.Items.Count > 0)
@@ -2415,7 +2441,7 @@ namespace Notes
             {
                 SaveStateForUndo();
 
-                var selectedGroupId = Groups.Keys.ElementAt(comboBox.SelectedIndex);
+                var selectedGroupId = groupIds[comboBox.SelectedIndex];
                 var newGroupBox = GetOrCreateGroupBox(selectedGroupId);
                 
                 if (newGroupBox == null)
@@ -4692,10 +4718,12 @@ namespace Notes
                     panelContainer.Controls.Remove(groupBox);
                     groupBox.Dispose();
                 }
+                button.Dispose();
             }
             else
             {
                 panelContainer.Controls.Remove(button);
+                button.Dispose();
             }
         }
 
