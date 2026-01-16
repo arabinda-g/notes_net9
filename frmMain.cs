@@ -266,6 +266,10 @@ namespace Notes
             {
                 autoSaveTimer.Start();
             }
+            else
+            {
+                autoSaveTimer.Stop();
+            }
             
             // Apply tray icon settings
             trayIcon.Visible = config.General.ShowTrayIcon;
@@ -592,14 +596,11 @@ namespace Notes
             ResizePanel();
 
             var config = NotesLibrary.Instance.Config;
-            if (config.General.StartMinimized)
+            if (config.General.StartMinimized && config.General.ShowTrayIcon)
             {
                 this.WindowState = FormWindowState.Minimized;
-                if (config.General.ShowTrayIcon)
-                {
-                    this.Hide();
-                    this.ShowInTaskbar = false;
-                }
+                this.Hide();
+                this.ShowInTaskbar = false;
             }
             
             if (string.IsNullOrEmpty(Properties.Settings.Default.JsonData))
@@ -793,16 +794,17 @@ namespace Notes
             // Stop monitoring system theme changes
             ThemeManager.StopSystemThemeMonitoring();
             
-            // Save window state before closing
-            if (!e.Cancel)
-                SaveWindowState();
-            
             if (configModified)
             {
                 if (config.General.AutoSave)
                 {
                     saveJson();
                     status = "Auto-saved before closing";
+                    if (configModified)
+                    {
+                        e.Cancel = true;
+                        return;
+                    }
                 }
                 else
                 {
@@ -812,6 +814,11 @@ namespace Notes
                     if (result == DialogResult.Yes)
                     {
                         saveJson();
+                        if (configModified)
+                        {
+                            e.Cancel = true;
+                            return;
+                        }
                     }
                     else if (result == DialogResult.Cancel)
                     {
@@ -946,26 +953,31 @@ namespace Notes
             if (optimize)
                 panelContainer.SuspendLayout();
 
-            foreach (var control in panelContainer.Controls.OfType<Control>().ToList())
+            try
             {
-                control.Dispose();
-            }
-            panelContainer.Controls.Clear();
+                foreach (var control in panelContainer.Controls.OfType<Control>().ToList())
+                {
+                    control.Dispose();
+                }
+                panelContainer.Controls.Clear();
 
-            foreach (var group in Groups.Values.OrderBy(g => g.X).ThenBy(g => g.Y))
+                foreach (var group in Groups.Values.OrderBy(g => g.X).ThenBy(g => g.Y))
+                {
+                    AddGroupBoxToPanel(group);
+                }
+
+                foreach (var kvp in Units)
+                {
+                    addButton(kvp.Key, kvp.Value);
+                }
+
+                UpdateUndoRedoMenuState();
+            }
+            finally
             {
-                AddGroupBoxToPanel(group);
+                if (optimize)
+                    panelContainer.ResumeLayout(true);
             }
-
-            foreach (var kvp in Units)
-            {
-                addButton(kvp.Key, kvp.Value);
-            }
-
-            UpdateUndoRedoMenuState();
-
-            if (optimize)
-                panelContainer.ResumeLayout(true);
         }
 
         private bool loadJson(string json)
@@ -987,13 +999,25 @@ namespace Notes
                 foreach (var key in loadedGroups.Keys.ToList())
                 {
                     var group = loadedGroups[key];
-                    if (string.IsNullOrEmpty(group.Id))
+                    if (string.IsNullOrEmpty(group.Id) || !string.Equals(group.Id, key, StringComparison.Ordinal))
                         group.Id = key;
                     loadedGroups[key] = group;
                 }
                 Groups = loadedGroups;
+                foreach (var key in Units.Keys.ToList())
+                {
+                    var unit = Units[key];
+                    if (!string.IsNullOrEmpty(unit.GroupId) && !Groups.ContainsKey(unit.GroupId))
+                    {
+                        unit.GroupId = null;
+                        Units[key] = unit;
+                    }
+                }
 
                 RefreshAllButtons();
+                undoStack.Clear();
+                redoStack.Clear();
+                UpdateUndoRedoMenuState();
 
                 status = string.Format("Loaded {0} notes successfully", Units.Count);
                 return true;
@@ -1800,6 +1824,7 @@ namespace Notes
             if (result == DialogResult.OK)
             {
                 SaveStateForUndo();
+                ClearSelection();
                 foreach (var control in panelContainer.Controls.OfType<Control>().ToList())
                 {
                     control.Dispose();
@@ -1820,9 +1845,11 @@ namespace Notes
 
             if (result == DialogResult.OK)
             {
-                loadJson(Properties.Settings.Default.JsonData);
-                loadConfig();
-                configModified = false;
+                if (loadJson(Properties.Settings.Default.JsonData))
+                {
+                    loadConfig();
+                    configModified = false;
+                }
             }
         }
 
@@ -1872,6 +1899,10 @@ namespace Notes
                             {
                                 unit.GroupId = groupIdMap[unit.GroupId];
                             }
+                            else
+                            {
+                                unit.GroupId = null;
+                            }
                             
                             Units.Add(id, unit);
                             addButton(id, unit);
@@ -1889,6 +1920,11 @@ namespace Notes
                         MessageBox.Show("Import failed: " + ex.Message, AppName, 
                             MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
+                }
+                else
+                {
+                    MessageBox.Show("Selected file no longer exists.", AppName, 
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 }
 
             }
@@ -1918,10 +1954,14 @@ namespace Notes
                                 };
                                 writer.Write(JsonConvert.SerializeObject(data));
                             }
-                        }
 
-                        status = string.Format("{0} notes and {1} groups exported successfully", Units.Count(), Groups.Count());
+                            status = string.Format("{0} notes and {1} groups exported successfully", Units.Count(), Groups.Count());
+                            return;
+                        }
                     }
+
+                    MessageBox.Show("Export failed: unable to open the selected file.", AppName, 
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 }
                 catch (Exception ex)
                 {
@@ -2273,8 +2313,16 @@ namespace Notes
             var text = unit.Content;
             if (!string.IsNullOrEmpty(text))
             {
-                Clipboard.SetText(text.ToLower());
-                status = "Copied to clipboard in lowercase";
+                try
+                {
+                    Clipboard.SetText(text.ToLowerInvariant());
+                    status = "Copied to clipboard in lowercase";
+                }
+                catch (ExternalException ex)
+                {
+                    status = "Clipboard is busy";
+                    Logger.Warning("Failed to copy lowercase text: " + ex.Message);
+                }
             }
             else
             {
@@ -2296,8 +2344,16 @@ namespace Notes
             var text = unit.Content;
             if (!string.IsNullOrEmpty(text))
             {
-                Clipboard.SetText(text.ToUpper());
-                status = "Copied to clipboard in uppercase";
+                try
+                {
+                    Clipboard.SetText(text.ToUpperInvariant());
+                    status = "Copied to clipboard in uppercase";
+                }
+                catch (ExternalException ex)
+                {
+                    status = "Clipboard is busy";
+                    Logger.Warning("Failed to copy uppercase text: " + ex.Message);
+                }
             }
             else
             {
@@ -3490,6 +3546,7 @@ namespace Notes
                         
                         // Refresh all note buttons with new theme
                         RefreshAllButtons();
+                        AnimationHelper.ApplyToExisting(panelContainer);
                         
                         status = "Settings updated successfully";
                     }
@@ -4703,20 +4760,17 @@ namespace Notes
 
         private void RemoveButtonControl(Button button)
         {
+            if (selectedButtons.Contains(button))
+            {
+                selectedButtons.Remove(button);
+            }
             if (button.Parent is GroupBox groupBox)
             {
                 groupBox.Controls.Remove(button);
 
                 if (groupBox.Controls.OfType<Button>().Count() == 0)
                 {
-                    string groupId = groupBox.Tag as string;
-                    if (!string.IsNullOrEmpty(groupId) && Groups.ContainsKey(groupId))
-                    {
-                        Groups.Remove(groupId);
-                    }
-
-                    panelContainer.Controls.Remove(groupBox);
-                    groupBox.Dispose();
+                    groupBox.Text = string.IsNullOrWhiteSpace(groupBox.Text) ? "Group" : groupBox.Text;
                 }
                 button.Dispose();
             }
@@ -4874,7 +4928,7 @@ namespace Notes
 
             var groupBox = panelContainer.Controls
                 .OfType<GroupBox>()
-                .FirstOrDefault(gb => (string)gb.Tag == groupId);
+                .FirstOrDefault(gb => string.Equals(gb.Tag as string, groupId, StringComparison.Ordinal));
 
             if (groupBox != null)
             {
@@ -5057,7 +5111,18 @@ namespace Notes
 
             isMovingGroupBox = false;
 
+            if (currentGroupBoxDrag.Location != currentGroupBoxOriginalLocation)
+            {
+                SaveStateForUndo();
+            }
+
             MoveGroupBoxTo(currentGroupBoxDrag, currentGroupBoxDrag.Location);
+            if (currentGroupBoxDrag.Location != currentGroupBoxOriginalLocation)
+            {
+                configModified = true;
+                status = "Group moved";
+                UpdateUndoRedoMenuState();
+            }
 
             currentGroupBoxDrag = null;
             currentGroupBoxButtonOrigins.Clear();

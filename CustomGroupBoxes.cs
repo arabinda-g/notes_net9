@@ -15,6 +15,37 @@ namespace Notes
             if (Enabled)
                 timer.Start();
         }
+
+        public static void ApplyToExisting(Control root)
+        {
+            foreach (var timer in root.Controls.OfType<Control>()
+                .SelectMany(GetTimers))
+            {
+                if (Enabled)
+                    timer.Start();
+                else
+                    timer.Stop();
+            }
+        }
+
+        private static IEnumerable<System.Windows.Forms.Timer> GetTimers(Control control)
+        {
+            foreach (var field in control.GetType().GetFields(
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic))
+            {
+                if (field.FieldType == typeof(System.Windows.Forms.Timer))
+                {
+                    if (field.GetValue(control) is System.Windows.Forms.Timer timer)
+                        yield return timer;
+                }
+            }
+
+            foreach (Control child in control.Controls)
+            {
+                foreach (var timer in GetTimers(child))
+                    yield return timer;
+            }
+        }
     }
 
     // Base class for custom group boxes

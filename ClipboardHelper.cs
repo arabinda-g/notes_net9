@@ -30,10 +30,17 @@ namespace Notes
 
         public static bool TryCaptureTextFromClipboard(out string text)
         {
-            if (Clipboard.ContainsText())
+            try
             {
-                text = Clipboard.GetText();
-                return true;
+                if (Clipboard.ContainsText())
+                {
+                    text = Clipboard.GetText();
+                    return true;
+                }
+            }
+            catch (ExternalException)
+            {
+                // Clipboard might be locked by another process
             }
 
             text = string.Empty;
@@ -42,21 +49,28 @@ namespace Notes
 
         public static bool TryCaptureImageFromClipboard(out string base64Data, out string format, out Bitmap? preview)
         {
-            if (Clipboard.ContainsImage())
+            try
             {
-                var image = Clipboard.GetImage();
-                if (image != null)
+                if (Clipboard.ContainsImage())
                 {
-                    using (image)
+                    var image = Clipboard.GetImage();
+                    if (image != null)
                     {
-                        using var ms = new MemoryStream();
-                        image.Save(ms, ImageFormat.Png);
-                        base64Data = Convert.ToBase64String(ms.ToArray());
-                        format = "png";
-                        preview = new Bitmap(image);
-                        return true;
+                        using (image)
+                        {
+                            using var ms = new MemoryStream();
+                            image.Save(ms, ImageFormat.Png);
+                            base64Data = Convert.ToBase64String(ms.ToArray());
+                            format = "png";
+                            preview = new Bitmap(image);
+                            return true;
+                        }
                     }
                 }
+            }
+            catch (ExternalException)
+            {
+                // Clipboard might be locked by another process
             }
 
             base64Data = string.Empty;
@@ -116,15 +130,15 @@ namespace Notes
                         using (var ms = new MemoryStream(bytes))
                         {
                             using var image = Image.FromStream(ms);
-                            Clipboard.SetImage(new Bitmap(image));
+                            using var bitmap = new Bitmap(image);
+                            Clipboard.SetImage(bitmap);
                         }
                         return "Image copied to clipboard";
 
                     case "object":
-                        ClipboardBinaryPacket? packet;
-                        if (TryDeserializePacket(unit.ContentData, out packet) && packet != null && TrySetClipboardPacket(packet))
-                            return "Object copied to clipboard";
-                        return "Object content unavailable";
+                        if (TrySetClipboardObject(unit.ContentData, out var message))
+                            return message;
+                        return message;
 
                     default:
                         Clipboard.SetText(unit.ContentData ?? string.Empty);
@@ -139,11 +153,19 @@ namespace Notes
 
         public static bool TrySetClipboardObject(string? base64, out string message)
         {
-            ClipboardBinaryPacket? packet;
-            if (TryDeserializePacket(base64, out packet) && packet != null && TrySetClipboardPacket(packet))
+            try
             {
-                message = "Object copied to clipboard";
-                return true;
+                ClipboardBinaryPacket? packet;
+                if (TryDeserializePacket(base64, out packet) && packet != null && TrySetClipboardPacket(packet))
+                {
+                    message = "Object copied to clipboard";
+                    return true;
+                }
+            }
+            catch (ExternalException)
+            {
+                message = "Clipboard is busy. Try again.";
+                return false;
             }
 
             message = "Object content unavailable";
@@ -159,7 +181,8 @@ namespace Notes
             {
                 var bytes = Convert.FromBase64String(base64);
                 using var ms = new MemoryStream(bytes);
-                return new Bitmap(Image.FromStream(ms));
+                using var image = Image.FromStream(ms);
+                return new Bitmap(image);
             }
             catch
             {
