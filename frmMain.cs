@@ -492,10 +492,6 @@ namespace Notes
                     this.WindowState = FormWindowState.Normal;
                     status = "Cannot start minimized without system tray icon enabled";
                 }
-                if (this.WindowState == FormWindowState.Normal && Properties.Settings.Default.WindowMaximized)
-                {
-                    this.WindowState = FormWindowState.Maximized;
-                }
             }
             catch (Exception)
             {
@@ -1022,6 +1018,12 @@ namespace Notes
                 }
 
                 Units = data.Units;
+                foreach (var key in Units.Keys.ToList())
+                {
+                    var unit = Units[key];
+                    unit.ButtonType = NormalizeButtonType(unit.ButtonType);
+                    Units[key] = unit;
+                }
                 var loadedGroups = data.Groups ?? new Dictionary<string, GroupStruct>();
                 foreach (var key in loadedGroups.Keys.ToList())
                 {
@@ -1078,6 +1080,10 @@ namespace Notes
 
         private void addButton(string id, UnitStruct unit)
         {
+            unit.ButtonType = NormalizeButtonType(unit.ButtonType);
+            if (Units.ContainsKey(id))
+                Units[id] = unit;
+
             Button newButton = CreateButtonByType(unit.ButtonType);
             newButton.Tag = id;
             newButton.AutoSize = true;
@@ -1582,7 +1588,7 @@ namespace Notes
                 //Load edit form
                 selectedUnitModified = false;
                 selectedUnit = Units[id];
-                Form editForm = new frmEdit();
+                using var editForm = new frmEdit();
                 editForm.ShowDialog();
 
                 if (selectedUnitModified)
@@ -1800,9 +1806,8 @@ namespace Notes
 
         private void menuFileNew_Click(object sender, EventArgs e)
         {
-            Form addForm = new frmAdd();
+            using var addForm = new frmAdd();
             selectedUnitModified = false;
-
             addForm.ShowDialog();
 
             if (selectedUnitModified)
@@ -1825,7 +1830,7 @@ namespace Notes
         {
             Logger.LogMethodEntry("menuFileNewGroup_Click");
             
-            frmAddGroup addGroupForm = new frmAddGroup { IsEditMode = false };
+            using var addGroupForm = new frmAddGroup { IsEditMode = false };
             frmAddGroup.selectedGroupModified = false;
             frmAddGroup.selectedGroup = new GroupStruct();
 
@@ -2146,7 +2151,7 @@ namespace Notes
                     //Load edit form
                     selectedUnitModified = false;
                     selectedUnit = Units[id];
-                    Form editForm = new frmEdit();
+                    using var editForm = new frmEdit();
                     editForm.ShowDialog();
 
                     if (selectedUnitModified)
@@ -2214,7 +2219,7 @@ namespace Notes
                     //Load edit form
                     selectedUnitModified = false;
                     selectedUnit = Units[id];
-                    Form editForm = new frmEdit();
+                    using var editForm = new frmEdit();
                     editForm.ShowDialog();
 
                     if (selectedUnitModified)
@@ -2223,6 +2228,8 @@ namespace Notes
                         selectedUnitModified = false;
                         id = getNewId();
 
+                        selectedUnit.CreatedDate = DateTime.Now;
+                        selectedUnit.ModifiedDate = DateTime.Now;
                         Units.Add(id, selectedUnit);
                         addButton(id, selectedUnit);
 
@@ -2703,7 +2710,7 @@ namespace Notes
                 frmAddGroup.selectedGroup = Groups[groupId];
                 frmAddGroup.selectedGroupModified = false;
 
-                frmAddGroup editGroupForm = new frmAddGroup { IsEditMode = true };
+                using var editGroupForm = new frmAddGroup { IsEditMode = true };
                 editGroupForm.ShowDialog();
 
                 if (frmAddGroup.selectedGroupModified)
@@ -2711,10 +2718,16 @@ namespace Notes
                     SaveStateForUndo();
 
                     var updatedGroup = frmAddGroup.selectedGroup;
+                    var clampedLocation = ClampGroupBoxLocation(groupBox, new Point(updatedGroup.X, updatedGroup.Y));
+                    if (clampedLocation.X != updatedGroup.X || clampedLocation.Y != updatedGroup.Y)
+                    {
+                        updatedGroup.X = clampedLocation.X;
+                        updatedGroup.Y = clampedLocation.Y;
+                    }
                     Groups[groupId] = updatedGroup;
 
                     groupBox.Text = updatedGroup.Title;
-                    groupBox.Location = new Point(updatedGroup.X, updatedGroup.Y);
+                    groupBox.Location = clampedLocation;
                     groupBox.Size = new Size(updatedGroup.Width, updatedGroup.Height);
                     groupBox.BackColor = updatedGroup.BackgroundColor != 0 ? Color.FromArgb(updatedGroup.BackgroundColor) : Color.WhiteSmoke;
                     groupBox.ForeColor = updatedGroup.TextColor != 0 ? Color.FromArgb(updatedGroup.TextColor) : Color.Black;
@@ -3594,7 +3607,8 @@ namespace Notes
 
         private void tmrStatus_Tick(object sender, EventArgs e)
         {
-            statusLabel.Text = null;
+            tmrStatus.Stop();
+            statusLabel.Text = string.Format("Ready - {0} notes", Units.Count);
         }
 
         private void settingsToolStripMenuItem_Click(object sender, EventArgs e)
@@ -5043,6 +5057,30 @@ namespace Notes
             }
         }
 
+        private static string NormalizeButtonType(string buttonType)
+        {
+            if (string.IsNullOrWhiteSpace(buttonType))
+                return "DoubleClickButton";
+
+            switch (buttonType)
+            {
+                case "GradientButton":
+                case "NeonGlowButton":
+                case "MaterialButton":
+                case "GlassMorphismButton":
+                case "NeumorphismButton":
+                case "Retro3DButton":
+                case "PremiumCardButton":
+                case "OutlineButton":
+                case "PillButton":
+                case "SkeuomorphicButton":
+                case "DoubleClickButton":
+                    return buttonType;
+                default:
+                    return "DoubleClickButton";
+            }
+        }
+
         private GroupBox GetOrCreateGroupBox(string groupId)
         {
             Logger.Debug($"GetOrCreateGroupBox called for: {groupId}");
@@ -5106,6 +5144,27 @@ namespace Notes
                     group.Height = groupBox.Height;
                     Groups[groupId] = group;
                     configModified = true;
+
+                    int minY = Math.Max(0, groupBox.DisplayRectangle.Top);
+                    int maxX = Math.Max(0, groupBox.ClientSize.Width);
+                    int maxY = Math.Max(minY, groupBox.ClientSize.Height);
+                    foreach (Button button in groupBox.Controls.OfType<Button>())
+                    {
+                        int clampedX = Math.Min(Math.Max(button.Location.X, 0), maxX - button.Width);
+                        int clampedY = Math.Min(Math.Max(button.Location.Y, minY), maxY - button.Height);
+                        if (clampedX != button.Location.X || clampedY != button.Location.Y)
+                        {
+                            button.Location = new Point(clampedX, clampedY);
+                            string btnId = button.Tag as string;
+                            if (!string.IsNullOrEmpty(btnId) && Units.ContainsKey(btnId))
+                            {
+                                var unit = Units[btnId];
+                                unit.X = groupBox.Location.X + clampedX;
+                                unit.Y = groupBox.Location.Y + clampedY;
+                                Units[btnId] = unit;
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -5156,7 +5215,16 @@ namespace Notes
         private void AddGroupBoxToPanel(GroupStruct group)
         {
             Logger.Debug($"AddGroupBoxToPanel - Group: {group.Id}, Title: {group.Title}, Location: ({group.X},{group.Y}), Size: ({group.Width}x{group.Height})");
-            
+            var normalizedType = NormalizeGroupBoxType(group.GroupBoxType);
+            if (normalizedType == "Default")
+                normalizedType = "ResizableGroupBox";
+            if (!string.Equals(group.GroupBoxType, normalizedType, StringComparison.Ordinal))
+            {
+                group.GroupBoxType = normalizedType;
+                if (!string.IsNullOrEmpty(group.Id) && Groups.ContainsKey(group.Id))
+                    Groups[group.Id] = group;
+            }
+
             var groupBox = GetOrCreateGroupBox(group.Id);
 
             if (groupBox == null)
