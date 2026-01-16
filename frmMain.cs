@@ -898,7 +898,6 @@ namespace Notes
 
             try
             {
-                panelContainer.Controls.Clear();
                 var data = JsonConvert.DeserializeObject<NotesData>(json);
 
                 if (data == null || data.Units == null)
@@ -907,6 +906,7 @@ namespace Notes
                     return false;
                 }
 
+                panelContainer.Controls.Clear();
                 Units = data.Units;
                 Groups = data.Groups ?? new Dictionary<string, GroupStruct>();
 
@@ -1746,6 +1746,7 @@ namespace Notes
                         var newUnits = data?.Units ?? new Dictionary<string, UnitStruct>();
                         var newGroups = data?.Groups ?? new Dictionary<string, GroupStruct>();
 
+                        var preImportState = CreateStateSnapshot();
                         SaveStateForUndo();
                         
                         // Map old group IDs to new group IDs
@@ -1782,7 +1783,14 @@ namespace Notes
                         status = string.Format("{0} notes and {1} groups imported successfully", newUnits.Count(), newGroups.Count());
                         UpdateUndoRedoMenuState();
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        RestoreState(preImportState);
+                        RefreshAllButtons();
+                        status = "Import failed";
+                        MessageBox.Show("Import failed: " + ex.Message, AppName, 
+                            MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
                 }
 
             }

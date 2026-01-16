@@ -219,6 +219,10 @@ namespace Notes
         {
             try
             {
+                var config = Config;
+                if (!config.General.AutoBackup)
+                    return;
+
                 string backupDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppName, "Backups");
                 Directory.CreateDirectory(backupDir);
                 
@@ -227,10 +231,14 @@ namespace Notes
                 
                 File.WriteAllText(filePath, Properties.Settings.Default.JsonData);
                 
-                // Keep only last 10 backups
+                int backupCount = config.General.BackupCount;
+                if (backupCount < 1)
+                    backupCount = 1;
+
+                // Keep only last N backups
                 var files = Directory.GetFiles(backupDir, "backup_*.json")
                     .OrderByDescending(f => File.GetCreationTime(f))
-                    .Skip(10);
+                    .Skip(backupCount);
                 
                 foreach (var file in files)
                 {
