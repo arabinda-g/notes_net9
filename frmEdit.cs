@@ -16,6 +16,7 @@ namespace Notes
         private static frmMain.UnitStruct selectedUnit = new frmMain.UnitStruct();
         private frmMain.UnitStruct originalUnit;
         private bool hasChanges = false;
+        private readonly ToolTip fontToolTip = new ToolTip();
 
         private enum ContentKind
         {
@@ -40,6 +41,8 @@ namespace Notes
         public void ApplyDefaultStylePreview()
         {
             UpdateColorButtons();
+            if (btnFont.Text != null)
+                fontToolTip.SetToolTip(btnFont, btnFont.Text);
         }
 
         private void frmEdit_FormClosed(object sender, FormClosedEventArgs e)
@@ -137,6 +140,12 @@ namespace Notes
             }
         }
 
+        private Color GetContrastColor(Color color)
+        {
+            double luminance = 0.299 * color.R + 0.587 * color.G + 0.114 * color.B;
+            return luminance > 128 ? Color.Black : Color.White;
+        }
+
         private void UpdateColorButtons()
         {
             try
@@ -144,16 +153,20 @@ namespace Notes
                 btnBackgroundColor.BackColor = Color.FromArgb(selectedUnit.BackgroundColor);
                 btnTextColor.BackColor = Color.FromArgb(selectedUnit.TextColor);
                 btnFont.BackColor = Color.FromArgb(selectedUnit.BackgroundColor);
-                btnFont.ForeColor = Color.FromArgb(selectedUnit.TextColor);
+                btnFont.ForeColor = GetContrastColor(Color.FromArgb(selectedUnit.BackgroundColor));
                 
                 if (selectedUnit.Font != null)
                 {
-                    btnFont.Text = string.Format("{0}, {1}pt", selectedUnit.Font.Name, selectedUnit.Font.SizeInPoints);
+                    string fontLabel = string.Format("{0}, {1}pt", selectedUnit.Font.Name, selectedUnit.Font.SizeInPoints);
+                    btnFont.Text = fontLabel.Length > 28 ? fontLabel.Substring(0, 25) + "..." : fontLabel;
+                    fontToolTip.SetToolTip(btnFont, fontLabel);
                 }
                 else
                 {
                     selectedUnit.Font = NotesLibrary.Instance.GetDefaultFont();
-                    btnFont.Text = string.Format("{0}, {1}pt", selectedUnit.Font.Name, selectedUnit.Font.SizeInPoints);
+                    string fontLabel = string.Format("{0}, {1}pt", selectedUnit.Font.Name, selectedUnit.Font.SizeInPoints);
+                    btnFont.Text = fontLabel.Length > 28 ? fontLabel.Substring(0, 25) + "..." : fontLabel;
+                    fontToolTip.SetToolTip(btnFont, fontLabel);
                 }
             }
             catch (Exception)
@@ -434,6 +447,11 @@ namespace Notes
                                 picImagePreview.Image.Dispose();
                             picImagePreview.Image = bmp;
                         }
+                        else if (picImagePreview.Image != null)
+                        {
+                            picImagePreview.Image.Dispose();
+                            picImagePreview.Image = null;
+                        }
                     }
                     tbContent.Text = string.Empty;
                     objectBinaryData = null;
@@ -493,6 +511,15 @@ namespace Notes
             {
                 lblObjectSummary.Text = "Clipboard formats will appear here.";
             }
+            if (currentContentKind != ContentKind.Image)
+            {
+                imageBase64 = null;
+                imageFormat = null;
+            }
+            if (currentContentKind != ContentKind.Object)
+            {
+                objectBinaryData = null;
+            }
         }
 
         private void cmbContentType_SelectedIndexChanged(object sender, EventArgs e)
@@ -543,6 +570,13 @@ namespace Notes
                     ? format.Replace("error:", string.Empty).Trim()
                     : "Clipboard does not contain an image.";
                 MessageBox.Show(message, NotesLibrary.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                if (picImagePreview.Image != null)
+                {
+                    picImagePreview.Image.Dispose();
+                    picImagePreview.Image = null;
+                }
+                imageBase64 = null;
+                imageFormat = null;
             }
         }
 
@@ -567,6 +601,8 @@ namespace Notes
             {
                 MessageBox.Show(string.IsNullOrEmpty(summary) ? "Unable to capture clipboard object." : summary, 
                     NotesLibrary.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                lblObjectSummary.Text = "Clipboard formats will appear here.";
+                objectBinaryData = null;
             }
         }
 

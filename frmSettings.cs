@@ -18,6 +18,7 @@ namespace Notes
     {
         private NotesLibrary.Configuration config;
         private bool hasChanges = false;
+        private readonly ToolTip fontToolTip = new ToolTip();
 
         private class NotesData
         {
@@ -51,6 +52,8 @@ namespace Notes
                 LoadConfiguration();
                 LoadControlsFromConfig();
             }
+            if (btnUnitStyleFont.Text != null)
+                fontToolTip.SetToolTip(btnUnitStyleFont, btnUnitStyleFont.Text);
         }
 
         private void InitializeModernUI()
@@ -293,13 +296,21 @@ namespace Notes
                 var font = new Font(config.DefaultUnitStyle.FontFamily, config.DefaultUnitStyle.FontSize, config.DefaultUnitStyle.FontStyle);
                 btnUnitStyleFont.Font = font;
                 btnUnitStyleFont.BackColor = Color.FromArgb(config.DefaultUnitStyle.BackgroundColor);
-                btnUnitStyleFont.ForeColor = Color.FromArgb(config.DefaultUnitStyle.TextColor);
-                btnUnitStyleFont.Text = string.Format("{0}, {1}pt", font.Name, font.SizeInPoints);
+                btnUnitStyleFont.ForeColor = GetContrastColor(Color.FromArgb(config.DefaultUnitStyle.BackgroundColor));
+                string fontLabel = string.Format("{0}, {1}pt", font.Name, font.SizeInPoints);
+                btnUnitStyleFont.Text = fontLabel.Length > 28 ? fontLabel.Substring(0, 25) + "..." : fontLabel;
+                fontToolTip.SetToolTip(btnUnitStyleFont, fontLabel);
             }
             catch
             {
                 btnUnitStyleFont.Text = "Select Font";
             }
+        }
+
+        private Color GetContrastColor(Color color)
+        {
+            double luminance = 0.299 * color.R + 0.587 * color.G + 0.114 * color.B;
+            return luminance > 128 ? Color.Black : Color.White;
         }
 
         private void cbHotkeyEnabled_CheckedChanged(object sender, EventArgs e)

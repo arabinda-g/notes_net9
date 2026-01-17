@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -6,6 +6,7 @@ using System.Data;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -109,11 +110,29 @@ namespace Notes
         {
             set
             {
+                if (tmrStatus.Enabled && IsErrorStatus(statusLabel.Text) && !IsErrorStatus(value))
+                    return;
                 tmrStatus.Stop();
                 statusLabel.Text = value;
-                tmrStatus.Interval = 3000;
+                string lower = value?.ToLowerInvariant() ?? string.Empty;
+                bool isError = lower.Contains("error") || lower.Contains("failed");
+                tmrStatus.Interval = isError ? 6000 : 3000;
                 tmrStatus.Start();
             }
+        }
+
+        private void SetStatusIfNoError(string value)
+        {
+            if (string.IsNullOrWhiteSpace(statusLabel.Text) || statusLabel.Text.StartsWith("Ready", StringComparison.OrdinalIgnoreCase))
+                status = value;
+        }
+
+        private static bool IsErrorStatus(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return false;
+            string lower = text.ToLowerInvariant();
+            return lower.Contains("error") || lower.Contains("failed");
         }
 
         private Dictionary<string, UnitStruct> Units = new Dictionary<string, UnitStruct>();
@@ -168,6 +187,7 @@ namespace Notes
         private const int MaxContentDataChars = 10_000_000;
         private const int MaxBinaryDataBytes = 10 * 1024 * 1024;
         private bool isExporting = false;
+        private readonly ToolTip groupTitleToolTip = new ToolTip();
         private bool isMovingGroupBox = false;
         private Point groupBoxMoveStart;
         private GroupBox currentGroupBoxDrag;
@@ -193,6 +213,7 @@ namespace Notes
             instance = this;
             InitializeComponent();
             InitializeCustomComponents();
+            groupTitleToolTip.ShowAlways = true;
             SetupAutoSave();
             LoadConfiguration();
             SetupSystemThemeMonitoring();
@@ -609,13 +630,43 @@ namespace Notes
             // Only apply automatic theme changes if user selected "System Default"
             if (config.General.Theme == NotesLibrary.ThemeMode.SystemDefault)
             {
+                var selectedIds = selectedButtons
+                    .Select(b => b.Tag as string)
+                    .Where(id => !string.IsNullOrEmpty(id))
+                    .ToList();
+                var scroll = panelContainer.AutoScrollPosition;
+
                 // Apply the new theme to main form
                 ApplyCurrentTheme();
                 
                 // Refresh all note buttons with the new theme
                 RefreshAllButtons();
+
+                panelContainer.AutoScrollPosition = new Point(-scroll.X, -scroll.Y);
+
+                foreach (var id in selectedIds)
+                {
+                    var btn = FindButtonById(id);
+                    if (btn != null)
+                    {
+                        selectedButtons.Add(btn);
+                        UpdateButtonSelectionVisual(btn, true);
+                    }
+                }
+
+                foreach (Form form in Application.OpenForms)
+                {
+                    if (form is frmAdd addForm)
+                        addForm.ApplyDefaultStylePreview();
+                    else if (form is frmEdit editForm)
+                        editForm.ApplyDefaultStylePreview();
+                    else if (form is frmSettings settingsForm)
+                        settingsForm.ApplyDefaultStylePreview();
+                }
                 
-                status = "Theme updated automatically to follow system setting";
+                if (string.IsNullOrWhiteSpace(statusLabel.Text) || statusLabel.Text.StartsWith("Ready", StringComparison.OrdinalIgnoreCase))
+                if (string.IsNullOrWhiteSpace(statusLabel.Text) || statusLabel.Text.StartsWith("Ready", StringComparison.OrdinalIgnoreCase))
+                    status = "Theme updated automatically to follow system setting";
             }
         }
 
@@ -802,11 +853,15 @@ namespace Notes
         {
             panelContainer.Size = new Size(this.Width, this.Height - menuStrip.Height - statusStrip.Height);
             var rect = GetPanelDisplayRectangle();
+            bool changed = false;
             foreach (var key in Groups.Keys.ToList())
             {
                 var group = Groups[key];
+                var before = group;
                 NormalizeGroup(ref group, rect.Size);
                 Groups[key] = group;
+                if (before.X != group.X || before.Y != group.Y || before.Width != group.Width || before.Height != group.Height)
+                    changed = true;
 
                 var box = panelContainer.Controls.OfType<GroupBox>()
                     .FirstOrDefault(g => (g.Tag as string) == key);
@@ -832,7 +887,7 @@ namespace Notes
                                 unit.X = box.Location.X + clampedX;
                                 unit.Y = box.Location.Y + clampedY;
                                 Units[btnId] = unit;
-                                configModified = true;
+                                changed = true;
                             }
                         }
                         if (button.Tag is string id)
@@ -846,6 +901,8 @@ namespace Notes
                 if (button.Tag is string id)
                     buttonById[id] = button;
             }
+            if (changed)
+                configModified = true;
         }
 
         private void frmMain_FormClosing(object sender, FormClosingEventArgs e)
@@ -1016,7 +1073,8 @@ namespace Notes
                     }
                     var json = await Task.Run(() => JsonConvert.SerializeObject(snapshot, formatting));
                     bool saved = SaveJsonSerialized(json, showErrors: false, includeWindowState: true);
-                    status = saved ? "Auto-saved" : "Auto-save failed";
+                    if (string.IsNullOrWhiteSpace(statusLabel.Text) || statusLabel.Text.StartsWith("Ready", StringComparison.OrdinalIgnoreCase))
+                        status = saved ? "Auto-saved" : "Auto-save failed";
                 }
                 finally
                 {
@@ -1059,12 +1117,17 @@ namespace Notes
         {
             if (undoStack.Count > 0)
             {
+                var selectedIds = selectedButtons
+                    .Select(b => b.Tag as string)
+                    .Where(id => !string.IsNullOrEmpty(id))
+                    .ToList();
                 var currentState = CreateStateSnapshot();
                 redoStack.Push(currentState);
 
                 var previousState = undoStack.Pop();
                 RestoreState(previousState);
                 RefreshAllButtons();
+                RestoreSelection(selectedIds);
                 configModified = true;
                 status = "Undo successful";
             }
@@ -1074,14 +1137,33 @@ namespace Notes
         {
             if (redoStack.Count > 0)
             {
+                var selectedIds = selectedButtons
+                    .Select(b => b.Tag as string)
+                    .Where(id => !string.IsNullOrEmpty(id))
+                    .ToList();
                 var currentState = CreateStateSnapshot();
                 undoStack.Push(currentState);
 
                 var redoState = redoStack.Pop();
                 RestoreState(redoState);
                 RefreshAllButtons();
+                RestoreSelection(selectedIds);
                 configModified = true;
                 status = "Redo successful";
+            }
+        }
+
+        private void RestoreSelection(List<string> ids)
+        {
+            selectedButtons.Clear();
+            foreach (var id in ids)
+            {
+                var btn = FindButtonById(id);
+                if (btn != null)
+                {
+                    selectedButtons.Add(btn);
+                    UpdateButtonSelectionVisual(btn, true);
+                }
             }
         }
 
@@ -1991,7 +2073,7 @@ namespace Notes
                     };
                 // Add visual indicator for selection
                 btn.FlatStyle = FlatStyle.Flat;
-                btn.FlatAppearance.BorderColor = Color.DodgerBlue;
+                btn.FlatAppearance.BorderColor = GetSelectionBorderColor(btn.BackColor);
                 btn.FlatAppearance.BorderSize = 3;
             }
             else
@@ -2009,6 +2091,12 @@ namespace Notes
                     btn.FlatStyle = FlatStyle.Standard;
                 }
             }
+        }
+
+        private Color GetSelectionBorderColor(Color background)
+        {
+            double luminance = 0.299 * background.R + 0.587 * background.G + 0.114 * background.B;
+            return luminance > 128 ? Color.DodgerBlue : Color.DeepSkyBlue;
         }
 
 
@@ -2072,7 +2160,7 @@ namespace Notes
         private async void menuFileSave_Click(object sender, EventArgs e)
         {
             if (await saveJsonAsync(true))
-                status = "Saved successfully";
+                SetStatusIfNoError("Saved successfully");
             else
                 status = "Save failed";
         }
@@ -2270,7 +2358,7 @@ namespace Notes
                     var json = await Task.Run(() => JsonConvert.SerializeObject(snapshot, formatting));
                     File.WriteAllText(saveFileDialog.FileName, json, new System.Text.UTF8Encoding(false));
 
-                    status = string.Format("{0} notes and {1} groups exported successfully", Units.Count(), Groups.Count());
+                    SetStatusIfNoError(string.Format("{0} notes and {1} groups exported successfully", Units.Count(), Groups.Count()));
                     return;
                 }
                 catch (Exception ex)
@@ -2988,7 +3076,7 @@ namespace Notes
                     }
                     Groups[groupId] = updatedGroup;
 
-                    groupBox.Text = updatedGroup.Title;
+                    SetGroupBoxTitle(groupBox, updatedGroup.Title);
                     groupBox.Location = clampedLocation;
                     groupBox.Size = new Size(updatedGroup.Width, updatedGroup.Height);
                     ApplyGroupBoxColors(groupBox, updatedGroup);
@@ -3019,6 +3107,7 @@ namespace Notes
                 if (result == DialogResult.OK)
                 {
                     SaveStateForUndo();
+                    ClearSelection();
 
                     // Move all buttons to main panel
                     var buttonsToMove = groupBox.Controls.OfType<Button>().ToList();
@@ -3059,7 +3148,7 @@ namespace Notes
                     groupBox.Dispose();
 
                     configModified = true;
-                    status = "Group deleted";
+                    SetStatusIfNoError("Group deleted");
                     UpdateUndoRedoMenuState();
                 }
             }
@@ -5170,6 +5259,7 @@ namespace Notes
         {
             if (selectedButtons.Contains(button))
             {
+                UpdateButtonSelectionVisual(button, false);
                 selectedButtons.Remove(button);
             }
             if (selectionOriginalStyles.ContainsKey(button))
@@ -5367,8 +5457,12 @@ namespace Notes
             int borderColor = group.BorderColor;
             if (groupBox is CustomGroupBoxBase customGroupBox)
             {
+                bool borderChanged = customGroupBox.BorderColor != borderColor || customGroupBox.UseCustomBorder != (borderColor != 0);
                 customGroupBox.BorderColor = borderColor;
-                customGroupBox.UseCustomBorder = borderColor != 0;
+                // Custom group boxes already paint borders; avoid double borders
+                customGroupBox.UseCustomBorder = false;
+                if (borderChanged)
+                    customGroupBox.Invalidate();
             }
             if (borderColor != 0 && !(groupBox is CustomGroupBoxBase))
             {
@@ -5380,10 +5474,10 @@ namespace Notes
                 groupBox.Paint -= GroupBox_CustomBorder_Paint;
             }
 
-            bool borderChanged = !groupBoxBorderColors.TryGetValue(groupBox, out var previous) || previous != borderColor;
+            bool borderColorChanged = !groupBoxBorderColors.TryGetValue(groupBox, out var previous) || previous != borderColor;
             groupBoxBorderColors[groupBox] = borderColor;
 
-            if (backChanged || foreChanged || borderChanged)
+            if (backChanged || foreChanged || borderColorChanged)
                 groupBox.Invalidate();
         }
 
@@ -5476,7 +5570,8 @@ namespace Notes
                 if (group.BorderColor == 0)
                     return;
 
-                using var pen = new Pen(Color.FromArgb(group.BorderColor));
+                float scale = e.Graphics.DpiX / 96f;
+                using var pen = new Pen(Color.FromArgb(group.BorderColor), Math.Max(1f, scale));
                 var rect = groupBox.ClientRectangle;
                 rect.Width -= 1;
                 rect.Height -= 1;
@@ -5767,6 +5862,46 @@ namespace Notes
             return candidate;
         }
 
+        private static string GetDisplayGroupTitle(string title)
+        {
+            if (string.IsNullOrWhiteSpace(title))
+                return "Group";
+            return title.Length > 30 ? title.Substring(0, 27) + "..." : title;
+        }
+
+        private void SetGroupBoxTitle(GroupBox groupBox, string title)
+        {
+            string full = string.IsNullOrWhiteSpace(title) ? "Group" : title;
+            if (groupBox is CustomGroupBoxBase customGroupBox)
+            {
+                customGroupBox.SetTitle(full);
+            }
+            else
+            {
+                groupBox.Text = GetDisplayGroupTitle(full);
+            }
+            AttachGroupTitleToolTip(groupBox, full);
+        }
+
+        private void AttachGroupTitleToolTip(GroupBox groupBox, string fullTitle)
+        {
+            groupTitleToolTip.SetToolTip(groupBox, fullTitle);
+            groupBox.MouseHover -= GroupBox_MouseHover_ShowTitle;
+            groupBox.MouseHover += GroupBox_MouseHover_ShowTitle;
+        }
+
+        private void GroupBox_MouseHover_ShowTitle(object sender, EventArgs e)
+        {
+            if (sender is GroupBox groupBox)
+            {
+                string fullTitle = groupTitleToolTip.GetToolTip(groupBox);
+                if (!string.IsNullOrWhiteSpace(fullTitle) && groupBox.Text.EndsWith("..."))
+                {
+                    groupTitleToolTip.Show(fullTitle, groupBox, groupBox.Width / 2, 0, 2000);
+                }
+            }
+        }
+
         private static string EnsureUniqueGroupTitle(string title, HashSet<string> existingTitles)
         {
             if (string.IsNullOrWhiteSpace(title))
@@ -5955,7 +6090,7 @@ namespace Notes
                 return;
             }
 
-            groupBox.Text = group.Title;
+            SetGroupBoxTitle(groupBox, group.Title);
             var clampedLocation = ClampGroupBoxLocation(groupBox, new Point(group.X, group.Y));
             groupBox.Location = clampedLocation;
             if (clampedLocation.X != group.X || clampedLocation.Y != group.Y)
@@ -6117,8 +6252,8 @@ namespace Notes
         private Point ClampGroupBoxLocation(GroupBox groupBox, Point newLocation)
         {
             var display = panelContainer.DisplayRectangle;
-            int minX = display.Left;
-            int minY = display.Top;
+            int minX = display.Left + 4;
+            int minY = display.Top + 24;
             int maxX = display.Right - groupBox.Width;
             int maxY = display.Bottom - groupBox.Height;
             newLocation.X = Math.Max(minX, Math.Min(newLocation.X, maxX));

@@ -165,7 +165,26 @@ namespace Notes
                 numX.Value = Math.Min(Math.Max(numX.Value, 0), maxX);
                 numY.Value = Math.Min(Math.Max(numY.Value, 0), maxY);
 
-                selectedGroup.Title = tbTitle.Text.Trim();
+                string title = tbTitle.Text.Trim();
+                var existing = frmMain.GetGroups();
+                if (!string.IsNullOrEmpty(title))
+                {
+                    var used = existing
+                        .Where(g => g.Key != selectedGroup.Id)
+                        .Select(g => g.Value.Title ?? string.Empty)
+                        .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                    if (used.Contains(title))
+                    {
+                        string baseTitle = title;
+                        int i = 2;
+                        while (used.Contains(title))
+                        {
+                            title = $"{baseTitle} ({i})";
+                            i++;
+                        }
+                    }
+                }
+                selectedGroup.Title = title;
                 selectedGroup.X = (int)numX.Value;
                 selectedGroup.Y = (int)numY.Value;
                 selectedGroup.Width = (int)numWidth.Value;

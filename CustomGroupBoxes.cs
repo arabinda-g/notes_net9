@@ -58,7 +58,10 @@ namespace Notes
         private const int RESIZE_HANDLE_SIZE = 16;
         private int borderColor = 0;
         private bool useCustomBorder = false;
+        public string FullTitle { get; private set; } = string.Empty;
 
+        [DefaultValue(0)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public int BorderColor
         {
             get => borderColor;
@@ -69,6 +72,8 @@ namespace Notes
             }
         }
 
+        [DefaultValue(false)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public bool UseCustomBorder
         {
             get => useCustomBorder;
@@ -93,6 +98,35 @@ namespace Notes
             CreateResizeHandle();
         }
 
+        public void SetTitle(string title)
+        {
+            FullTitle = title ?? string.Empty;
+            base.Text = TruncateTitle(FullTitle);
+        }
+
+        protected override void OnSizeChanged(EventArgs e)
+        {
+            base.OnSizeChanged(e);
+            if (!string.IsNullOrEmpty(FullTitle))
+                base.Text = TruncateTitle(FullTitle);
+        }
+
+        private string TruncateTitle(string title)
+        {
+            if (string.IsNullOrWhiteSpace(title))
+                return "Group";
+            int maxWidth = Math.Max(60, this.Width - 30);
+            string display = title;
+            using var g = CreateGraphics();
+            var size = g.MeasureString(display, this.Font).Width;
+            while (size > maxWidth && display.Length > 1)
+            {
+                display = display.Substring(0, display.Length - 2) + "…";
+                size = g.MeasureString(display, this.Font).Width;
+            }
+            return display;
+        }
+
         protected override void WndProc(ref Message m)
         {
             base.WndProc(ref m);
@@ -101,7 +135,8 @@ namespace Notes
                 using var g = Graphics.FromHwnd(this.Handle);
                 g.SmoothingMode = SmoothingMode.AntiAlias;
                 g.PixelOffsetMode = PixelOffsetMode.HighQuality;
-                using var pen = new Pen(Color.FromArgb(BorderColor));
+                float scale = g.DpiX / 96f;
+                using var pen = new Pen(Color.FromArgb(BorderColor), Math.Max(1f, scale));
                 var rect = this.ClientRectangle;
                 rect.Width -= 1;
                 rect.Height -= 1;
@@ -158,7 +193,7 @@ namespace Notes
                 {
                     e.Graphics.FillRectangle(brush, 0, 0, RESIZE_HANDLE_SIZE, RESIZE_HANDLE_SIZE);
                 }
-                using (Pen pen = new Pen(Color.FromArgb(200, this.Parent?.BackColor ?? SystemColors.Control), 2))
+                using (Pen pen = new Pen(Color.FromArgb(200, this.BackColor), 2))
                 {
                     e.Graphics.DrawLine(pen, 4, 12, 12, 4);
                     e.Graphics.DrawLine(pen, 7, 12, 12, 7);
@@ -212,7 +247,9 @@ namespace Notes
                 resizeHandlePanel.Location = new Point(
                     this.Width - RESIZE_HANDLE_SIZE - 2,
                     this.Height - RESIZE_HANDLE_SIZE - 2);
-                resizeHandlePanel.Visible = AllowResize;
+                resizeHandlePanel.Visible = AllowResize &&
+                    this.Width > RESIZE_HANDLE_SIZE + 40 &&
+                    this.Height > RESIZE_HANDLE_SIZE + 60;
                 if (AllowResize) resizeHandlePanel.BringToFront();
             }
         }
@@ -248,6 +285,41 @@ namespace Notes
 
         protected virtual void DrawGroupBoxBorder(Graphics g, Rectangle rect) { }
         protected virtual void DrawGroupBoxTitle(Graphics g, Rectangle rect) { }
+
+        protected void DrawTitleBackground(Graphics g, Rectangle rect)
+        {
+            if (string.IsNullOrWhiteSpace(Text))
+                return;
+
+            SizeF titleSize = g.MeasureString(this.Text, this.Font);
+            using (SolidBrush bgBrush = new SolidBrush(this.BackColor))
+            {
+                g.FillRectangle(bgBrush, rect.Left, rect.Top, titleSize.Width + 14, titleSize.Height + 6);
+            }
+        }
+
+        protected void DrawTitleText(Graphics g, Rectangle rect)
+        {
+            if (string.IsNullOrWhiteSpace(Text))
+                return;
+
+            string title = this.Text;
+            using (SolidBrush textBrush = new SolidBrush(this.ForeColor))
+            {
+                var maxWidth = Math.Max(0, rect.Width - 20);
+                var display = title;
+                if (title.Length > 0)
+                {
+                    var size = g.MeasureString(display, this.Font).Width;
+                    while (size > maxWidth && display.Length > 1)
+                    {
+                        display = display.Substring(0, display.Length - 2) + "…";
+                        size = g.MeasureString(display, this.Font).Width;
+                    }
+                }
+                g.DrawString(display, this.Font, textBrush, rect.Left + 5, rect.Top + 2);
+            }
+        }
     }
 
     // 1. Gradient Glass GroupBox
@@ -277,7 +349,7 @@ namespace Notes
 
             // Title
             SizeF titleSize = g.MeasureString(this.Text, this.Font);
-            using (SolidBrush bgBrush = new SolidBrush(this.Parent?.BackColor ?? SystemColors.Control))
+            using (SolidBrush bgBrush = new SolidBrush(this.BackColor))
             {
                 g.FillRectangle(bgBrush, 10, 0, titleSize.Width + 10, titleSize.Height);
             }
@@ -349,7 +421,7 @@ namespace Notes
 
             // Title
             SizeF titleSize = g.MeasureString(this.Text, this.Font);
-            using (SolidBrush bgBrush = new SolidBrush(this.Parent?.BackColor ?? SystemColors.Control))
+            using (SolidBrush bgBrush = new SolidBrush(this.BackColor))
             {
                 g.FillRectangle(bgBrush, 10, 5, titleSize.Width + 10, titleSize.Height + 10);
             }
@@ -407,7 +479,7 @@ namespace Notes
 
             // Title
             SizeF titleSize = g.MeasureString(this.Text, this.Font);
-            using (SolidBrush bgBrush = new SolidBrush(this.Parent?.BackColor ?? SystemColors.Control))
+            using (SolidBrush bgBrush = new SolidBrush(this.BackColor))
             {
                 g.FillRectangle(bgBrush, 10, 2, titleSize.Width + 10, titleSize.Height + 8);
             }
@@ -474,7 +546,7 @@ namespace Notes
 
             // Title
             SizeF titleSize = g.MeasureString(this.Text, this.Font);
-            using (SolidBrush bgBrush = new SolidBrush(this.Parent?.BackColor ?? SystemColors.Control))
+            using (SolidBrush bgBrush = new SolidBrush(this.BackColor))
             {
                 g.FillRectangle(bgBrush, 10, 2, titleSize.Width + 10, titleSize.Height + 8);
             }
@@ -526,7 +598,7 @@ namespace Notes
 
             // Title
             SizeF titleSize = g.MeasureString(this.Text, this.Font);
-            using (SolidBrush bgBrush = new SolidBrush(this.Parent?.BackColor ?? SystemColors.Control))
+            using (SolidBrush bgBrush = new SolidBrush(this.BackColor))
             {
                 g.FillRectangle(bgBrush, 12, 3, titleSize.Width + 12, titleSize.Height + 8);
             }
@@ -572,7 +644,7 @@ namespace Notes
 
             // Title
             SizeF titleSize = g.MeasureString(this.Text, this.Font);
-            using (SolidBrush bgBrush = new SolidBrush(this.Parent?.BackColor ?? SystemColors.Control))
+            using (SolidBrush bgBrush = new SolidBrush(this.BackColor))
             {
                 g.FillRectangle(bgBrush, 10, 8, titleSize.Width + 10, titleSize.Height);
             }
@@ -607,7 +679,7 @@ namespace Notes
 
             // Title
             SizeF titleSize = g.MeasureString(this.Text, this.Font);
-            using (SolidBrush bgBrush = new SolidBrush(this.Parent?.BackColor ?? SystemColors.Control))
+            using (SolidBrush bgBrush = new SolidBrush(this.BackColor))
             {
                 g.FillRectangle(bgBrush, 10, 8, titleSize.Width + 10, titleSize.Height);
             }
@@ -648,7 +720,7 @@ namespace Notes
 
             // Title
             SizeF titleSize = g.MeasureString(this.Text, this.Font);
-            using (SolidBrush bgBrush = new SolidBrush(this.Parent?.BackColor ?? SystemColors.Control))
+            using (SolidBrush bgBrush = new SolidBrush(this.BackColor))
             {
                 g.FillRectangle(bgBrush, 10, 8, titleSize.Width + 10, titleSize.Height);
             }
@@ -745,7 +817,7 @@ namespace Notes
 
             // Title
             SizeF titleSize = g.MeasureString(this.Text, this.Font);
-            using (SolidBrush bgBrush = new SolidBrush(this.Parent?.BackColor ?? SystemColors.Control))
+            using (SolidBrush bgBrush = new SolidBrush(this.BackColor))
             {
                 g.FillRectangle(bgBrush, 15, 5, titleSize.Width + 10, titleSize.Height + 10);
             }
@@ -836,7 +908,7 @@ namespace Notes
 
             // Title with glow
             SizeF titleSize = g.MeasureString(this.Text, this.Font);
-            using (SolidBrush bgBrush = new SolidBrush(this.Parent?.BackColor ?? SystemColors.Control))
+            using (SolidBrush bgBrush = new SolidBrush(this.BackColor))
             {
                 g.FillRectangle(bgBrush, 15, 5, titleSize.Width + 14, titleSize.Height + 10);
             }
@@ -1216,7 +1288,7 @@ namespace Notes
             using (GraphicsPath path = GetRoundedRect(rect, 15))
             {
                 // Clear background completely
-                using (SolidBrush clearBrush = new SolidBrush(this.Parent?.BackColor ?? SystemColors.Control))
+                using (SolidBrush clearBrush = new SolidBrush(this.BackColor))
                 {
                     g.FillRectangle(clearBrush, 0, 0, Width, Height);
                 }

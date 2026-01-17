@@ -478,6 +478,7 @@ namespace Notes
             {
                 control.BackColor = LightTheme.SurfaceColor;
                 control.ForeColor = LightTheme.TextColor;
+                ApplyToolStripTheme((ToolStrip)control, LightTheme.SurfaceColor, LightTheme.TextColor);
             }
             else if (control is TabControl tabControl)
             {
@@ -528,6 +529,7 @@ namespace Notes
             {
                 control.BackColor = DarkTheme.SurfaceColor;
                 control.ForeColor = DarkTheme.TextColor;
+                ApplyToolStripTheme((ToolStrip)control, DarkTheme.SurfaceColor, DarkTheme.TextColor);
             }
             else if (control is TabControl tabControl)
             {
@@ -539,6 +541,27 @@ namespace Notes
             foreach (Control child in control.Controls)
             {
                 ApplyDarkTheme(child);
+            }
+        }
+
+        private static void ApplyToolStripTheme(ToolStrip strip, Color backColor, Color foreColor)
+        {
+            foreach (ToolStripItem item in strip.Items)
+            {
+                ApplyToolStripItemTheme(item, backColor, foreColor);
+            }
+        }
+
+        private static void ApplyToolStripItemTheme(ToolStripItem item, Color backColor, Color foreColor)
+        {
+            item.BackColor = backColor;
+            item.ForeColor = foreColor;
+            if (item is ToolStripDropDownItem dropDownItem)
+            {
+                foreach (ToolStripItem subItem in dropDownItem.DropDownItems)
+                {
+                    ApplyToolStripItemTheme(subItem, backColor, foreColor);
+                }
             }
         }
 
