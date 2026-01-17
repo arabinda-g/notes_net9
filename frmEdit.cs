@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -272,12 +272,12 @@ namespace Notes
             return true;
         }
 
-        private void btnSave_Click(object sender, EventArgs e)
+        private bool TrySaveChanges(bool closeOnSuccess)
         {
             if (!ValidateInput())
             {
                 SystemSounds.Exclamation.Play();
-                return;
+                return false;
             }
 
             try
@@ -290,7 +290,7 @@ namespace Notes
                         if (string.IsNullOrEmpty(imageBase64))
                         {
                             MessageBox.Show("Please paste an image from the clipboard.", NotesLibrary.AppName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                            return;
+                            return false;
                         }
                         selectedUnit.ContentType = "Image";
                         selectedUnit.ContentFormat = imageFormat ?? "png";
@@ -300,7 +300,7 @@ namespace Notes
                         if (string.IsNullOrEmpty(objectBinaryData))
                         {
                             MessageBox.Show("Please paste data from the clipboard.", NotesLibrary.AppName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                            return;
+                            return false;
                         }
                         selectedUnit.ContentType = "Object";
                         selectedUnit.ContentFormat = "clipboard-binary";
@@ -329,15 +329,23 @@ namespace Notes
                 frmMain.selectedUnit = selectedUnit;
                 frmMain.selectedUnitModified = true;
                 hasChanges = false;
-                
+
                 this.DialogResult = DialogResult.OK;
-                Close();
+                if (closeOnSuccess)
+                    Close();
+                return true;
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Error saving note: " + ex.Message, NotesLibrary.AppName, 
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
             }
+        }
+
+        private void btnSave_Click(object sender, EventArgs e)
+        {
+            TrySaveChanges(closeOnSuccess: true);
         }
 
         private void btnCancel_Click(object sender, EventArgs e)
@@ -371,7 +379,8 @@ namespace Notes
                 switch (result)
                 {
                     case DialogResult.Yes:
-                        btnSave_Click(null, null);
+                        if (!TrySaveChanges(closeOnSuccess: false))
+                            e.Cancel = true;
                         break;
                     case DialogResult.Cancel:
                         e.Cancel = true;
