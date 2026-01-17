@@ -192,6 +192,11 @@ namespace Notes
         private Point groupBoxMoveStart;
         private GroupBox currentGroupBoxDrag;
         private Point currentGroupBoxOriginalLocation;
+        private bool isGhostDraggingGroupBox = false;
+        private Bitmap groupBoxDragGhost;
+        private Point groupBoxDragGhostLocation;
+        private Rectangle groupBoxDragGhostLastBounds = Rectangle.Empty;
+        private Point currentGroupBoxDragPendingLocation;
         private Dictionary<Button, Point> currentGroupBoxButtonOrigins = new Dictionary<Button, Point>();
         private bool isMovingGroup = false;
         private Point groupMoveStart;
@@ -1972,6 +1977,11 @@ namespace Notes
 
         private void panelContainer_Paint(object sender, PaintEventArgs e)
         {
+            if (isGhostDraggingGroupBox && groupBoxDragGhost != null)
+            {
+                e.Graphics.DrawImage(groupBoxDragGhost, groupBoxDragGhostLocation);
+            }
+
             if (isSelecting && !selectionRectangle.IsEmpty)
             {
                 // Draw selection rectangle
@@ -6152,6 +6162,22 @@ namespace Notes
             currentGroupBoxOriginalLocation = currentGroupBoxDrag.Location;
 
             isMovingGroupBox = true;
+            AnimationHelper.SetTimersEnabled(currentGroupBoxDrag, false);
+
+            if (currentGroupBoxDrag is CustomGroupBoxBase)
+            {
+                isGhostDraggingGroupBox = true;
+                currentGroupBoxDragPendingLocation = currentGroupBoxDrag.Location;
+                groupBoxDragGhostLocation = currentGroupBoxDrag.Location;
+                groupBoxDragGhostLastBounds = new Rectangle(groupBoxDragGhostLocation, currentGroupBoxDrag.Size);
+                groupBoxDragGhost?.Dispose();
+                groupBoxDragGhost = new Bitmap(currentGroupBoxDrag.Width, currentGroupBoxDrag.Height);
+                currentGroupBoxDrag.DrawToBitmap(
+                    groupBoxDragGhost,
+                    new Rectangle(Point.Empty, groupBoxDragGhost.Size));
+                currentGroupBoxDrag.Visible = false;
+                panelContainer.Invalidate(groupBoxDragGhostLastBounds);
+            }
         }
 
         private void GroupBox_MouseMove(object sender, MouseEventArgs e)
@@ -6180,7 +6206,22 @@ namespace Notes
 
             newLocation = ClampGroupBoxLocation(currentGroupBoxDrag, newLocation);
 
-            currentGroupBoxDrag.Location = newLocation;
+            if (isGhostDraggingGroupBox)
+            {
+                currentGroupBoxDragPendingLocation = newLocation;
+                Rectangle newBounds = new Rectangle(newLocation, currentGroupBoxDrag.Size);
+                if (!newBounds.Equals(groupBoxDragGhostLastBounds))
+                {
+                    panelContainer.Invalidate(groupBoxDragGhostLastBounds);
+                    panelContainer.Invalidate(newBounds);
+                    groupBoxDragGhostLastBounds = newBounds;
+                    groupBoxDragGhostLocation = newLocation;
+                }
+            }
+            else
+            {
+                currentGroupBoxDrag.Location = newLocation;
+            }
         }
 
         private void GroupBox_MouseUp(object sender, MouseEventArgs e)
@@ -6189,6 +6230,17 @@ namespace Notes
                 return;
 
             isMovingGroupBox = false;
+
+            if (isGhostDraggingGroupBox)
+            {
+                currentGroupBoxDrag.Visible = true;
+                currentGroupBoxDrag.Location = currentGroupBoxDragPendingLocation;
+                panelContainer.Invalidate(groupBoxDragGhostLastBounds);
+                groupBoxDragGhost?.Dispose();
+                groupBoxDragGhost = null;
+                isGhostDraggingGroupBox = false;
+                groupBoxDragGhostLastBounds = Rectangle.Empty;
+            }
 
             if (currentGroupBoxDrag.Location != currentGroupBoxOriginalLocation)
             {
@@ -6210,6 +6262,7 @@ namespace Notes
                 UpdateUndoRedoMenuState();
             }
 
+            AnimationHelper.SetTimersEnabled(currentGroupBoxDrag, true);
             currentGroupBoxDrag = null;
             currentGroupBoxButtonOrigins.Clear();
         }

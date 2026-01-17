@@ -16,6 +16,20 @@ namespace Notes
                 timer.Start();
         }
 
+        public static void SetTimersEnabled(Control root, bool enabled)
+        {
+            if (root == null)
+                return;
+
+            foreach (var timer in GetTimers(root))
+            {
+                if (enabled && Enabled)
+                    timer.Start();
+                else
+                    timer.Stop();
+            }
+        }
+
         public static void ApplyToExisting(Control root)
         {
             foreach (var timer in root.Controls.OfType<Control>()
@@ -1257,6 +1271,7 @@ namespace Notes
         private System.Windows.Forms.Timer colorTimer;
         private float hueOffset = 0;
         private Rectangle lastRect;
+        private Rectangle lastBounds = Rectangle.Empty;
 
         public RainbowSpectrumGroupBox()
         {
@@ -1368,6 +1383,19 @@ namespace Notes
             {
                 g.DrawString(this.Text, new Font(this.Font, FontStyle.Bold), textBrush, 22, 9);
             }
+        }
+
+        protected override void OnLocationChanged(EventArgs e)
+        {
+            if (this.Parent != null)
+            {
+                if (!lastBounds.IsEmpty)
+                {
+                    this.Parent.Invalidate(lastBounds, true);
+                }
+            }
+            lastBounds = this.Bounds;
+            base.OnLocationChanged(e);
         }
 
         protected override void OnPaintBackground(PaintEventArgs e)
