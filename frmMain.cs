@@ -5368,6 +5368,7 @@ namespace Notes
             if (groupBox is CustomGroupBoxBase customGroupBox)
             {
                 customGroupBox.BorderColor = borderColor;
+                customGroupBox.UseCustomBorder = borderColor != 0;
             }
             if (borderColor != 0 && !(groupBox is CustomGroupBoxBase))
             {

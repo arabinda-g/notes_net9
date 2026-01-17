@@ -56,7 +56,28 @@ namespace Notes
         private Point resizeStart;
         private Size originalSize;
         private const int RESIZE_HANDLE_SIZE = 16;
-        public int BorderColor { get; set; } = 0;
+        private int borderColor = 0;
+        private bool useCustomBorder = false;
+
+        public int BorderColor
+        {
+            get => borderColor;
+            set
+            {
+                borderColor = value;
+                Invalidate();
+            }
+        }
+
+        public bool UseCustomBorder
+        {
+            get => useCustomBorder;
+            set
+            {
+                useCustomBorder = value;
+                Invalidate();
+            }
+        }
 
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool AllowResize { get; set; } = true;
@@ -75,7 +96,7 @@ namespace Notes
         protected override void WndProc(ref Message m)
         {
             base.WndProc(ref m);
-            if (m.Msg == 0x000F && BorderColor != 0) // WM_PAINT
+            if (m.Msg == 0x000F && UseCustomBorder && BorderColor != 0) // WM_PAINT
             {
                 using var g = Graphics.FromHwnd(this.Handle);
                 g.SmoothingMode = SmoothingMode.AntiAlias;
@@ -100,7 +121,7 @@ namespace Notes
                 int textGap = 4;
                 int textLeft;
                 int textRight;
-                int top = rect.Top + Math.Max(0, this.Padding.Top / 2);
+                int top = rect.Top + Math.Max(0, this.Padding.Top);
                 if (this.RightToLeft == RightToLeft.Yes)
                 {
                     textRight = rect.Right - textPadding;
