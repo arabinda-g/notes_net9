@@ -37,6 +37,11 @@ namespace Notes
             this.FormClosed += frmEdit_FormClosed;
         }
 
+        public void ApplyDefaultStylePreview()
+        {
+            UpdateColorButtons();
+        }
+
         private void frmEdit_FormClosed(object sender, FormClosedEventArgs e)
         {
             if (picImagePreview.Image != null)
@@ -522,7 +527,7 @@ namespace Notes
             if (ClipboardHelper.TryCaptureImageFromClipboard(out base64, out format, out preview))
             {
                 imageBase64 = base64;
-                imageFormat = format;
+                imageFormat = string.IsNullOrEmpty(format) || format.StartsWith("error:") ? "png" : format;
                 if (picImagePreview.Image != null)
                 {
                     picImagePreview.Image.Dispose();
@@ -534,7 +539,10 @@ namespace Notes
             }
             else
             {
-                MessageBox.Show("Clipboard does not contain an image.", NotesLibrary.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                string message = format != null && format.StartsWith("error:")
+                    ? format.Replace("error:", string.Empty).Trim()
+                    : "Clipboard does not contain an image.";
+                MessageBox.Show(message, NotesLibrary.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
 

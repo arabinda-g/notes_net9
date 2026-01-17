@@ -44,6 +44,15 @@ namespace Notes
             }
         }
 
+        public void ApplyDefaultStylePreview()
+        {
+            if (!hasChanges)
+            {
+                LoadConfiguration();
+                LoadControlsFromConfig();
+            }
+        }
+
         private void InitializeModernUI()
         {
             Icon = Properties.Resources.Notes;
@@ -652,7 +661,7 @@ namespace Notes
                 }
 
                 var backupFiles = Directory.GetFiles(backupDir, "backup_*.json")
-                    .OrderByDescending(f => File.GetCreationTime(f))
+                    .OrderByDescending(f => File.GetLastWriteTime(f))
                     .ToArray();
 
                 if (backupFiles.Length == 0)

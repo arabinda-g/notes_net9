@@ -56,6 +56,7 @@ namespace Notes
         private Point resizeStart;
         private Size originalSize;
         private const int RESIZE_HANDLE_SIZE = 16;
+        public int BorderColor { get; set; } = 0;
 
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool AllowResize { get; set; } = true;
@@ -69,6 +70,53 @@ namespace Notes
             this.SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | 
                          ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
             CreateResizeHandle();
+        }
+
+        protected override void WndProc(ref Message m)
+        {
+            base.WndProc(ref m);
+            if (m.Msg == 0x000F && BorderColor != 0) // WM_PAINT
+            {
+                using var g = Graphics.FromHwnd(this.Handle);
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                using var pen = new Pen(Color.FromArgb(BorderColor));
+                var rect = this.ClientRectangle;
+                rect.Width -= 1;
+                rect.Height -= 1;
+                var text = this.Text ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(text))
+                {
+                    g.DrawRectangle(pen, rect);
+                    return;
+                }
+
+                var textSize = TextRenderer.MeasureText(text, this.Font, new Size(int.MaxValue, int.MaxValue), TextFormatFlags.NoPadding);
+                int textPadding = 8;
+                if (this.RightToLeft == RightToLeft.Yes)
+                    textPadding = Math.Max(textPadding, this.Padding.Right);
+                else
+                    textPadding = Math.Max(textPadding, this.Padding.Left);
+                int textGap = 4;
+                int textLeft;
+                int textRight;
+                int top = rect.Top + Math.Max(0, this.Padding.Top / 2);
+                if (this.RightToLeft == RightToLeft.Yes)
+                {
+                    textRight = rect.Right - textPadding;
+                    textLeft = textRight - textSize.Width - textGap;
+                }
+                else
+                {
+                    textLeft = rect.Left + textPadding;
+                    textRight = textLeft + textSize.Width + textGap;
+                }
+                g.DrawLine(pen, rect.Left, top, textLeft - 2, top);
+                g.DrawLine(pen, textRight, top, rect.Right, top);
+                g.DrawLine(pen, rect.Left, top, rect.Left, rect.Bottom);
+                g.DrawLine(pen, rect.Right, top, rect.Right, rect.Bottom);
+                g.DrawLine(pen, rect.Left, rect.Bottom, rect.Right, rect.Bottom);
+            }
         }
 
         private void CreateResizeHandle()

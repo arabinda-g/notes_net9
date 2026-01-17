@@ -32,11 +32,21 @@ namespace Notes
         {
             try
             {
-                if (Clipboard.ContainsText())
-                {
-                    text = Clipboard.GetText();
-                    return true;
-                }
+                    if (Clipboard.ContainsText())
+                    {
+                        text = Clipboard.GetText();
+                        text = text.Replace("\0", string.Empty);
+                        text = text.Replace("\r\n", "\n").Replace("\r", "\n").Replace("\n", Environment.NewLine);
+                        return true;
+                    }
+                    if (Clipboard.ContainsText(TextDataFormat.Rtf))
+                    {
+                        var rtf = Clipboard.GetText(TextDataFormat.Rtf);
+                        text = rtf;
+                        text = text.Replace("\0", string.Empty);
+                        text = text.Replace("\r\n", "\n").Replace("\r", "\n").Replace("\n", Environment.NewLine);
+                        return true;
+                    }
             }
             catch (ExternalException)
             {
@@ -58,12 +68,21 @@ namespace Notes
                     {
                         using (image)
                         {
+                            if (image.Width > 8000 || image.Height > 8000)
+                                throw new InvalidOperationException("Image too large to capture.");
                             using var ms = new MemoryStream();
-                            image.Save(ms, ImageFormat.Png);
-                            base64Data = Convert.ToBase64String(ms.ToArray());
-                            format = "png";
-                            preview = new Bitmap(image);
-                            return true;
+                            try
+                            {
+                                image.Save(ms, ImageFormat.Png);
+                                base64Data = Convert.ToBase64String(ms.ToArray());
+                                format = "png";
+                                preview = new Bitmap(image);
+                                return true;
+                            }
+                            catch
+                            {
+                                // fall through
+                            }
                         }
                     }
                 }
@@ -71,6 +90,12 @@ namespace Notes
             catch (ExternalException)
             {
                 // Clipboard might be locked by another process
+                format = "error:Clipboard busy";
+            }
+            catch (InvalidOperationException)
+            {
+                // Image too large or invalid
+                format = "error:Image too large";
             }
 
             base64Data = string.Empty;
@@ -183,8 +208,18 @@ namespace Notes
             try
             {
                 var bytes = Convert.FromBase64String(base64);
+                if (bytes.Length > 10 * 1024 * 1024)
+                    return null;
+                using (var headerStream = new MemoryStream(bytes))
+                using (var headerImage = Image.FromStream(headerStream, useEmbeddedColorManagement: false, validateImageData: false))
+                {
+                    if (headerImage.Width > 8000 || headerImage.Height > 8000)
+                        return null;
+                }
                 using var ms = new MemoryStream(bytes);
-                using var image = Image.FromStream(ms);
+                using var image = Image.FromStream(ms, useEmbeddedColorManagement: false, validateImageData: true);
+                if (image.Width > 8000 || image.Height > 8000)
+                    return null;
                 return new Bitmap(image);
             }
             catch
@@ -361,7 +396,6 @@ namespace Notes
                     var hMem = GlobalAlloc(GMEM_MOVEABLE, (UIntPtr)length);
                     if (hMem == IntPtr.Zero)
                     {
-                        EmptyClipboard();
                         return false;
                     }
 
@@ -369,7 +403,6 @@ namespace Notes
                     if (target == IntPtr.Zero)
                     {
                         GlobalFree(hMem);
-                        EmptyClipboard();
                         return false;
                     }
 
@@ -391,8 +424,8 @@ namespace Notes
 
                     if (SetClipboardData(formatId, hMem) == IntPtr.Zero)
                     {
+                        GlobalUnlock(hMem);
                         GlobalFree(hMem);
-                        EmptyClipboard();
                         return false;
                     }
                 }

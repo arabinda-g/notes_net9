@@ -15,6 +15,7 @@ namespace Notes
         public static string AppName = System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name ?? "Notes";
         private static NotesLibrary? _instance;
         private Configuration? _config;
+        private readonly object _configLock = new object();
 
         public static NotesLibrary Instance
         {
@@ -178,7 +179,9 @@ namespace Notes
             }
             catch (Exception)
             {
+                System.Diagnostics.Debug.WriteLine("Failed to load configuration, using defaults.");
                 _config = new Configuration();
+                SaveConfiguration();
                 return false;
             }
         }
@@ -187,8 +190,11 @@ namespace Notes
         {
             try
             {
-                Properties.Settings.Default.ConfigJson = JsonConvert.SerializeObject(_config, Formatting.Indented);
-                Properties.Settings.Default.Save();
+                lock (_configLock)
+                {
+                    Properties.Settings.Default.ConfigJson = JsonConvert.SerializeObject(_config, Formatting.Indented);
+                    Properties.Settings.Default.Save();
+                }
             }
             catch (Exception ex)
             {
@@ -229,10 +235,23 @@ namespace Notes
                 string backupDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppName, "Backups");
                 Directory.CreateDirectory(backupDir);
                 
-                string fileName = string.Format("backup_{0:yyyyMMdd_HHmmss}.json", DateTime.Now);
+                string fileName = string.Format("backup_{0:yyyyMMdd_HHmmss_fff}.json", DateTime.Now);
                 string filePath = Path.Combine(backupDir, fileName);
                 
-                File.WriteAllText(filePath, Properties.Settings.Default.JsonData);
+                try
+                {
+                    File.WriteAllText(filePath, Properties.Settings.Default.JsonData);
+                }
+                catch (IOException ex)
+                {
+                    Logger.Warning($"Backup failed: {ex.Message}");
+                    return;
+                }
+                catch (UnauthorizedAccessException ex)
+                {
+                    Logger.Warning($"Backup failed: {ex.Message}");
+                    return;
+                }
                 
                 int backupCount = config.General.BackupCount;
                 if (backupCount < 1)
@@ -240,7 +259,7 @@ namespace Notes
 
                 // Keep only last N backups
                 var files = Directory.GetFiles(backupDir, "backup_*.json")
-                    .OrderByDescending(f => File.GetCreationTime(f))
+                    .OrderByDescending(f => File.GetLastWriteTime(f))
                     .Skip(backupCount);
                 
                 foreach (var file in files)

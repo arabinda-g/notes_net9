@@ -14,6 +14,8 @@ namespace Notes
 {
     public partial class frmMain : Form
     {
+        public static frmMain Instance => instance;
+        public Size PanelSize => panelContainer.ClientSize;
         public static string AppName = NotesLibrary.AppName;
 
         public struct UnitStruct
@@ -116,6 +118,8 @@ namespace Notes
 
         private Dictionary<string, UnitStruct> Units = new Dictionary<string, UnitStruct>();
         private Dictionary<string, GroupStruct> Groups = new Dictionary<string, GroupStruct>();
+        private Dictionary<string, Button> buttonById = new Dictionary<string, Button>();
+        private readonly Font defaultButtonFont = NotesLibrary.Instance.GetDefaultFont();
         private List<string> searchResults = new List<string>();
         private Stack<AppState> undoStack = new Stack<AppState>();
         private Stack<AppState> redoStack = new Stack<AppState>();
@@ -159,6 +163,11 @@ namespace Notes
         private Dictionary<Button, SelectionStyle> selectionOriginalStyles = new Dictionary<Button, SelectionStyle>();
         private HashSet<GroupBox> resizingGroups = new HashSet<GroupBox>();
         private static readonly Random random = new Random();
+        private Dictionary<GroupBox, int> groupBoxBorderColors = new Dictionary<GroupBox, int>();
+        private bool suppressNextGroupMoveUndo = false;
+        private const int MaxContentDataChars = 10_000_000;
+        private const int MaxBinaryDataBytes = 10 * 1024 * 1024;
+        private bool isExporting = false;
         private bool isMovingGroupBox = false;
         private Point groupBoxMoveStart;
         private GroupBox currentGroupBoxDrag;
@@ -278,11 +287,13 @@ namespace Notes
             
             if (autoSaveEnabled)
             {
-                autoSaveTimer.Start();
+                if (!autoSaveTimer.Enabled)
+                    autoSaveTimer.Start();
             }
             else
             {
-                autoSaveTimer.Stop();
+                if (autoSaveTimer.Enabled)
+                    autoSaveTimer.Stop();
             }
             
             // Apply tray icon settings
@@ -515,11 +526,16 @@ namespace Notes
 
         private void SaveWindowState()
         {
+            TrySaveWindowState();
+        }
+
+        private bool TrySaveWindowState()
+        {
             try
             {
                 // Only save if window is in normal state or maximized
                 if (this.WindowState == FormWindowState.Minimized)
-                    return;
+                    return true;
                 
                 var config = NotesLibrary.Instance.Config;
                 
@@ -557,12 +573,14 @@ namespace Notes
                 
                 // Save the settings
                 Properties.Settings.Default.Save();
+                return true;
             }
             catch (Exception)
             {
                 // Silently fail if we can't save window state
                 // The application should continue to work normally
                 Logger.Warning("Failed to save window state");
+                return false;
             }
         }
 
@@ -661,9 +679,9 @@ namespace Notes
                                "Enjoy your organized note-taking!",
                 ContentFormat = "plain",
                 BackgroundColor = Color.LightSteelBlue.ToArgb(),
-                TextColor = Color.DarkBlue.ToArgb(),
-                Font = new Font("Segoe UI", 9f, FontStyle.Regular),
-                ButtonType = "DoubleClickButton",
+            TextColor = Color.DarkBlue.ToArgb(),
+            Font = NotesLibrary.Instance.GetDefaultFont(),
+            ButtonType = "DoubleClickButton",
                 X = 50,
                 Y = 50,
                 CreatedDate = DateTime.Now,
@@ -773,6 +791,7 @@ namespace Notes
                     selectionOriginalStyles.Remove(btn);
                 }
                 selectedButtons.Clear();
+                searchResults.Clear();
                 configModified = true;
                 status = $"Deleted {buttonsToDelete.Count} button(s)";
                 UpdateUndoRedoMenuState();
@@ -782,6 +801,51 @@ namespace Notes
         private void ResizePanel()
         {
             panelContainer.Size = new Size(this.Width, this.Height - menuStrip.Height - statusStrip.Height);
+            var rect = GetPanelDisplayRectangle();
+            foreach (var key in Groups.Keys.ToList())
+            {
+                var group = Groups[key];
+                NormalizeGroup(ref group, rect.Size);
+                Groups[key] = group;
+
+                var box = panelContainer.Controls.OfType<GroupBox>()
+                    .FirstOrDefault(g => (g.Tag as string) == key);
+                if (box != null)
+                {
+                    box.Location = new Point(group.X, group.Y);
+                    box.Size = new Size(group.Width, group.Height);
+
+                    int minY = Math.Max(0, box.DisplayRectangle.Top);
+                    int maxX = Math.Max(0, box.ClientSize.Width);
+                    int maxY = Math.Max(minY, box.ClientSize.Height);
+                    foreach (Button button in box.Controls.OfType<Button>())
+                    {
+                        int clampedX = Math.Min(Math.Max(button.Location.X, 0), maxX - button.Width);
+                        int clampedY = Math.Min(Math.Max(button.Location.Y, minY), maxY - button.Height);
+                        if (clampedX != button.Location.X || clampedY != button.Location.Y)
+                        {
+                            button.Location = new Point(clampedX, clampedY);
+                            string btnId = button.Tag as string;
+                            if (!string.IsNullOrEmpty(btnId) && Units.ContainsKey(btnId))
+                            {
+                                var unit = Units[btnId];
+                                unit.X = box.Location.X + clampedX;
+                                unit.Y = box.Location.Y + clampedY;
+                                Units[btnId] = unit;
+                                configModified = true;
+                            }
+                        }
+                        if (button.Tag is string id)
+                            buttonById[id] = button;
+                    }
+                }
+            }
+
+            foreach (var button in panelContainer.Controls.OfType<Button>())
+            {
+                if (button.Tag is string id)
+                    buttonById[id] = button;
+            }
         }
 
         private void frmMain_FormClosing(object sender, FormClosingEventArgs e)
@@ -871,7 +935,11 @@ namespace Notes
             // Save window state again if the operation wasn't cancelled
             if (!e.Cancel)
             {
-                SaveWindowState();
+                if (!TrySaveWindowState())
+                {
+                    MessageBox.Show("Window state could not be saved. Your layout may not persist.", AppName, 
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
                 DisposeAllUnitFonts();
             }
         }
@@ -926,6 +994,8 @@ namespace Notes
         {
             if (isAutoSaving)
                 return;
+            if (isExporting)
+                return;
 
             if (configModified && autoSaveEnabled)
             {
@@ -935,11 +1005,15 @@ namespace Notes
                     var formatting = NotesLibrary.Instance.Config.General.OptimizeForLargeFiles
                         ? Formatting.None
                         : Formatting.Indented;
-                    var snapshot = new NotesData
+                    NotesData snapshot;
+                    lock (saveLock)
                     {
-                        Units = CloneUnits(Units),
-                        Groups = CloneGroups(Groups)
-                    };
+                        snapshot = new NotesData
+                        {
+                            Units = CloneUnits(Units, false),
+                            Groups = CloneGroups(Groups)
+                        };
+                    }
                     var json = await Task.Run(() => JsonConvert.SerializeObject(snapshot, formatting));
                     bool saved = SaveJsonSerialized(json, showErrors: false, includeWindowState: true);
                     status = saved ? "Auto-saved" : "Auto-save failed";
@@ -955,6 +1029,8 @@ namespace Notes
         {
             // TODO: Implement search functionality
             searchTimer.Stop();
+            status = "Search is not implemented yet";
+            searchResults.Clear();
         }
 
         private string getNewId() => NotesLibrary.Instance.GenerateId();
@@ -1012,6 +1088,8 @@ namespace Notes
         private void RefreshAllButtons()
         {
             ClearSelection();
+            buttonById.Clear();
+            groupBoxBorderColors.Clear();
             bool optimize = NotesLibrary.Instance.Config.General.OptimizeForLargeFiles;
             if (optimize)
                 panelContainer.SuspendLayout();
@@ -1062,26 +1140,39 @@ namespace Notes
                 {
                     var unit = Units[key];
                     unit.ButtonType = NormalizeButtonType(unit.ButtonType);
+                    unit.Tags ??= Array.Empty<string>();
+                    unit.ContentType = NormalizeContentType(unit.ContentType);
+                    unit.ContentFormat = NormalizeContentFormat(unit.ContentFormat);
+                    SanitizeUnitContent(ref unit);
+                    ValidateUnitBinaryContent(ref unit);
                     Units[key] = unit;
                 }
                 var loadedGroups = data.Groups ?? new Dictionary<string, GroupStruct>();
+                Rectangle panelRect = GetPanelDisplayRectangle();
+                var existingGroupTitles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var existingUnitTitles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var key in loadedGroups.Keys.ToList())
                 {
                     var group = loadedGroups[key];
                     if (string.IsNullOrEmpty(group.Id) || !string.Equals(group.Id, key, StringComparison.Ordinal))
                         group.Id = key;
                     group.GroupBoxType = NormalizeGroupBoxTypeCaseInsensitive(group.GroupBoxType);
+                    group.Title = EnsureUniqueGroupTitle(group.Title, existingGroupTitles);
+                    NormalizeGroup(ref group, panelRect.Size);
                     loadedGroups[key] = group;
                 }
                 Groups = loadedGroups;
                 foreach (var key in Units.Keys.ToList())
                 {
                     var unit = Units[key];
+                    NormalizeUnit(ref unit, panelRect);
                     if (!string.IsNullOrEmpty(unit.GroupId) && !Groups.ContainsKey(unit.GroupId))
                     {
                         unit.GroupId = null;
                         Units[key] = unit;
                     }
+                    unit.Title = EnsureUniqueUnitTitle(unit.Title ?? string.Empty, existingUnitTitles);
+                    Units[key] = unit;
                 }
 
                 RefreshAllButtons();
@@ -1131,7 +1222,7 @@ namespace Notes
             newButton.Text = unit.Title;
             newButton.BackColor = Color.FromArgb(unit.BackgroundColor);
             newButton.ForeColor = Color.FromArgb(unit.TextColor);
-            newButton.Font = unit.Font ?? NotesLibrary.Instance.GetDefaultFont();
+            newButton.Font = unit.Font ?? defaultButtonFont;
 
             GroupBox targetGroupBox = null;
             if (!string.IsNullOrEmpty(unit.GroupId))
@@ -1202,6 +1293,8 @@ namespace Notes
                 newButton.Location = new Point(unit.X, unit.Y);
                 panelContainer.Controls.Add(newButton);
             }
+
+            buttonById[id] = newButton;
         }
 
         private void ApplyUnitChangesToButton(Button btn, UnitStruct unit)
@@ -1348,6 +1441,24 @@ namespace Notes
                 configModified = false;
                 return true;
             }
+            catch (System.Configuration.ConfigurationErrorsException ex)
+            {
+                if (showErrors)
+                {
+                    MessageBox.Show("Error saving settings: " + ex.Message, AppName, 
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                return false;
+            }
+            catch (IOException ex)
+            {
+                if (showErrors)
+                {
+                    MessageBox.Show("Error saving data: " + ex.Message, AppName, 
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                return false;
+            }
             catch (Exception ex)
             {
                 if (showErrors)
@@ -1379,11 +1490,15 @@ namespace Notes
             var formatting = NotesLibrary.Instance.Config.General.OptimizeForLargeFiles
                 ? Formatting.None
                 : Formatting.Indented;
-            var snapshot = new NotesData
+            NotesData snapshot;
+            lock (saveLock)
             {
-                Units = CloneUnits(Units),
-                Groups = CloneGroups(Groups)
-            };
+                snapshot = new NotesData
+                {
+                    Units = CloneUnits(Units, false),
+                    Groups = CloneGroups(Groups)
+                };
+            }
             var json = await Task.Run(() => JsonConvert.SerializeObject(snapshot, formatting));
             return SaveJsonSerialized(json, showErrors, includeWindowState: true);
         }
@@ -1975,12 +2090,16 @@ namespace Notes
             {
                 SaveStateForUndo();
                 ClearSelection();
-                DisposeAllUnitFonts();
+                selectionOriginalStyles.Clear();
+                searchResults.Clear();
                 foreach (var control in panelContainer.Controls.OfType<Control>().ToList())
                 {
                     control.Dispose();
                 }
                 panelContainer.Controls.Clear();
+                buttonById.Clear();
+            groupBoxBorderColors.Clear();
+                DisposeAllUnitFonts();
                 Units.Clear();
                 Groups.Clear();
                 undoStack.Clear();
@@ -2021,6 +2140,17 @@ namespace Notes
                     bool previousConfigModified = configModified;
                     try
                     {
+                        var fileInfo = new FileInfo(openFileDialog.FileName);
+                        if (fileInfo.Length > 50 * 1024 * 1024)
+                        {
+                            DialogResult sizeResult = MessageBox.Show(
+                                "This file is large and may take time to import. Continue?",
+                                AppName,
+                                MessageBoxButtons.YesNo,
+                                MessageBoxIcon.Warning);
+                            if (sizeResult != DialogResult.Yes)
+                                return;
+                        }
                         string json = File.ReadAllText(openFileDialog.FileName);
                         var data = JsonConvert.DeserializeObject<NotesData>(json);
                         if (data == null || data.Units == null)
@@ -2032,6 +2162,9 @@ namespace Notes
                         
                         // Map old group IDs to new group IDs
                         var groupIdMap = new Dictionary<string, string>();
+                        Rectangle panelRect = GetPanelDisplayRectangle();
+                        var existingGroupTitles = new HashSet<string>(Groups.Values.Select(g => g.Title ?? string.Empty), StringComparer.OrdinalIgnoreCase);
+                        var existingUnitTitles = new HashSet<string>(Units.Values.Select(u => u.Title ?? string.Empty), StringComparer.OrdinalIgnoreCase);
                         
                         foreach (var keyValuePair in newGroups)
                         {
@@ -2039,6 +2172,9 @@ namespace Notes
                             var newGroupId = getNewId();
                             var group = keyValuePair.Value;
                             group.Id = newGroupId;
+                            group.GroupBoxType = NormalizeGroupBoxTypeCaseInsensitive(group.GroupBoxType);
+                            group.Title = EnsureUniqueGroupTitle(group.Title, existingGroupTitles);
+                            NormalizeGroup(ref group, panelRect.Size);
                             
                             groupIdMap[oldGroupId] = newGroupId;
                             Groups.Add(newGroupId, group);
@@ -2049,6 +2185,14 @@ namespace Notes
                         {
                             var id = getNewId();
                             var unit = keyValuePair.Value;
+                            unit.ButtonType = NormalizeButtonType(unit.ButtonType);
+                            unit.Tags ??= Array.Empty<string>();
+                            unit.ContentType = NormalizeContentType(unit.ContentType);
+                            unit.ContentFormat = NormalizeContentFormat(unit.ContentFormat);
+                            SanitizeUnitContent(ref unit);
+                            ValidateUnitBinaryContent(ref unit);
+                            NormalizeUnit(ref unit, panelRect);
+                            unit.Title = EnsureUniqueUnitTitle(unit.Title ?? string.Empty, existingUnitTitles);
                             
                             // Remap GroupId if the unit belongs to an imported group
                             if (!string.IsNullOrEmpty(unit.GroupId) && groupIdMap.ContainsKey(unit.GroupId))
@@ -2087,12 +2231,13 @@ namespace Notes
             }
         }
 
-        private void menuFileExport_Click(object sender, EventArgs e)
+        private async void menuFileExport_Click(object sender, EventArgs e)
         {
             saveFileDialog.Filter = "JSON Files (*.json)|*.json|All files (*.*)|*.*";
             saveFileDialog.FilterIndex = 1;
             saveFileDialog.RestoreDirectory = true;
             saveFileDialog.OverwritePrompt = true;
+            saveFileDialog.DefaultExt = "json";
             if (string.IsNullOrWhiteSpace(saveFileDialog.FileName))
                 saveFileDialog.FileName = "notes_export.json";
 
@@ -2101,35 +2246,41 @@ namespace Notes
             {
                 try
                 {
-                    using (var stream = saveFileDialog.OpenFile())
+                    isExporting = true;
+                    if (string.IsNullOrWhiteSpace(saveFileDialog.FileName))
                     {
-                        if (stream != null)
-                        {
-                            using (var writer = new StreamWriter(stream))
-                            {
-                                var data = new NotesData
-                                {
-                                    Units = Units,
-                                    Groups = Groups
-                                };
-                                var formatting = NotesLibrary.Instance.Config.General.OptimizeForLargeFiles
-                                    ? Formatting.None
-                                    : Formatting.Indented;
-                                writer.Write(JsonConvert.SerializeObject(data, formatting));
-                            }
-
-                            status = string.Format("{0} notes and {1} groups exported successfully", Units.Count(), Groups.Count());
-                            return;
-                        }
+                        MessageBox.Show("Please choose a valid file name.", AppName, 
+                            MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
                     }
+                    if (string.IsNullOrEmpty(Path.GetExtension(saveFileDialog.FileName)))
+                        saveFileDialog.FileName += ".json";
+                    var formatting = NotesLibrary.Instance.Config.General.OptimizeForLargeFiles
+                        ? Formatting.None
+                        : Formatting.Indented;
+                    NotesData snapshot;
+                    lock (saveLock)
+                    {
+                        snapshot = new NotesData
+                        {
+                            Units = CloneUnits(Units, false),
+                            Groups = CloneGroups(Groups)
+                        };
+                    }
+                    var json = await Task.Run(() => JsonConvert.SerializeObject(snapshot, formatting));
+                    File.WriteAllText(saveFileDialog.FileName, json, new System.Text.UTF8Encoding(false));
 
-                    MessageBox.Show("Export failed: unable to open the selected file.", AppName, 
-                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    status = string.Format("{0} notes and {1} groups exported successfully", Units.Count(), Groups.Count());
+                    return;
                 }
                 catch (Exception ex)
                 {
                     MessageBox.Show("Error exporting notes: " + ex.Message, AppName, 
                         MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                finally
+                {
+                    isExporting = false;
                 }
             }
 
@@ -2483,7 +2634,7 @@ namespace Notes
             {
                 try
                 {
-                    Clipboard.SetText(text.Trim().ToLowerInvariant());
+                    Clipboard.SetText(text.ToLowerInvariant());
                     status = "Copied to clipboard in lowercase";
                 }
                 catch (ExternalException ex)
@@ -2514,7 +2665,7 @@ namespace Notes
             {
                 try
                 {
-                    Clipboard.SetText(text.Trim().ToUpperInvariant());
+                    Clipboard.SetText(text.ToUpperInvariant());
                     status = "Copied to clipboard in uppercase";
                 }
                 catch (ExternalException ex)
@@ -2903,6 +3054,8 @@ namespace Notes
                     Groups.Remove(groupId);
                     panelContainer.Controls.Remove(groupBox);
                     resizingGroups.Remove(groupBox);
+                    groupBoxBorderColors.Remove(groupBox);
+                    RemoveButtonsFromGroupBox(groupBox);
                     groupBox.Dispose();
 
                     configModified = true;
@@ -3506,6 +3659,8 @@ namespace Notes
                 Logger.Debug($"Removing old GroupBox from panel");
                 panelContainer.Controls.Remove(oldGroupBox);
                 resizingGroups.Remove(oldGroupBox);
+                groupBoxBorderColors.Remove(oldGroupBox);
+                RemoveButtonsFromGroupBox(oldGroupBox);
                 oldGroupBox.Dispose();
 
                 // Create new styled group directly
@@ -3662,6 +3817,8 @@ namespace Notes
                 Logger.Debug($"Removing old GroupBox from panel");
                 panelContainer.Controls.Remove(oldGroupBox);
                 resizingGroups.Remove(oldGroupBox);
+                groupBoxBorderColors.Remove(oldGroupBox);
+                RemoveButtonsFromGroupBox(oldGroupBox);
                 oldGroupBox.Dispose();
 
                 // Create new styled group directly
@@ -4941,7 +5098,24 @@ namespace Notes
                 return;
             if (GetAllButtonsInPanel().Any(b => b.Font == font))
                 return;
+            foreach (Form form in Application.OpenForms)
+            {
+                if (IsFontInUse(form, font))
+                    return;
+            }
             font.Dispose();
+        }
+
+        private bool IsFontInUse(Control control, Font font)
+        {
+            if (control.Font == font)
+                return true;
+            foreach (Control child in control.Controls)
+            {
+                if (IsFontInUse(child, font))
+                    return true;
+            }
+            return false;
         }
 
         private void DisposeAllUnitFonts()
@@ -4953,19 +5127,42 @@ namespace Notes
                     fonts.Add(unit.Font);
             }
             foreach (var font in fonts)
+            {
+                if (Units.Values.Any(u => u.Font == font))
+                    continue;
+                if (GetAllButtonsInPanel().Any(b => b.Font == font))
+                    continue;
+                foreach (Form form in Application.OpenForms)
+                {
+                    if (IsFontInUse(form, font))
+                        goto nextFont;
+                }
                 font.Dispose();
+                nextFont: ;
+            }
+            foreach (var key in Units.Keys.ToList())
+            {
+                var unit = Units[key];
+                unit.Font = null;
+                Units[key] = unit;
+            }
+        }
+
+        private void RemoveButtonsFromGroupBox(GroupBox groupBox)
+        {
+            foreach (var button in groupBox.Controls.OfType<Button>())
+            {
+                if (button.Tag is string id)
+                    buttonById.Remove(id);
+            }
         }
 
         private Button FindButtonById(string id)
         {
-            foreach (Button button in GetAllButtonsInPanel())
-            {
-                if ((string)button.Tag == id)
-                {
-                    return button;
-                }
-            }
-
+            if (string.IsNullOrEmpty(id))
+                return null;
+            if (buttonById.TryGetValue(id, out var button))
+                return button;
             return null;
         }
 
@@ -4979,6 +5176,10 @@ namespace Notes
             {
                 selectionOriginalStyles.Remove(button);
             }
+            if (button.Tag is string id && buttonById.ContainsKey(id))
+            {
+                buttonById.Remove(id);
+            }
             if (button.Parent is GroupBox parentGroup)
             {
                 resizingGroups.Remove(parentGroup);
@@ -4991,6 +5192,7 @@ namespace Notes
                 {
                     groupBox.Text = string.IsNullOrWhiteSpace(groupBox.Text) ? "Group" : groupBox.Text;
                 }
+                groupBoxBorderColors.Remove(groupBox);
                 button.Dispose();
             }
             else
@@ -5152,10 +5354,22 @@ namespace Notes
 
         private void ApplyGroupBoxColors(GroupBox groupBox, GroupStruct group)
         {
-            groupBox.BackColor = group.BackgroundColor != 0 ? Color.FromArgb(group.BackgroundColor) : Color.WhiteSmoke;
-            groupBox.ForeColor = group.TextColor != 0 ? Color.FromArgb(group.TextColor) : Color.Black;
+            var newBackColor = group.BackgroundColor != 0 ? Color.FromArgb(group.BackgroundColor) : Color.WhiteSmoke;
+            var newForeColor = group.TextColor != 0 ? Color.FromArgb(group.TextColor) : Color.Black;
+            bool backChanged = groupBox.BackColor != newBackColor;
+            bool foreChanged = groupBox.ForeColor != newForeColor;
 
-            if (group.BorderColor != 0)
+            if (backChanged)
+                groupBox.BackColor = newBackColor;
+            if (foreChanged)
+                groupBox.ForeColor = newForeColor;
+
+            int borderColor = group.BorderColor;
+            if (groupBox is CustomGroupBoxBase customGroupBox)
+            {
+                customGroupBox.BorderColor = borderColor;
+            }
+            if (borderColor != 0 && !(groupBox is CustomGroupBoxBase))
             {
                 groupBox.Paint -= GroupBox_CustomBorder_Paint;
                 groupBox.Paint += GroupBox_CustomBorder_Paint;
@@ -5165,7 +5379,86 @@ namespace Notes
                 groupBox.Paint -= GroupBox_CustomBorder_Paint;
             }
 
-            groupBox.Invalidate();
+            bool borderChanged = !groupBoxBorderColors.TryGetValue(groupBox, out var previous) || previous != borderColor;
+            groupBoxBorderColors[groupBox] = borderColor;
+
+            if (backChanged || foreChanged || borderChanged)
+                groupBox.Invalidate();
+        }
+
+        private Size GetPanelSizeForClamping()
+        {
+            var size = panelContainer.ClientSize;
+            var display = panelContainer.DisplayRectangle;
+            if (display.Width > size.Width && display.Height > size.Height)
+                size = display.Size;
+            if (size.Width <= 0 || size.Height <= 0)
+                size = Screen.FromControl(panelContainer)?.WorkingArea.Size ?? new Size(800, 600);
+            return size;
+        }
+
+        private Rectangle GetPanelDisplayRectangle()
+        {
+            var rect = panelContainer.DisplayRectangle;
+            var padding = panelContainer.Padding;
+            var scroll = panelContainer.AutoScrollPosition;
+            rect = new Rectangle(
+                rect.Left + padding.Left + scroll.X,
+                rect.Top + padding.Top + scroll.Y,
+                rect.Width - padding.Horizontal,
+                rect.Height - padding.Vertical
+            );
+            if (rect.Width <= 0 || rect.Height <= 0)
+            {
+                var size = Screen.FromControl(panelContainer)?.WorkingArea.Size ?? new Size(800, 600);
+                rect = new Rectangle(0, 0, size.Width, size.Height);
+            }
+            return rect;
+        }
+
+        private void NormalizeGroup(ref GroupStruct group, Size panelSize)
+        {
+            group.Width = Math.Abs(group.Width);
+            group.Height = Math.Abs(group.Height);
+            group.Width = Math.Max(100, Math.Min(group.Width, panelSize.Width));
+            group.Height = Math.Max(80, Math.Min(group.Height, panelSize.Height));
+            int maxX = Math.Max(0, panelSize.Width - group.Width);
+            int maxY = Math.Max(0, panelSize.Height - group.Height);
+            group.X = Math.Min(Math.Max(group.X, 0), maxX);
+            group.Y = Math.Min(Math.Max(group.Y, 0), maxY);
+        }
+
+        private void NormalizeUnit(ref UnitStruct unit, Rectangle panelRect)
+        {
+            Size approx = GetApproxButtonSize(unit);
+            int minX = panelRect.Left;
+            int minY = panelRect.Top;
+            int maxX = panelRect.Right - approx.Width;
+            int maxY = panelRect.Bottom - approx.Height;
+            unit.X = Math.Min(Math.Max(unit.X, minX), maxX);
+            unit.Y = Math.Min(Math.Max(unit.Y, minY), maxY);
+        }
+
+        private Size GetApproxButtonSize(UnitStruct unit)
+        {
+            var font = unit.Font ?? SystemFonts.MessageBoxFont;
+            var text = unit.Title ?? string.Empty;
+            TextFormatFlags flags = TextFormatFlags.NoPadding | TextFormatFlags.SingleLine;
+            Size measureBounds = new Size(int.MaxValue, int.MaxValue);
+            if (text.Contains("\n"))
+            {
+                flags = TextFormatFlags.NoPadding | TextFormatFlags.WordBreak;
+                measureBounds = new Size(300, int.MaxValue);
+            }
+            var textSize = TextRenderer.MeasureText(text, font, measureBounds, flags);
+            var type = NormalizeButtonType(unit.ButtonType);
+            int extraW = type != "DoubleClickButton" ? 44 : 24;
+            int extraH = type != "DoubleClickButton" ? 28 : 16;
+            int minW = type != "DoubleClickButton" ? 80 : 60;
+            int minH = type != "DoubleClickButton" ? 40 : 32;
+            int width = Math.Max(minW, textSize.Width + extraW);
+            int height = Math.Max(minH, textSize.Height + extraH);
+            return new Size(width, height);
         }
 
         private void GroupBox_CustomBorder_Paint(object sender, PaintEventArgs e)
@@ -5173,6 +5466,7 @@ namespace Notes
             if (sender is GroupBox groupBox)
             {
                 e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                e.Graphics.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
                 string groupId = groupBox.Tag as string;
                 if (string.IsNullOrEmpty(groupId) || !Groups.ContainsKey(groupId))
                     return;
@@ -5187,11 +5481,30 @@ namespace Notes
                 rect.Height -= 1;
 
                 var text = groupBox.Text ?? string.Empty;
-                var textSize = TextRenderer.MeasureText(text, groupBox.Font);
+                if (string.IsNullOrWhiteSpace(text))
+                {
+                    e.Graphics.DrawRectangle(pen, rect);
+                    return;
+                }
+                var textSize = TextRenderer.MeasureText(text, groupBox.Font, new Size(int.MaxValue, int.MaxValue), TextFormatFlags.NoPadding);
                 int textPadding = 8;
+                if (groupBox.RightToLeft == RightToLeft.Yes)
+                    textPadding = Math.Max(textPadding, groupBox.Padding.Right);
+                else
+                    textPadding = Math.Max(textPadding, groupBox.Padding.Left);
                 int textGap = 4;
-                int textLeft = rect.Left + textPadding;
-                int textRight = textLeft + textSize.Width + textGap;
+                int textLeft;
+                int textRight;
+                if (groupBox.RightToLeft == RightToLeft.Yes)
+                {
+                    textRight = rect.Right - textPadding;
+                    textLeft = textRight - textSize.Width - textGap;
+                }
+                else
+                {
+                    textLeft = rect.Left + textPadding;
+                    textRight = textLeft + textSize.Width + textGap;
+                }
 
                 // Top border split around text
                 e.Graphics.DrawLine(pen, rect.Left, rect.Top, textLeft - 2, rect.Top);
@@ -5358,6 +5671,116 @@ namespace Notes
             }
         }
 
+        private static string NormalizeContentType(string? contentType)
+        {
+            if (string.IsNullOrWhiteSpace(contentType))
+                return "Text";
+            switch (contentType.Trim().ToLowerInvariant())
+            {
+                case "text":
+                    return "Text";
+                case "image":
+                    return "Image";
+                case "object":
+                    return "Object";
+                default:
+                    return "Text";
+            }
+        }
+
+        private static string NormalizeContentFormat(string? contentFormat)
+        {
+            if (string.IsNullOrWhiteSpace(contentFormat))
+                return "plain";
+            switch (contentFormat.Trim().ToLowerInvariant())
+            {
+                case "plain":
+                case "rtf":
+                case "markdown":
+                    return contentFormat.Trim().ToLowerInvariant();
+                default:
+                    return "plain";
+            }
+        }
+
+        private static void SanitizeUnitContent(ref UnitStruct unit)
+        {
+            if (unit.ContentData == null)
+                return;
+            if (unit.ContentData.Length <= MaxContentDataChars)
+                return;
+
+            // Avoid huge payloads blocking UI/serialization
+            if (string.Equals(unit.ContentType, "Text", StringComparison.OrdinalIgnoreCase))
+            {
+                unit.ContentData = unit.ContentData.Substring(0, MaxContentDataChars);
+            }
+            else
+            {
+                unit.ContentData = string.Empty;
+                unit.ContentType = "Text";
+                unit.ContentFormat = "plain";
+            }
+        }
+
+        private static void ValidateUnitBinaryContent(ref UnitStruct unit)
+        {
+            if (!string.Equals(unit.ContentType, "Image", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(unit.ContentType, "Object", StringComparison.OrdinalIgnoreCase))
+                return;
+
+            if (string.IsNullOrWhiteSpace(unit.ContentData))
+            {
+                unit.ContentType = "Text";
+                unit.ContentFormat = "plain";
+                unit.ContentData = string.Empty;
+                return;
+            }
+
+            try
+            {
+                var bytes = Convert.FromBase64String(unit.ContentData);
+                if (bytes.Length > MaxBinaryDataBytes)
+                    throw new InvalidOperationException("Binary payload too large");
+            }
+            catch
+            {
+                unit.ContentType = "Text";
+                unit.ContentFormat = "plain";
+                unit.ContentData = string.Empty;
+            }
+        }
+
+        private static string EnsureUniqueUnitTitle(string title, HashSet<string> existingTitles)
+        {
+            if (string.IsNullOrWhiteSpace(title))
+                title = "Note";
+            string candidate = title;
+            int i = 2;
+            while (existingTitles.Contains(candidate))
+            {
+                candidate = $"{title} ({i})";
+                i++;
+            }
+            existingTitles.Add(candidate);
+            return candidate;
+        }
+
+        private static string EnsureUniqueGroupTitle(string title, HashSet<string> existingTitles)
+        {
+            if (string.IsNullOrWhiteSpace(title))
+                title = "Group";
+            string candidate = title;
+            int i = 2;
+            while (existingTitles.Contains(candidate))
+            {
+                candidate = $"{title} ({i})";
+                i++;
+            }
+            existingTitles.Add(candidate);
+            return candidate;
+        }
+
         private GroupBox GetOrCreateGroupBox(string groupId)
         {
             Logger.Debug($"GetOrCreateGroupBox called for: {groupId}");
@@ -5437,6 +5860,7 @@ namespace Notes
                     int minY = Math.Max(0, groupBox.DisplayRectangle.Top);
                     int maxX = Math.Max(0, groupBox.ClientSize.Width);
                     int maxY = Math.Max(minY, groupBox.ClientSize.Height);
+                    bool movedAny = false;
                     foreach (Button button in groupBox.Controls.OfType<Button>())
                     {
                         int clampedX = Math.Min(Math.Max(button.Location.X, 0), maxX - button.Width);
@@ -5444,6 +5868,7 @@ namespace Notes
                         if (clampedX != button.Location.X || clampedY != button.Location.Y)
                         {
                             button.Location = new Point(clampedX, clampedY);
+                            movedAny = true;
                             string btnId = button.Tag as string;
                             if (!string.IsNullOrEmpty(btnId) && Units.ContainsKey(btnId))
                             {
@@ -5451,8 +5876,14 @@ namespace Notes
                                 unit.X = groupBox.Location.X + clampedX;
                                 unit.Y = groupBox.Location.Y + clampedY;
                                 Units[btnId] = unit;
+                                configModified = true;
                             }
                         }
+                    }
+                    if (movedAny && !resizingGroups.Contains(groupBox))
+                    {
+                        SaveStateForUndo();
+                        UpdateUndoRedoMenuState();
                     }
                 }
             }
@@ -5492,6 +5923,7 @@ namespace Notes
             var clampedLocation = ClampGroupBoxLocation(groupBox, newLocation);
             if (clampedLocation != groupBox.Location)
             {
+                suppressNextGroupMoveUndo = true;
                 SaveStateForUndo();
                 MoveGroupBoxTo(groupBox, clampedLocation);
                 configModified = true;
@@ -5533,8 +5965,10 @@ namespace Notes
                     Groups[group.Id] = group;
                 configModified = true;
             }
-            int width = Math.Max(100, group.Width);
-            int height = Math.Max(80, group.Height);
+            int maxWidth = panelContainer.ClientSize.Width > 0 ? panelContainer.ClientSize.Width : group.Width;
+            int maxHeight = panelContainer.ClientSize.Height > 0 ? panelContainer.ClientSize.Height : group.Height;
+            int width = Math.Max(100, Math.Min(group.Width, maxWidth));
+            int height = Math.Max(80, Math.Min(group.Height, maxHeight));
             if (width != group.Width || height != group.Height)
             {
                 group.Width = width;
@@ -5622,7 +6056,14 @@ namespace Notes
 
             if (currentGroupBoxDrag.Location != currentGroupBoxOriginalLocation)
             {
-                SaveStateForUndo();
+                if (suppressNextGroupMoveUndo)
+                {
+                    suppressNextGroupMoveUndo = false;
+                }
+                else
+                {
+                    SaveStateForUndo();
+                }
             }
 
             MoveGroupBoxTo(currentGroupBoxDrag, currentGroupBoxDrag.Location);
@@ -5674,12 +6115,13 @@ namespace Notes
 
         private Point ClampGroupBoxLocation(GroupBox groupBox, Point newLocation)
         {
-            int maxX = panelContainer.ClientSize.Width - groupBox.Width;
-            int maxY = panelContainer.ClientSize.Height - groupBox.Height;
-            if (maxX < 0) maxX = 0;
-            if (maxY < 0) maxY = 0;
-            newLocation.X = Math.Max(0, Math.Min(newLocation.X, maxX));
-            newLocation.Y = Math.Max(0, Math.Min(newLocation.Y, maxY));
+            var display = panelContainer.DisplayRectangle;
+            int minX = display.Left;
+            int minY = display.Top;
+            int maxX = display.Right - groupBox.Width;
+            int maxY = display.Bottom - groupBox.Height;
+            newLocation.X = Math.Max(minX, Math.Min(newLocation.X, maxX));
+            newLocation.Y = Math.Max(minY, Math.Min(newLocation.Y, maxY));
             return newLocation;
         }
 
@@ -5687,24 +6129,35 @@ namespace Notes
         {
             return new AppState
             {
-                Units = CloneUnits(Units),
+                Units = CloneUnits(Units, true),
                 Groups = CloneGroups(Groups)
             };
         }
 
         private void RestoreState(AppState state)
         {
-            Units = CloneUnits(state.Units);
+            Units = CloneUnits(state.Units, true);
             Groups = CloneGroups(state.Groups);
         }
 
-        private static Dictionary<string, UnitStruct> CloneUnits(Dictionary<string, UnitStruct> source)
+        private static Dictionary<string, UnitStruct> CloneUnits(Dictionary<string, UnitStruct> source, bool cloneFonts)
         {
             var result = new Dictionary<string, UnitStruct>(source.Count);
             foreach (var kvp in source)
             {
                 var unit = kvp.Value;
                 unit.Tags = unit.Tags?.ToArray();
+                if (cloneFonts && unit.Font != null)
+                {
+                    try
+                    {
+                        unit.Font = new Font(unit.Font.FontFamily, unit.Font.SizeInPoints, unit.Font.Style);
+                    }
+                    catch
+                    {
+                        // Keep original font reference if cloning fails
+                    }
+                }
                 result[kvp.Key] = unit;
             }
             return result;
@@ -5796,8 +6249,19 @@ namespace Notes
 
             configModified = true;
             ClearSelection();
+            selectedUnitModified = false;
             status = "Default style applied to all notes";
             UpdateUndoRedoMenuState();
+
+            foreach (Form form in Application.OpenForms)
+            {
+                if (form is frmAdd addForm)
+                    addForm.ApplyDefaultStylePreview();
+                else if (form is frmEdit editForm)
+                    editForm.ApplyDefaultStylePreview();
+                else if (form is frmSettings settingsForm)
+                    settingsForm.ApplyDefaultStylePreview();
+            }
         }
     }
 }

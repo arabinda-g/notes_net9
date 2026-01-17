@@ -149,6 +149,22 @@ namespace Notes
                     selectedGroup.Id = NotesLibrary.Instance.GenerateId();
                 }
 
+                var main = frmMain.Instance;
+                Size panelSize = main?.PanelSize ?? Size.Empty;
+                if (panelSize.Width <= 0 || panelSize.Height <= 0)
+                {
+                    panelSize = (main != null ? Screen.FromControl(main) : Screen.PrimaryScreen)?.WorkingArea.Size ?? new Size(800, 600);
+                }
+                int clampedWidth = Math.Max(100, Math.Min((int)numWidth.Value, panelSize.Width));
+                int clampedHeight = Math.Max(80, Math.Min((int)numHeight.Value, panelSize.Height));
+                numWidth.Value = clampedWidth;
+                numHeight.Value = clampedHeight;
+
+                int maxX = Math.Max(0, panelSize.Width - clampedWidth);
+                int maxY = Math.Max(0, panelSize.Height - clampedHeight);
+                numX.Value = Math.Min(Math.Max(numX.Value, 0), maxX);
+                numY.Value = Math.Min(Math.Max(numY.Value, 0), maxY);
+
                 selectedGroup.Title = tbTitle.Text.Trim();
                 selectedGroup.X = (int)numX.Value;
                 selectedGroup.Y = (int)numY.Value;

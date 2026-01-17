@@ -37,12 +37,11 @@ namespace Notes
             {
                 try
                 {
-                    // Get the directory where the exe is located
-                    string exePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
-                    string exeDir = Path.GetDirectoryName(exePath) ?? AppDomain.CurrentDomain.BaseDirectory;
+                    string logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Notes", "Logs");
+                    Directory.CreateDirectory(logDir);
                     
                     string fileName = $"Notes_{DateTime.Now:yyyyMMdd}.log";
-                    _logFilePath = Path.Combine(exeDir, fileName);
+                    _logFilePath = Path.Combine(logDir, fileName);
                     
                     _initialized = true;
                     
@@ -79,6 +78,12 @@ namespace Notes
                     string levelStr = level.ToString().ToUpper().PadRight(7);
                     string logEntry = $"[{timestamp}] [{levelStr}] {message}";
 
+                    if (!File.Exists(_logFilePath))
+                    {
+                        string logDir = Path.GetDirectoryName(_logFilePath) ?? string.Empty;
+                        if (!string.IsNullOrEmpty(logDir))
+                            Directory.CreateDirectory(logDir);
+                    }
                     File.AppendAllText(_logFilePath, logEntry + Environment.NewLine, Encoding.UTF8);
                     
                     // Also output to debug console
@@ -125,7 +130,7 @@ namespace Notes
                 {
                     try
                     {
-                        if (File.GetCreationTime(file) < cutoffDate)
+                        if (File.GetLastWriteTime(file) < cutoffDate && File.GetCreationTime(file) < cutoffDate)
                         {
                             File.Delete(file);
                             Debug($"Deleted old log file: {Path.GetFileName(file)}");
