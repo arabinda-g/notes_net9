@@ -85,7 +85,10 @@ namespace Notes
             summary = string.Empty;
 
             if (!TryOpenClipboard())
+            {
+                summary = "Clipboard is busy. Try again.";
                 return false;
+            }
 
             try
             {
@@ -357,12 +360,16 @@ namespace Notes
                     var length = Math.Max(1, data.Length);
                     var hMem = GlobalAlloc(GMEM_MOVEABLE, (UIntPtr)length);
                     if (hMem == IntPtr.Zero)
+                    {
+                        EmptyClipboard();
                         return false;
+                    }
 
                     var target = GlobalLock(hMem);
                     if (target == IntPtr.Zero)
                     {
                         GlobalFree(hMem);
+                        EmptyClipboard();
                         return false;
                     }
 
@@ -385,6 +392,7 @@ namespace Notes
                     if (SetClipboardData(formatId, hMem) == IntPtr.Zero)
                     {
                         GlobalFree(hMem);
+                        EmptyClipboard();
                         return false;
                     }
                 }
@@ -418,15 +426,7 @@ namespace Notes
 
         private static bool TryOpenClipboard()
         {
-            for (int i = 0; i < 5; i++)
-            {
-                if (OpenClipboard(IntPtr.Zero))
-                    return true;
-
-                Thread.Sleep(20);
-            }
-
-            return false;
+            return OpenClipboard(IntPtr.Zero);
         }
 
         [DllImport("user32.dll", SetLastError = true)]

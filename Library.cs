@@ -212,13 +212,16 @@ namespace Notes
 
         public string GenerateId()
         {
-            return Guid.NewGuid().ToString("N").Substring(0, 11).ToUpper();
+            return Guid.NewGuid().ToString("N").ToUpper();
         }
 
         public void CreateBackup()
         {
             try
             {
+                if (string.IsNullOrEmpty(Properties.Settings.Default.JsonData))
+                    return;
+
                 var config = Config;
                 if (!config.General.AutoBackup)
                     return;

@@ -102,7 +102,7 @@ namespace Notes
             int selectedIndex = 0;
             int currentIndex = 1;
             
-            foreach (var group in frmMain.GetGroups())
+            foreach (var group in frmMain.GetGroups().OrderBy(g => g.Value.Title))
             {
                 cmbGroup.Items.Add(new GroupComboItem { Id = group.Key, Title = group.Value.Title });
                 
@@ -557,7 +557,8 @@ namespace Notes
             }
             else
             {
-                MessageBox.Show("Unable to capture clipboard object.", NotesLibrary.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(string.IsNullOrEmpty(summary) ? "Unable to capture clipboard object." : summary, 
+                    NotesLibrary.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
 

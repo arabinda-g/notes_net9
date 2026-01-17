@@ -34,6 +34,16 @@ namespace Notes
             ThemeManager.SystemThemeChanged += OnSystemThemeChanged;
         }
 
+        protected override void OnActivated(EventArgs e)
+        {
+            base.OnActivated(e);
+            if (!hasChanges)
+            {
+                LoadConfiguration();
+                LoadControlsFromConfig();
+            }
+        }
+
         private void InitializeModernUI()
         {
             Icon = Properties.Resources.Notes;
@@ -370,6 +380,7 @@ namespace Notes
 
             if (result == DialogResult.Yes)
             {
+                frmMain.ApplyDefaultStyleToAllNotes();
                 MessageBox.Show("Default style settings have been saved. New notes will use this style.", 
                     NotesLibrary.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
@@ -526,6 +537,7 @@ namespace Notes
                 {
                     case DialogResult.Yes:
                         SaveConfiguration();
+                        this.DialogResult = DialogResult.OK;
                         break;
                     case DialogResult.Cancel:
                         e.Cancel = true;
