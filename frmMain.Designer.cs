@@ -1,4 +1,4 @@
-﻿
+
 namespace Notes
 {
     partial class frmMain
@@ -140,6 +140,8 @@ namespace Notes
             this.unitMenuAddToGroup = new System.Windows.Forms.ToolStripMenuItem();
             this.unitMenuRemoveFromGroup = new System.Windows.Forms.ToolStripMenuItem();
             this.groupMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
+            this.groupMenuAddButtonHere = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripSeparator23 = new System.Windows.Forms.ToolStripSeparator();
             this.groupMenuEdit = new System.Windows.Forms.ToolStripMenuItem();
             this.groupMenuDelete = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripSeparator16 = new System.Windows.Forms.ToolStripSeparator();
@@ -1049,6 +1051,8 @@ namespace Notes
             // 
             this.groupMenuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
             this.groupMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.groupMenuAddButtonHere,
+            this.toolStripSeparator23,
             this.groupMenuEdit,
             this.groupMenuDelete,
             this.toolStripSeparator16,
@@ -1059,6 +1063,18 @@ namespace Notes
             this.groupMenuStrip.Name = "groupMenuStrip";
             this.groupMenuStrip.Size = new System.Drawing.Size(180, 120);
             this.groupMenuStrip.Opening += new System.ComponentModel.CancelEventHandler(this.groupMenuStrip_Opening);
+            // 
+            // groupMenuAddButtonHere
+            // 
+            this.groupMenuAddButtonHere.Name = "groupMenuAddButtonHere";
+            this.groupMenuAddButtonHere.Size = new System.Drawing.Size(179, 24);
+            this.groupMenuAddButtonHere.Text = "Add Button here";
+            this.groupMenuAddButtonHere.Click += new System.EventHandler(this.groupMenuAddButtonHere_Click);
+            // 
+            // toolStripSeparator23
+            // 
+            this.toolStripSeparator23.Name = "toolStripSeparator23";
+            this.toolStripSeparator23.Size = new System.Drawing.Size(176, 6);
             // 
             // groupMenuEdit
             // 
@@ -1715,6 +1731,8 @@ namespace Notes
         private System.Windows.Forms.ToolStripMenuItem unitMenuAddToGroup;
         private System.Windows.Forms.ToolStripMenuItem unitMenuRemoveFromGroup;
         private System.Windows.Forms.ContextMenuStrip groupMenuStrip;
+        private System.Windows.Forms.ToolStripMenuItem groupMenuAddButtonHere;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator23;
         private System.Windows.Forms.ToolStripMenuItem groupMenuEdit;
         private System.Windows.Forms.ToolStripMenuItem groupMenuDelete;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator16;

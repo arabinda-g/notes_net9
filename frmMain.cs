@@ -231,6 +231,7 @@ namespace Notes
         private string previewGroupId = null;
         private int previewOriginalIndex = -1;
         private string previewCurrentGroupBoxType = null;
+        private Point lastGroupMenuLocation = Point.Empty;
         private bool unitStylePreviewActive = false;
         private string unitPreviewCurrentStyleKey = null;
         private readonly List<ButtonStylePreviewState> unitStylePreviewStates = new List<ButtonStylePreviewState>();
@@ -3140,6 +3141,53 @@ namespace Notes
             }
         }
 
+        private void groupMenuAddButtonHere_Click(object sender, EventArgs e)
+        {
+            if (groupMenuStrip.SourceControl is not GroupBox groupBox)
+                return;
+
+            string groupId = groupBox.Tag as string;
+            if (string.IsNullOrEmpty(groupId) || !Groups.ContainsKey(groupId))
+                return;
+
+            using var addForm = new frmAdd();
+            selectedUnitModified = false;
+            addForm.ShowDialog();
+
+            if (selectedUnitModified)
+            {
+                SaveStateForUndo();
+                selectedUnitModified = false;
+                var id = getNewId();
+
+                var unit = selectedUnit;
+                Point relativePos = lastGroupMenuLocation;
+                if (relativePos == Point.Empty)
+                {
+                    relativePos = new Point(10, Math.Max(10, groupBox.DisplayRectangle.Top + 10));
+                }
+
+                int minX = 0;
+                int minY = Math.Max(0, groupBox.DisplayRectangle.Top);
+                if (relativePos.X < minX)
+                    relativePos.X = minX;
+                if (relativePos.Y < minY)
+                    relativePos.Y = minY;
+
+                unit.GroupId = groupId;
+                unit.X = groupBox.Location.X + relativePos.X;
+                unit.Y = groupBox.Location.Y + relativePos.Y;
+
+                Units.Add(id, unit);
+                addButton(id, unit);
+                selectedUnit = new UnitStruct();
+
+                configModified = true;
+                status = "New button added to group";
+                UpdateUndoRedoMenuState();
+            }
+        }
+
         private void groupMenuDelete_Click(object sender, EventArgs e)
         {
             ContextMenuStrip contextMenu = (sender as ToolStripMenuItem)?.Owner as ContextMenuStrip;
@@ -3412,6 +3460,8 @@ namespace Notes
             // Get the group box that triggered the context menu
             if (groupMenuStrip.SourceControl is GroupBox groupBox)
             {
+                lastGroupMenuLocation = groupBox.PointToClient(Cursor.Position);
+
                 string groupId = groupBox.Tag as string;
                 if (!string.IsNullOrEmpty(groupId) && Groups.ContainsKey(groupId))
                 {
