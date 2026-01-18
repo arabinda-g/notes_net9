@@ -44,6 +44,11 @@ namespace Notes
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
 
+            using (SolidBrush clearBrush = new SolidBrush(Parent?.BackColor ?? BackColor))
+            {
+                g.FillRectangle(clearBrush, ClientRectangle);
+            }
+
             Rectangle rect = new Rectangle(0, 0, Width - 1, Height - 1);
 
             // Draw shadow
@@ -595,6 +600,11 @@ namespace Notes
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
 
+            using (SolidBrush clearBrush = new SolidBrush(Parent?.BackColor ?? BackColor))
+            {
+                g.FillRectangle(clearBrush, ClientRectangle);
+            }
+
             int shadowOffset = _isHovered ? 8 : 4;
             Rectangle rect = new Rectangle(2, 2, Width - shadowOffset - 2, Height - shadowOffset - 2);
 
@@ -726,6 +736,11 @@ namespace Notes
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
 
+            using (SolidBrush clearBrush = new SolidBrush(Parent?.BackColor ?? BackColor))
+            {
+                g.FillRectangle(clearBrush, ClientRectangle);
+            }
+
             int yOffset = _isPressed ? 2 : 0;
             Rectangle rect = new Rectangle(1, 1 + yOffset, Width - 3, Height - 3);
             int radius = Math.Min(rect.Width, rect.Height) / 2;
@@ -803,6 +818,7 @@ namespace Notes
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+            g.Clear(Parent?.BackColor ?? BackColor);
 
             Rectangle rect = new Rectangle(3, 3, Width - 7, Height - 7);
 
