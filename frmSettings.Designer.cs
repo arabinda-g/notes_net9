@@ -1,4 +1,4 @@
-﻿
+
 namespace Notes
 {
     partial class frmSettings
@@ -54,6 +54,8 @@ namespace Notes
             this.groupBoxTheme = new System.Windows.Forms.GroupBox();
             this.cmbTheme = new System.Windows.Forms.ComboBox();
             this.lblTheme = new System.Windows.Forms.Label();
+            this.lblConfigPathTitle = new System.Windows.Forms.Label();
+            this.lblConfigPathValue = new System.Windows.Forms.Label();
             this.tabHotkeys = new System.Windows.Forms.TabPage();
             this.groupBoxGlobalHotkeys = new System.Windows.Forms.GroupBox();
             this.clbHotkeyModifier = new System.Windows.Forms.CheckedListBox();
@@ -180,6 +182,8 @@ namespace Notes
             // tabGeneral
             // 
             this.tabGeneral.Controls.Add(this.groupBoxTheme);
+            this.tabGeneral.Controls.Add(this.lblConfigPathValue);
+            this.tabGeneral.Controls.Add(this.lblConfigPathTitle);
             this.tabGeneral.Controls.Add(this.groupBoxSystemTray);
             this.tabGeneral.Controls.Add(this.groupBoxConfirmation);
             this.tabGeneral.Controls.Add(this.groupBoxAutoSave);
@@ -388,6 +392,24 @@ namespace Notes
             this.lblTheme.Size = new System.Drawing.Size(88, 13);
             this.lblTheme.TabIndex = 0;
             this.lblTheme.Text = "Application theme:";
+            // 
+            // lblConfigPathTitle
+            // 
+            this.lblConfigPathTitle.AutoSize = true;
+            this.lblConfigPathTitle.Location = new System.Drawing.Point(11, 265);
+            this.lblConfigPathTitle.Name = "lblConfigPathTitle";
+            this.lblConfigPathTitle.Size = new System.Drawing.Size(104, 13);
+            this.lblConfigPathTitle.TabIndex = 4;
+            this.lblConfigPathTitle.Text = "Config file location:";
+            // 
+            // lblConfigPathValue
+            // 
+            this.lblConfigPathValue.AutoEllipsis = true;
+            this.lblConfigPathValue.Location = new System.Drawing.Point(11, 285);
+            this.lblConfigPathValue.Name = "lblConfigPathValue";
+            this.lblConfigPathValue.Size = new System.Drawing.Size(659, 40);
+            this.lblConfigPathValue.TabIndex = 5;
+            this.lblConfigPathValue.Text = " ";
             // 
             // tabHotkeys
             // 
@@ -967,6 +989,8 @@ namespace Notes
         private System.Windows.Forms.GroupBox groupBoxTheme;
         private System.Windows.Forms.ComboBox cmbTheme;
         private System.Windows.Forms.Label lblTheme;
+        private System.Windows.Forms.Label lblConfigPathTitle;
+        private System.Windows.Forms.Label lblConfigPathValue;
         
         // Hotkeys Tab
         private System.Windows.Forms.TabPage tabHotkeys;

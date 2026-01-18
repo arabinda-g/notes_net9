@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -11,6 +11,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Diagnostics;
+using System.Configuration;
 
 namespace Notes
 {
@@ -138,10 +139,27 @@ namespace Notes
             cmbLogLevel.Items.Add("Debug");
             cmbLogLevel.SelectedIndex = 0;
 
+            SetConfigPathText();
+
             // Add event handlers for dependent controls
             chkAutoSave.CheckedChanged += ChkAutoSave_CheckedChanged;
             chkShowTrayIcon.CheckedChanged += ChkShowTrayIcon_CheckedChanged;
             cmbTheme.SelectedIndexChanged += CmbTheme_SelectedIndexChanged;
+        }
+
+        private void SetConfigPathText()
+        {
+            try
+            {
+                string configPath = ConfigurationManager
+                    .OpenExeConfiguration(ConfigurationUserLevel.PerUserRoamingAndLocal)
+                    .FilePath;
+                lblConfigPathValue.Text = string.IsNullOrWhiteSpace(configPath) ? "Unavailable" : configPath;
+            }
+            catch
+            {
+                lblConfigPathValue.Text = "Unavailable";
+            }
         }
 
         private void ChkAutoSave_CheckedChanged(object sender, EventArgs e)
