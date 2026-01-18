@@ -38,6 +38,19 @@ namespace Notes
             set { _gradientBottom = value; Invalidate(); }
         }
 
+        protected override void OnResize(EventArgs e)
+        {
+            base.OnResize(e);
+            Rectangle rect = new Rectangle(0, 0, Width - 1, Height - 1);
+            if (rect.Width > 0 && rect.Height > 0)
+            {
+                using (GraphicsPath path = CreateRoundedRectangle(rect, 8))
+                {
+                    Region = new Region(path);
+                }
+            }
+        }
+
         protected override void OnPaint(PaintEventArgs e)
         {
             Graphics g = e.Graphics;
@@ -153,6 +166,11 @@ namespace Notes
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+
+            using (SolidBrush clearBrush = new SolidBrush(Parent?.BackColor ?? BackColor))
+            {
+                g.FillRectangle(clearBrush, ClientRectangle);
+            }
 
             Rectangle rect = new Rectangle(4, 4, Width - 9, Height - 9);
 
@@ -503,10 +521,23 @@ namespace Notes
     {
         private bool _isPressed = false;
 
+        protected override void OnResize(EventArgs e)
+        {
+            base.OnResize(e);
+            int offset = _isPressed ? 4 : 0;
+            int depth = 6;
+            Rectangle mainRect = new Rectangle(offset, offset, Width - depth - 1, Height - depth - 1);
+            if (mainRect.Width > 0 && mainRect.Height > 0)
+            {
+                Region = new Region(mainRect);
+            }
+        }
+
         protected override void OnMouseDown(MouseEventArgs e)
         {
             base.OnMouseDown(e);
             _isPressed = true;
+            OnResize(EventArgs.Empty);
             Invalidate();
         }
 
@@ -514,6 +545,7 @@ namespace Notes
         {
             base.OnMouseUp(e);
             _isPressed = false;
+            OnResize(EventArgs.Empty);
             Invalidate();
         }
 
@@ -716,10 +748,26 @@ namespace Notes
     {
         private bool _isPressed = false;
 
+        protected override void OnResize(EventArgs e)
+        {
+            base.OnResize(e);
+            int yOffset = _isPressed ? 2 : 0;
+            Rectangle rect = new Rectangle(1, 1 + yOffset, Width - 3, Height - 3);
+            if (rect.Width > 0 && rect.Height > 0)
+            {
+                int radius = Math.Min(rect.Width, rect.Height) / 2;
+                using (GraphicsPath path = CreatePillShape(rect, radius))
+                {
+                    Region = new Region(path);
+                }
+            }
+        }
+
         protected override void OnMouseDown(MouseEventArgs e)
         {
             base.OnMouseDown(e);
             _isPressed = true;
+            OnResize(EventArgs.Empty);
             Invalidate();
         }
 
@@ -727,6 +775,7 @@ namespace Notes
         {
             base.OnMouseUp(e);
             _isPressed = false;
+            OnResize(EventArgs.Empty);
             Invalidate();
         }
 
@@ -799,6 +848,19 @@ namespace Notes
     {
         private bool _isPressed = false;
 
+        protected override void OnResize(EventArgs e)
+        {
+            base.OnResize(e);
+            Rectangle rect = new Rectangle(3, 3, Width - 7, Height - 7);
+            if (rect.Width > 0 && rect.Height > 0)
+            {
+                using (GraphicsPath path = CreateRoundedRectangle(rect, 8))
+                {
+                    Region = new Region(path);
+                }
+            }
+        }
+
         protected override void OnMouseDown(MouseEventArgs e)
         {
             base.OnMouseDown(e);
@@ -818,7 +880,7 @@ namespace Notes
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
-            g.Clear(Parent?.BackColor ?? BackColor);
+            base.OnPaintBackground(e);
 
             Rectangle rect = new Rectangle(3, 3, Width - 7, Height - 7);
 
