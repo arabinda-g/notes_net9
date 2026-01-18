@@ -179,6 +179,30 @@ namespace Notes
             public int BorderSize;
         }
 
+        private class ButtonPropertySnapshot
+        {
+            public Color BackColor { get; set; }
+            public Color ForeColor { get; set; }
+            public Font Font { get; set; }
+            public FlatStyle FlatStyle { get; set; }
+            public Color BorderColor { get; set; }
+            public int BorderSize { get; set; }
+            public Padding Padding { get; set; }
+            public Size MinimumSize { get; set; }
+            public bool AutoSize { get; set; }
+            public AutoSizeMode AutoSizeMode { get; set; }
+        }
+
+        private class ButtonStylePreviewState
+        {
+            public Button OriginalButton { get; set; }
+            public Button PreviewButton { get; set; }
+            public Control Parent { get; set; }
+            public int ParentIndex { get; set; }
+            public bool WasSelected { get; set; }
+            public ButtonPropertySnapshot OriginalProperties { get; set; }
+        }
+
         private Dictionary<Button, SelectionStyle> selectionOriginalStyles = new Dictionary<Button, SelectionStyle>();
         private HashSet<GroupBox> resizingGroups = new HashSet<GroupBox>();
         private static readonly Random random = new Random();
@@ -207,6 +231,10 @@ namespace Notes
         private string previewGroupId = null;
         private int previewOriginalIndex = -1;
         private string previewCurrentGroupBoxType = null;
+        private bool unitStylePreviewActive = false;
+        private string unitPreviewCurrentStyleKey = null;
+        private readonly List<ButtonStylePreviewState> unitStylePreviewStates = new List<ButtonStylePreviewState>();
+        private readonly HashSet<Font> unitStylePreviewFonts = new HashSet<Font>();
 
         // Copy functionality
         public static UnitStruct? copiedUnit = null;
@@ -276,6 +304,7 @@ namespace Notes
             panelContainer.DragDrop += panelContainer_DragDrop;
             panelContainer.AllowDrop = true;
             RegisterGroupStylePreviewHandlers();
+            RegisterUnitStylePreviewHandlers();
             
             // Enable double buffering to prevent visual artifacts when drawing selection rectangle
             typeof(Control).GetProperty("DoubleBuffered", 
@@ -1496,6 +1525,11 @@ namespace Notes
                     if (contextMenu != null)
                     {
                         Button btn = contextMenu.SourceControl as Button;
+                        if (contextMenu == unitMenuStrip && unitStylePreviewActive)
+                        {
+                            btn = ResolvePreviewOriginalButton(btn);
+                            EndUnitStylePreview();
+                        }
                         if (btn != null)
                         {
                             return new ContextMenuInfo { Button = btn, Id = (string)btn.Tag };
@@ -3727,8 +3761,495 @@ namespace Notes
             };
         }
 
+        private void unitMenuStrip_Closing(object sender, ToolStripDropDownClosingEventArgs e)
+        {
+            EndUnitStylePreview();
+        }
+
+        private void RegisterUnitStylePreviewHandlers()
+        {
+            foreach (ToolStripItem item in unitMenuStyles.DropDownItems)
+            {
+                if (item is ToolStripMenuItem menuItem && menuItem != unitMenuStyleRandom)
+                {
+                    menuItem.MouseEnter += unitMenuStyle_PreviewMouseEnter;
+                }
+            }
+
+            unitMenuStrip.Closing += unitMenuStrip_Closing;
+        }
+
+        private void unitMenuStyle_PreviewMouseEnter(object sender, EventArgs e)
+        {
+            if (sender is ToolStripMenuItem menuItem)
+            {
+                BeginUnitStylePreview(menuItem);
+            }
+        }
+
+        private void BeginUnitStylePreview(ToolStripMenuItem menuItem)
+        {
+            if (menuItem == null || unitMenuStrip.SourceControl is not Button)
+                return;
+
+            if (unitStylePreviewActive && string.Equals(unitPreviewCurrentStyleKey, menuItem.Name, StringComparison.Ordinal))
+                return;
+
+            EndUnitStylePreview();
+
+            var contextInfo = getContextMenuInfo(menuItem);
+            PreviewUnitStyleByMenuItem(menuItem, contextInfo?.Button);
+        }
+
+        private void PreviewUnitStyleByMenuItem(ToolStripMenuItem menuItem, Button specificButton)
+        {
+            if (menuItem == null)
+                return;
+
+            unitPreviewCurrentStyleKey = menuItem.Name;
+
+            switch (menuItem.Name)
+            {
+                case "unitMenuStyleClassic":
+                    PreviewStandardStyle(Color.LightSteelBlue, Color.DarkBlue, CreatePreviewFont("Segoe UI", 9f, FontStyle.Regular), specificButton);
+                    break;
+                case "unitMenuStylePastel":
+                    PreviewStandardStyle(Color.LightPink, Color.DarkRed, CreatePreviewFont("Segoe UI", 9f, FontStyle.Regular), specificButton);
+                    break;
+                case "unitMenuStyleDark":
+                    PreviewStandardStyle(Color.FromArgb(45, 45, 48), Color.WhiteSmoke, CreatePreviewFont("Consolas", 9f, FontStyle.Regular), specificButton);
+                    break;
+                case "unitMenuStyleNeon":
+                    PreviewStandardStyle(Color.FromArgb(57, 255, 20), Color.Black, CreatePreviewFont("Segoe UI", 9f, FontStyle.Bold), specificButton);
+                    break;
+                case "unitMenuStyleEarth":
+                    PreviewStandardStyle(Color.FromArgb(210, 180, 140), Color.FromArgb(101, 67, 33), CreatePreviewFont("Georgia", 9f, FontStyle.Regular), specificButton);
+                    break;
+                case "unitMenuStyleOcean":
+                    PreviewStandardStyle(Color.FromArgb(0, 119, 190), Color.White, CreatePreviewFont("Segoe UI", 9f, FontStyle.Regular), specificButton);
+                    break;
+                case "unitMenuStyleSunset":
+                    PreviewStandardStyle(Color.FromArgb(255, 140, 0), Color.White, CreatePreviewFont("Segoe UI", 9f, FontStyle.Bold), specificButton);
+                    break;
+                case "unitMenuStyleMonochrome":
+                    PreviewStandardStyle(Color.White, Color.Black, CreatePreviewFont("Arial", 9f, FontStyle.Regular), specificButton);
+                    break;
+                case "unitMenuStyleVibrant":
+                    PreviewStandardStyle(Color.FromArgb(138, 43, 226), Color.White, CreatePreviewFont("Segoe UI", 9f, FontStyle.Bold), specificButton);
+                    break;
+                case "unitMenuStyleGradient":
+                    PreviewCustomStyle<GradientButton>(
+                        Color.FromArgb(100, 149, 237),
+                        Color.White,
+                        CreatePreviewFont("Segoe UI", 9.5f, FontStyle.Bold),
+                        btn =>
+                        {
+                            btn.GradientTop = Color.FromArgb(100, 149, 237);
+                            btn.GradientBottom = Color.FromArgb(65, 105, 225);
+                        },
+                        specificButton
+                    );
+                    break;
+                case "unitMenuStyleGloss":
+                    PreviewCustomStyle<GradientButton>(
+                        Color.FromArgb(70, 130, 180),
+                        Color.White,
+                        CreatePreviewFont("Segoe UI", 10f, FontStyle.Bold),
+                        btn =>
+                        {
+                            btn.GradientTop = Color.FromArgb(135, 206, 250);
+                            btn.GradientBottom = Color.FromArgb(25, 25, 112);
+                        },
+                        specificButton
+                    );
+                    break;
+                case "unitMenuStyleEmbossed":
+                    PreviewCustomStyle<NeumorphismButton>(
+                        Color.FromArgb(230, 230, 230),
+                        Color.FromArgb(60, 60, 60),
+                        CreatePreviewFont("Segoe UI", 9f, FontStyle.Bold),
+                        null,
+                        specificButton
+                    );
+                    break;
+                case "unitMenuStyleRaised":
+                    PreviewCustomStyle<MaterialButton>(
+                        Color.FromArgb(33, 150, 243),
+                        Color.White,
+                        CreatePreviewFont("Segoe UI", 9.5f, FontStyle.Regular),
+                        null,
+                        specificButton
+                    );
+                    break;
+                case "unitMenuStyleInset":
+                    PreviewCustomStyle<Retro3DButton>(
+                        Color.FromArgb(255, 20, 147),
+                        Color.White,
+                        CreatePreviewFont("Impact", 10f, FontStyle.Bold),
+                        null,
+                        specificButton
+                    );
+                    break;
+                case "unitMenuStyleRetro":
+                    PreviewCustomStyle<Retro3DButton>(
+                        Color.FromArgb(255, 20, 147),
+                        Color.FromArgb(255, 255, 0),
+                        CreatePreviewFont("Impact", 10f, FontStyle.Bold),
+                        null,
+                        specificButton
+                    );
+                    break;
+                case "unitMenuStyleCyber":
+                    PreviewCustomStyle<NeonGlowButton>(
+                        Color.FromArgb(20, 20, 35),
+                        Color.FromArgb(0, 255, 255),
+                        CreatePreviewFont("Consolas", 9.5f, FontStyle.Bold),
+                        btn =>
+                        {
+                            btn.GlowColor = Color.FromArgb(255, 0, 255);
+                        },
+                        specificButton
+                    );
+                    break;
+                case "unitMenuStyleGlass":
+                    PreviewCustomStyle<GlassMorphismButton>(
+                        Color.FromArgb(240, 248, 255),
+                        Color.FromArgb(70, 130, 180),
+                        CreatePreviewFont("Segoe UI", 9f, FontStyle.Regular),
+                        null,
+                        specificButton
+                    );
+                    break;
+                case "unitMenuStyleNeonGlow":
+                    PreviewCustomStyle<NeonGlowButton>(
+                        Color.FromArgb(10, 10, 20),
+                        Color.FromArgb(0, 255, 127),
+                        CreatePreviewFont("Arial", 10f, FontStyle.Bold),
+                        btn =>
+                        {
+                            btn.GlowColor = Color.FromArgb(0, 255, 127);
+                        },
+                        specificButton
+                    );
+                    break;
+                case "unitMenuStyleGolden":
+                    PreviewCustomStyle<GradientButton>(
+                        Color.FromArgb(255, 215, 0),
+                        Color.FromArgb(139, 69, 19),
+                        CreatePreviewFont("Georgia", 10f, FontStyle.Bold),
+                        btn =>
+                        {
+                            btn.GradientTop = Color.FromArgb(255, 223, 0);
+                            btn.GradientBottom = Color.FromArgb(218, 165, 32);
+                        },
+                        specificButton
+                    );
+                    break;
+                case "unitMenuStyleMinimal":
+                    PreviewCustomStyle<OutlineButton>(
+                        Color.White,
+                        Color.FromArgb(100, 100, 100),
+                        CreatePreviewFont("Segoe UI", 9f, FontStyle.Regular),
+                        null,
+                        specificButton
+                    );
+                    break;
+                case "unitMenuStyleBold":
+                    PreviewCustomStyle<SkeuomorphicButton>(
+                        Color.FromArgb(220, 20, 60),
+                        Color.White,
+                        CreatePreviewFont("Arial Black", 10f, FontStyle.Bold),
+                        null,
+                        specificButton
+                    );
+                    break;
+                case "unitMenuStyleElegant":
+                    PreviewCustomStyle<PremiumCardButton>(
+                        Color.FromArgb(245, 245, 220),
+                        Color.FromArgb(75, 0, 130),
+                        CreatePreviewFont("Times New Roman", 10f, FontStyle.Italic),
+                        null,
+                        specificButton
+                    );
+                    break;
+                case "unitMenuStylePlayful":
+                    PreviewCustomStyle<PillButton>(
+                        Color.FromArgb(255, 182, 193),
+                        Color.FromArgb(255, 20, 147),
+                        CreatePreviewFont("Comic Sans MS", 10f, FontStyle.Bold),
+                        null,
+                        specificButton
+                    );
+                    break;
+                case "unitMenuStyleProfessional":
+                    PreviewCustomStyle<MaterialButton>(
+                        Color.FromArgb(96, 125, 139),
+                        Color.White,
+                        CreatePreviewFont("Calibri", 9.5f, FontStyle.Regular),
+                        null,
+                        specificButton
+                    );
+                    break;
+            }
+        }
+
+        private Font CreatePreviewFont(string familyName, float emSize, FontStyle style)
+        {
+            var font = new Font(familyName, emSize, style);
+            unitStylePreviewFonts.Add(font);
+            return font;
+        }
+
+        private void PreviewStandardStyle(Color backgroundColor, Color textColor, Font font, Button specificButton)
+        {
+            var buttonsToStyle = GetButtonsForStylePreview(specificButton);
+            if (buttonsToStyle.Count == 0)
+                return;
+
+            foreach (var btn in buttonsToStyle)
+            {
+                if (btn.GetType() != typeof(DoubleClickButton))
+                {
+                    var previewButton = new DoubleClickButton();
+                    ReplaceButtonForPreview(btn, previewButton, backgroundColor, textColor, font, false, null);
+                }
+                else
+                {
+                    var snapshot = CaptureButtonProperties(btn);
+                    unitStylePreviewStates.Add(new ButtonStylePreviewState
+                    {
+                        OriginalButton = btn,
+                        PreviewButton = null,
+                        Parent = btn.Parent,
+                        ParentIndex = btn.Parent?.Controls.GetChildIndex(btn) ?? -1,
+                        WasSelected = selectedButtons.Contains(btn),
+                        OriginalProperties = snapshot
+                    });
+
+                    btn.BackColor = backgroundColor;
+                    btn.ForeColor = textColor;
+                    btn.Font = font;
+                    btn.FlatStyle = FlatStyle.Standard;
+                    btn.Invalidate();
+
+                    if (selectedButtons.Contains(btn))
+                        UpdateButtonSelectionVisual(btn, true);
+                }
+            }
+
+            unitStylePreviewActive = true;
+        }
+
+        private void PreviewCustomStyle<T>(Color backgroundColor, Color textColor, Font font, Action<T> customizer, Button specificButton) where T : Button, new()
+        {
+            var buttonsToReplace = GetButtonsForStylePreview(specificButton);
+            if (buttonsToReplace.Count == 0)
+                return;
+
+            foreach (var btn in buttonsToReplace)
+            {
+                var previewButton = new T();
+                ReplaceButtonForPreview(btn, previewButton, backgroundColor, textColor, font, true, customizer);
+            }
+
+            unitStylePreviewActive = true;
+        }
+
+        private List<Button> GetButtonsForStylePreview(Button specificButton)
+        {
+            if (specificButton != null && selectedButtons.Count > 0 && selectedButtons.Contains(specificButton))
+                return selectedButtons.ToList();
+            if (specificButton != null)
+                return new List<Button> { specificButton };
+            if (selectedButtons.Count > 0)
+                return selectedButtons.ToList();
+            return new List<Button>();
+        }
+
+        private ButtonPropertySnapshot CaptureButtonProperties(Button btn)
+        {
+            return new ButtonPropertySnapshot
+            {
+                BackColor = btn.BackColor,
+                ForeColor = btn.ForeColor,
+                Font = btn.Font,
+                FlatStyle = btn.FlatStyle,
+                BorderColor = btn.FlatAppearance.BorderColor,
+                BorderSize = btn.FlatAppearance.BorderSize,
+                Padding = btn.Padding,
+                MinimumSize = btn.MinimumSize,
+                AutoSize = btn.AutoSize,
+                AutoSizeMode = btn.AutoSizeMode
+            };
+        }
+
+        private void RestoreButtonProperties(Button btn, ButtonPropertySnapshot snapshot)
+        {
+            if (btn == null || snapshot == null)
+                return;
+
+            btn.BackColor = snapshot.BackColor;
+            btn.ForeColor = snapshot.ForeColor;
+            btn.Font = snapshot.Font;
+            btn.FlatStyle = snapshot.FlatStyle;
+            btn.FlatAppearance.BorderColor = snapshot.BorderColor;
+            btn.FlatAppearance.BorderSize = snapshot.BorderSize;
+            btn.Padding = snapshot.Padding;
+            btn.MinimumSize = snapshot.MinimumSize;
+            btn.AutoSize = snapshot.AutoSize;
+            btn.AutoSizeMode = snapshot.AutoSizeMode;
+            btn.Invalidate();
+        }
+
+        private void ReplaceButtonForPreview<T>(Button originalButton, T previewButton, Color backgroundColor, Color textColor, Font font, bool isCustomButton, Action<T> customizer) where T : Button
+        {
+            if (originalButton == null || previewButton == null)
+                return;
+
+            var parent = originalButton.Parent;
+            int parentIndex = parent?.Controls.GetChildIndex(originalButton) ?? -1;
+            bool wasSelected = selectedButtons.Contains(originalButton);
+
+            unitStylePreviewStates.Add(new ButtonStylePreviewState
+            {
+                OriginalButton = originalButton,
+                PreviewButton = previewButton,
+                Parent = parent,
+                ParentIndex = parentIndex,
+                WasSelected = wasSelected,
+                OriginalProperties = null
+            });
+
+            if (wasSelected)
+            {
+                UpdateButtonSelectionVisual(originalButton, false);
+                selectedButtons.Remove(originalButton);
+            }
+
+            if (originalButton.Tag is string id)
+                buttonById[id] = previewButton;
+
+            parent?.Controls.Remove(originalButton);
+
+            ConfigurePreviewButton(previewButton, originalButton, backgroundColor, textColor, font, isCustomButton);
+            customizer?.Invoke(previewButton);
+
+            if (parent != null)
+            {
+                parent.Controls.Add(previewButton);
+                if (parentIndex >= 0)
+                    parent.Controls.SetChildIndex(previewButton, parentIndex);
+            }
+
+            if (wasSelected)
+            {
+                selectedButtons.Add(previewButton);
+                UpdateButtonSelectionVisual(previewButton, true);
+            }
+        }
+
+        private void ConfigurePreviewButton(Button previewButton, Button originalButton, Color backgroundColor, Color textColor, Font font, bool isCustomButton)
+        {
+            previewButton.Tag = originalButton.Tag;
+            previewButton.Text = originalButton.Text;
+            previewButton.BackColor = backgroundColor;
+            previewButton.ForeColor = textColor;
+            previewButton.Font = font;
+            previewButton.Location = originalButton.Location;
+            previewButton.AutoSize = true;
+            previewButton.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            previewButton.ContextMenuStrip = unitMenuStrip;
+            previewButton.Cursor = Cursors.Hand;
+
+            if (isCustomButton)
+            {
+                previewButton.Padding = new Padding(12, 8, 12, 8);
+                previewButton.MinimumSize = new Size(80, 40);
+            }
+
+            previewButton.Click += newButton_Click;
+            previewButton.DoubleClick += newButton_DoubleClick;
+            previewButton.MouseUp += newButton_MouseUp;
+            previewButton.MouseDown += newButton_MouseDown;
+            previewButton.MouseMove += newButton_MouseMove;
+            previewButton.PreviewKeyDown += newButton_PreviewKeyDown;
+            previewButton.KeyDown += newButton_KeyDown;
+            previewButton.KeyUp += newButton_KeyUp;
+        }
+
+        private void EndUnitStylePreview()
+        {
+            if (!unitStylePreviewActive)
+                return;
+
+            foreach (var state in unitStylePreviewStates)
+            {
+                if (state.PreviewButton != null)
+                {
+                    if (selectedButtons.Contains(state.PreviewButton))
+                    {
+                        UpdateButtonSelectionVisual(state.PreviewButton, false);
+                        selectedButtons.Remove(state.PreviewButton);
+                    }
+
+                    state.Parent?.Controls.Remove(state.PreviewButton);
+
+                    if (state.OriginalButton != null && state.Parent != null && !state.Parent.Controls.Contains(state.OriginalButton))
+                    {
+                        state.Parent.Controls.Add(state.OriginalButton);
+                        if (state.ParentIndex >= 0)
+                            state.Parent.Controls.SetChildIndex(state.OriginalButton, state.ParentIndex);
+                    }
+
+                    if (state.OriginalButton?.Tag is string id)
+                        buttonById[id] = state.OriginalButton;
+
+                    if (state.WasSelected && state.OriginalButton != null)
+                    {
+                        selectedButtons.Add(state.OriginalButton);
+                        UpdateButtonSelectionVisual(state.OriginalButton, true);
+                    }
+
+                    state.OriginalButton?.BringToFront();
+                    state.PreviewButton.Dispose();
+                }
+                else if (state.OriginalButton != null)
+                {
+                    RestoreButtonProperties(state.OriginalButton, state.OriginalProperties);
+                    if (state.WasSelected)
+                        UpdateButtonSelectionVisual(state.OriginalButton, true);
+                }
+            }
+
+            foreach (var font in unitStylePreviewFonts)
+            {
+                font.Dispose();
+            }
+
+            unitStylePreviewFonts.Clear();
+            unitStylePreviewStates.Clear();
+            unitStylePreviewActive = false;
+            unitPreviewCurrentStyleKey = null;
+        }
+
+        private Button ResolvePreviewOriginalButton(Button sourceButton)
+        {
+            if (sourceButton == null || !unitStylePreviewActive)
+                return sourceButton;
+
+            foreach (var state in unitStylePreviewStates)
+            {
+                if (ReferenceEquals(state.PreviewButton, sourceButton))
+                    return state.OriginalButton;
+            }
+
+            return sourceButton;
+        }
+
         private void unitMenuStrip_Opening(object sender, System.ComponentModel.CancelEventArgs e)
         {
+            EndUnitStylePreview();
+
             // Get the button that triggered the context menu
             if (unitMenuStrip.SourceControl is Button btn)
             {
