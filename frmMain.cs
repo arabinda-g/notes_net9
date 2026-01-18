@@ -201,6 +201,12 @@ namespace Notes
         private bool isMovingGroup = false;
         private Point groupMoveStart;
         private Dictionary<Button, Point> groupOriginalPositions = new Dictionary<Button, Point>();
+        private bool groupStylePreviewActive = false;
+        private GroupBox previewOriginalGroupBox = null;
+        private GroupBox previewGroupBox = null;
+        private string previewGroupId = null;
+        private int previewOriginalIndex = -1;
+        private string previewCurrentGroupBoxType = null;
 
         // Copy functionality
         public static UnitStruct? copiedUnit = null;
@@ -269,6 +275,7 @@ namespace Notes
             panelContainer.DragEnter += panelContainer_DragEnter;
             panelContainer.DragDrop += panelContainer_DragDrop;
             panelContainer.AllowDrop = true;
+            RegisterGroupStylePreviewHandlers();
             
             // Enable double buffering to prevent visual artifacts when drawing selection rectangle
             typeof(Control).GetProperty("DoubleBuffered", 
@@ -3366,6 +3373,8 @@ namespace Notes
 
         private void groupMenuStrip_Opening(object sender, System.ComponentModel.CancelEventArgs e)
         {
+            EndGroupStylePreview();
+
             // Get the group box that triggered the context menu
             if (groupMenuStrip.SourceControl is GroupBox groupBox)
             {
@@ -3525,6 +3534,199 @@ namespace Notes
             }
         }
 
+        private void groupMenuStrip_Closing(object sender, ToolStripDropDownClosingEventArgs e)
+        {
+            EndGroupStylePreview();
+        }
+
+        private void RegisterGroupStylePreviewHandlers()
+        {
+            foreach (ToolStripItem item in groupMenuStyles.DropDownItems)
+            {
+                if (item is ToolStripMenuItem menuItem && menuItem != groupMenuStyleRandom)
+                {
+                    menuItem.MouseEnter += groupMenuStyle_PreviewMouseEnter;
+                }
+            }
+
+            groupMenuStrip.Closing += groupMenuStrip_Closing;
+        }
+
+        private void groupMenuStyle_PreviewMouseEnter(object sender, EventArgs e)
+        {
+            if (sender is ToolStripMenuItem menuItem)
+            {
+                BeginGroupStylePreview(menuItem);
+            }
+        }
+
+        private void BeginGroupStylePreview(ToolStripMenuItem menuItem)
+        {
+            if (menuItem == null || groupMenuStrip.SourceControl is not GroupBox sourceGroupBox)
+                return;
+
+            string groupId = sourceGroupBox.Tag as string;
+            if (string.IsNullOrEmpty(groupId) || !Groups.ContainsKey(groupId))
+                return;
+
+            string groupBoxType = GetGroupBoxTypeFromMenuItem(menuItem);
+            string normalizedType = NormalizeGroupBoxType(groupBoxType);
+
+            if (groupStylePreviewActive)
+            {
+                if (!string.Equals(previewGroupId, groupId, StringComparison.Ordinal))
+                {
+                    EndGroupStylePreview();
+                }
+                else if (string.Equals(previewCurrentGroupBoxType, normalizedType, StringComparison.Ordinal))
+                {
+                    return;
+                }
+            }
+
+            if (!groupStylePreviewActive)
+            {
+                previewOriginalGroupBox = sourceGroupBox;
+                previewGroupId = groupId;
+                previewOriginalIndex = panelContainer.Controls.GetChildIndex(sourceGroupBox);
+            }
+
+            GroupBox baseGroupBox = groupStylePreviewActive ? previewGroupBox : previewOriginalGroupBox;
+            if (baseGroupBox == null)
+                return;
+
+            var buttons = baseGroupBox.Controls.OfType<Button>().ToList();
+            foreach (var btn in buttons)
+            {
+                baseGroupBox.Controls.Remove(btn);
+            }
+
+            if (groupStylePreviewActive && previewGroupBox != null)
+            {
+                panelContainer.Controls.Remove(previewGroupBox);
+                previewGroupBox.Dispose();
+                previewGroupBox = null;
+            }
+            else
+            {
+                panelContainer.Controls.Remove(previewOriginalGroupBox);
+            }
+
+            var group = Groups[groupId];
+            var newGroupBox = CreateGroupBoxByType(groupBoxType);
+            newGroupBox.Tag = groupId;
+            newGroupBox.Text = previewOriginalGroupBox.Text;
+            newGroupBox.Location = previewOriginalGroupBox.Location;
+            newGroupBox.Size = previewOriginalGroupBox.Size;
+            ApplyGroupBoxColors(newGroupBox, group);
+
+            newGroupBox.MouseDown += GroupBox_MouseDown;
+            newGroupBox.MouseMove += GroupBox_MouseMove;
+            newGroupBox.MouseUp += GroupBox_MouseUp;
+            newGroupBox.ContextMenuStrip = groupMenuStrip;
+            newGroupBox.SizeChanged += GroupBox_SizeChanged;
+            ApplyGroupBoxBehavior(newGroupBox);
+
+            panelContainer.Controls.Add(newGroupBox);
+            if (previewOriginalIndex >= 0)
+                panelContainer.Controls.SetChildIndex(newGroupBox, previewOriginalIndex);
+
+            foreach (var btn in buttons)
+            {
+                newGroupBox.Controls.Add(btn);
+                btn.BringToFront();
+            }
+
+            newGroupBox.Refresh();
+
+            previewGroupBox = newGroupBox;
+            previewCurrentGroupBoxType = normalizedType;
+            groupStylePreviewActive = true;
+        }
+
+        private void EndGroupStylePreview()
+        {
+            if (!groupStylePreviewActive || previewGroupBox == null || previewOriginalGroupBox == null)
+                return;
+
+            var buttons = previewGroupBox.Controls.OfType<Button>().ToList();
+            foreach (var btn in buttons)
+            {
+                previewGroupBox.Controls.Remove(btn);
+            }
+
+            panelContainer.Controls.Remove(previewGroupBox);
+            previewGroupBox.Dispose();
+
+            foreach (var btn in buttons)
+            {
+                previewOriginalGroupBox.Controls.Add(btn);
+                btn.BringToFront();
+            }
+
+            if (!panelContainer.Controls.Contains(previewOriginalGroupBox))
+            {
+                panelContainer.Controls.Add(previewOriginalGroupBox);
+                if (previewOriginalIndex >= 0)
+                    panelContainer.Controls.SetChildIndex(previewOriginalGroupBox, previewOriginalIndex);
+            }
+
+            previewOriginalGroupBox.Refresh();
+            ClearGroupStylePreviewState();
+        }
+
+        private void ClearGroupStylePreviewState()
+        {
+            groupStylePreviewActive = false;
+            previewOriginalGroupBox = null;
+            previewGroupBox = null;
+            previewGroupId = null;
+            previewOriginalIndex = -1;
+            previewCurrentGroupBoxType = null;
+        }
+
+        private static string GetGroupBoxTypeFromMenuItem(ToolStripMenuItem menuItem)
+        {
+            return menuItem?.Name switch
+            {
+                "groupMenuStyleGradientGlass" => "GradientGlassGroupBox",
+                "groupMenuStyleNeonGlow" => "NeonGlowGroupBox",
+                "groupMenuStyleEmbossed" => "EmbossedGroupBox",
+                "groupMenuStyleRetro" => "RetroGroupBox",
+                "groupMenuStyleCard" => "CardGroupBox",
+                "groupMenuStyleMinimal" => "MinimalGroupBox",
+                "groupMenuStyleDashed" => "DashedGroupBox",
+                "groupMenuStyleDoubleBorder" => "DoubleBorderGroupBox",
+                "groupMenuStyleShadowPanel" => "ShadowPanelGroupBox",
+                "groupMenuStyleRoundedNeon" => "RoundedNeonGroupBox",
+                "groupMenuStyleHolographic" => "HolographicGroupBox",
+                "groupMenuStyleVintagePaper" => "VintagePaperGroupBox",
+                "groupMenuStyleLiquidMetal" => "LiquidMetalGroupBox",
+                "groupMenuStyleCosmic" => "CosmicGroupBox",
+                "groupMenuStyleRainbow" => "RainbowSpectrumGroupBox",
+                "groupMenuStyleAuroraBorealis" => "AuroraBorealisGroupBox",
+                "groupMenuStyleCyberCircuit" => "CyberCircuitGroupBox",
+                "groupMenuStyleFireLava" => "FireLavaGroupBox",
+                "groupMenuStyleMatrixRain" => "MatrixRainGroupBox",
+                "groupMenuStyleCrystalIce" => "CrystalIceGroupBox",
+                "groupMenuStylePlasmaEnergy" => "PlasmaEnergyGroupBox",
+                "groupMenuStyleOceanWave" => "OceanWaveGroupBox",
+                "groupMenuStyleElectricStorm" => "ElectricStormGroupBox",
+                "groupMenuStyleStarfieldWarp" => "StarfieldWarpGroupBox",
+                "groupMenuStyleHeartbeatPulse" => "HeartbeatPulseGroupBox",
+                "groupMenuStyleSnowfall" => "SnowfallGroupBox",
+                "groupMenuStyleCloudDrift" => "CloudDriftGroupBox",
+                "groupMenuStyleSparkleShine" => "SparkleShineGroupBox",
+                "groupMenuStyleRippleWater" => "RippleWaterGroupBox",
+                "groupMenuStyleBubblesFloat" => "BubblesFloatGroupBox",
+                "groupMenuStyleConfettiParty" => "ConfettiPartyGroupBox",
+                "groupMenuStyleSunburstRays" => "SunburstRaysGroupBox",
+                "groupMenuStyleCherryBlossom" => "CherryBlossomGroupBox",
+                "groupMenuStyleFloatingHearts" => "FloatingHeartsGroupBox",
+                _ => "ResizableGroupBox"
+            };
+        }
+
         private void unitMenuStrip_Opening(object sender, System.ComponentModel.CancelEventArgs e)
         {
             // Get the button that triggered the context menu
@@ -3673,10 +3875,26 @@ namespace Notes
             
             Logger.Debug($"ContextMenu: {contextMenu?.Name}, SourceControl: {contextMenu?.SourceControl?.GetType().Name}");
             
-            if (contextMenu?.SourceControl is GroupBox oldGroupBox)
+            GroupBox hiddenOriginalGroupBox = null;
+            GroupBox targetGroupBox = contextMenu?.SourceControl as GroupBox;
+
+            if (targetGroupBox != null && groupStylePreviewActive)
             {
-                string groupId = oldGroupBox.Tag as string;
-                Logger.Debug($"GroupBox found - GroupId: {groupId}, Title: {oldGroupBox.Text}");
+                string previewTargetId = targetGroupBox.Tag as string;
+                if (!string.IsNullOrEmpty(previewTargetId) &&
+                    string.Equals(previewTargetId, previewGroupId, StringComparison.Ordinal) &&
+                    previewGroupBox != null)
+                {
+                    hiddenOriginalGroupBox = previewOriginalGroupBox;
+                    targetGroupBox = previewGroupBox;
+                    ClearGroupStylePreviewState();
+                }
+            }
+
+            if (targetGroupBox != null)
+            {
+                string groupId = targetGroupBox.Tag as string;
+                Logger.Debug($"GroupBox found - GroupId: {groupId}, Title: {targetGroupBox.Text}");
                 
                 if (string.IsNullOrEmpty(groupId) || !Groups.ContainsKey(groupId))
                 {
@@ -3690,44 +3908,7 @@ namespace Notes
                 Logger.Debug($"Current group type: {group.GroupBoxType}");
                 
                 // Determine group box type from menu item name
-                string groupBoxType = menuItem.Name switch
-                {
-                    "groupMenuStyleGradientGlass" => "GradientGlassGroupBox",
-                    "groupMenuStyleNeonGlow" => "NeonGlowGroupBox",
-                    "groupMenuStyleEmbossed" => "EmbossedGroupBox",
-                    "groupMenuStyleRetro" => "RetroGroupBox",
-                    "groupMenuStyleCard" => "CardGroupBox",
-                    "groupMenuStyleMinimal" => "MinimalGroupBox",
-                    "groupMenuStyleDashed" => "DashedGroupBox",
-                    "groupMenuStyleDoubleBorder" => "DoubleBorderGroupBox",
-                    "groupMenuStyleShadowPanel" => "ShadowPanelGroupBox",
-                    "groupMenuStyleRoundedNeon" => "RoundedNeonGroupBox",
-                    "groupMenuStyleHolographic" => "HolographicGroupBox",
-                    "groupMenuStyleVintagePaper" => "VintagePaperGroupBox",
-                    "groupMenuStyleLiquidMetal" => "LiquidMetalGroupBox",
-                    "groupMenuStyleCosmic" => "CosmicGroupBox",
-                    "groupMenuStyleRainbow" => "RainbowSpectrumGroupBox",
-                    "groupMenuStyleAuroraBorealis" => "AuroraBorealisGroupBox",
-                    "groupMenuStyleCyberCircuit" => "CyberCircuitGroupBox",
-                    "groupMenuStyleFireLava" => "FireLavaGroupBox",
-                    "groupMenuStyleMatrixRain" => "MatrixRainGroupBox",
-                    "groupMenuStyleCrystalIce" => "CrystalIceGroupBox",
-                    "groupMenuStylePlasmaEnergy" => "PlasmaEnergyGroupBox",
-                    "groupMenuStyleOceanWave" => "OceanWaveGroupBox",
-                    "groupMenuStyleElectricStorm" => "ElectricStormGroupBox",
-                    "groupMenuStyleStarfieldWarp" => "StarfieldWarpGroupBox",
-                    "groupMenuStyleHeartbeatPulse" => "HeartbeatPulseGroupBox",
-                    "groupMenuStyleSnowfall" => "SnowfallGroupBox",
-                    "groupMenuStyleCloudDrift" => "CloudDriftGroupBox",
-                    "groupMenuStyleSparkleShine" => "SparkleShineGroupBox",
-                    "groupMenuStyleRippleWater" => "RippleWaterGroupBox",
-                    "groupMenuStyleBubblesFloat" => "BubblesFloatGroupBox",
-                    "groupMenuStyleConfettiParty" => "ConfettiPartyGroupBox",
-                    "groupMenuStyleSunburstRays" => "SunburstRaysGroupBox",
-                    "groupMenuStyleCherryBlossom" => "CherryBlossomGroupBox",
-                    "groupMenuStyleFloatingHearts" => "FloatingHeartsGroupBox",
-                    _ => "ResizableGroupBox"
-                };
+                string groupBoxType = GetGroupBoxTypeFromMenuItem(menuItem);
 
                 Logger.Info($"Changing group box type from '{group.GroupBoxType}' to '{groupBoxType}'");
                 
@@ -3735,7 +3916,7 @@ namespace Notes
                 Groups[groupId] = group;
 
                 // Get all buttons in the old group
-                var buttons = oldGroupBox.Controls.OfType<Button>().ToList();
+                var buttons = targetGroupBox.Controls.OfType<Button>().ToList();
                 var buttonData = new List<(Button btn, Point location)>();
                 
                 foreach (var btn in buttons)
@@ -3744,23 +3925,23 @@ namespace Notes
                 }
 
                 // Get properties from old group
-                Point location = oldGroupBox.Location;
-                Size size = oldGroupBox.Size;
-                string title = oldGroupBox.Text;
+                Point location = targetGroupBox.Location;
+                Size size = targetGroupBox.Size;
+                string title = targetGroupBox.Text;
 
                 // Remove buttons from old group before disposing
                 foreach (var btn in buttons)
                 {
-                    oldGroupBox.Controls.Remove(btn);
+                    targetGroupBox.Controls.Remove(btn);
                 }
 
                 // Remove old group
                 Logger.Debug($"Removing old GroupBox from panel");
-                panelContainer.Controls.Remove(oldGroupBox);
-                resizingGroups.Remove(oldGroupBox);
-                groupBoxBorderColors.Remove(oldGroupBox);
-                RemoveButtonsFromGroupBox(oldGroupBox);
-                oldGroupBox.Dispose();
+                panelContainer.Controls.Remove(targetGroupBox);
+                resizingGroups.Remove(targetGroupBox);
+                groupBoxBorderColors.Remove(targetGroupBox);
+                RemoveButtonsFromGroupBox(targetGroupBox);
+                targetGroupBox.Dispose();
 
                 // Create new styled group directly
                 Logger.Debug($"Creating new GroupBox with type: {groupBoxType}");
@@ -3797,6 +3978,8 @@ namespace Notes
                 configModified = true;
                 status = $"Group style changed to {menuItem.Text}";
                 UpdateUndoRedoMenuState();
+
+                hiddenOriginalGroupBox?.Dispose();
             }
             else
             {
@@ -3828,10 +4011,26 @@ namespace Notes
                 current = current.OwnerItem;
             }
             
-            if (contextMenu?.SourceControl is GroupBox oldGroupBox)
+            GroupBox hiddenOriginalGroupBox = null;
+            GroupBox targetGroupBox = contextMenu?.SourceControl as GroupBox;
+
+            if (targetGroupBox != null && groupStylePreviewActive)
             {
-                string groupId = oldGroupBox.Tag as string;
-                Logger.Debug($"GroupBox found - GroupId: {groupId}, Title: {oldGroupBox.Text}");
+                string previewTargetId = targetGroupBox.Tag as string;
+                if (!string.IsNullOrEmpty(previewTargetId) &&
+                    string.Equals(previewTargetId, previewGroupId, StringComparison.Ordinal) &&
+                    previewGroupBox != null)
+                {
+                    hiddenOriginalGroupBox = previewOriginalGroupBox;
+                    targetGroupBox = previewGroupBox;
+                    ClearGroupStylePreviewState();
+                }
+            }
+
+            if (targetGroupBox != null)
+            {
+                string groupId = targetGroupBox.Tag as string;
+                Logger.Debug($"GroupBox found - GroupId: {groupId}, Title: {targetGroupBox.Text}");
                 
                 if (string.IsNullOrEmpty(groupId) || !Groups.ContainsKey(groupId))
                 {
@@ -3893,7 +4092,7 @@ namespace Notes
                 Groups[groupId] = group;
 
                 // Get all buttons in the old group
-                var buttons = oldGroupBox.Controls.OfType<Button>().ToList();
+                var buttons = targetGroupBox.Controls.OfType<Button>().ToList();
                 var buttonData = new List<(Button btn, Point location)>();
                 
                 foreach (var btn in buttons)
@@ -3902,23 +4101,23 @@ namespace Notes
                 }
 
                 // Get properties from old group
-                Point location = oldGroupBox.Location;
-                Size size = oldGroupBox.Size;
-                string title = oldGroupBox.Text;
+                Point location = targetGroupBox.Location;
+                Size size = targetGroupBox.Size;
+                string title = targetGroupBox.Text;
 
                 // Remove buttons from old group before disposing
                 foreach (var btn in buttons)
                 {
-                    oldGroupBox.Controls.Remove(btn);
+                    targetGroupBox.Controls.Remove(btn);
                 }
 
                 // Remove old group
                 Logger.Debug($"Removing old GroupBox from panel");
-                panelContainer.Controls.Remove(oldGroupBox);
-                resizingGroups.Remove(oldGroupBox);
-                groupBoxBorderColors.Remove(oldGroupBox);
-                RemoveButtonsFromGroupBox(oldGroupBox);
-                oldGroupBox.Dispose();
+                panelContainer.Controls.Remove(targetGroupBox);
+                resizingGroups.Remove(targetGroupBox);
+                groupBoxBorderColors.Remove(targetGroupBox);
+                RemoveButtonsFromGroupBox(targetGroupBox);
+                targetGroupBox.Dispose();
 
                 // Create new styled group directly
                 Logger.Debug($"Creating new GroupBox with type: {groupBoxType}");
@@ -3955,6 +4154,8 @@ namespace Notes
                 configModified = true;
                 status = $"Group style changed to Random ({groupBoxType.Replace("GroupBox", "")})";
                 UpdateUndoRedoMenuState();
+
+                hiddenOriginalGroupBox?.Dispose();
             }
             else
             {
