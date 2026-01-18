@@ -7028,7 +7028,7 @@ namespace Notes
         {
             var display = panelContainer.DisplayRectangle;
             int minX = display.Left + 4;
-            int minY = display.Top + 24;
+            int minY = display.Top;
             int maxX = display.Right - groupBox.Width;
             int maxY = display.Bottom - groupBox.Height;
             newLocation.X = Math.Max(minX, Math.Min(newLocation.X, maxX));
