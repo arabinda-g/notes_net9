@@ -162,6 +162,22 @@ namespace Notes
             }
         }
 
+        private void lblConfigPathValue_Click(object sender, EventArgs e)
+        {
+            string path = lblConfigPathValue.Text;
+            if (string.IsNullOrWhiteSpace(path) || path == "Unavailable")
+                return;
+
+            try
+            {
+                Clipboard.SetText(path);
+            }
+            catch
+            {
+                // ignore clipboard errors
+            }
+        }
+
         private void ChkAutoSave_CheckedChanged(object sender, EventArgs e)
         {
             numAutoSaveInterval.Enabled = chkAutoSave.Checked;

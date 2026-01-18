@@ -405,11 +405,13 @@ namespace Notes
             // lblConfigPathValue
             // 
             this.lblConfigPathValue.AutoEllipsis = true;
+            this.lblConfigPathValue.Cursor = System.Windows.Forms.Cursors.Hand;
             this.lblConfigPathValue.Location = new System.Drawing.Point(11, 285);
             this.lblConfigPathValue.Name = "lblConfigPathValue";
             this.lblConfigPathValue.Size = new System.Drawing.Size(659, 40);
             this.lblConfigPathValue.TabIndex = 5;
             this.lblConfigPathValue.Text = " ";
+            this.lblConfigPathValue.Click += new System.EventHandler(this.lblConfigPathValue_Click);
             // 
             // tabHotkeys
             // 
