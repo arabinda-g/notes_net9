@@ -1768,10 +1768,11 @@ namespace Notes
                     if (groupOriginalPositions.ContainsKey(selectedBtn))
                     {
                         Rectangle oldBounds = selectedBtn.Bounds;
-                        selectedBtn.Location = new Point(
+                        Point desired = new Point(
                             groupOriginalPositions[selectedBtn].X + deltaX,
                             groupOriginalPositions[selectedBtn].Y + deltaY
                         );
+                        selectedBtn.Location = ClampButtonLocation(selectedBtn.Parent, selectedBtn, desired);
                         
                         // Invalidate both old and new positions
                         if (selectedBtn.Parent != null)
@@ -1798,8 +1799,9 @@ namespace Notes
                 int newTop = this.Origin_Control.Y - (this.Origin_Cursor.Y - Cursor.Position.Y);
                 
                 // Update position
-                btn.Left = newLeft;
-                btn.Top = newTop;
+                Point clamped = ClampButtonLocation(parent, btn, new Point(newLeft, newTop));
+                btn.Left = clamped.X;
+                btn.Top = clamped.Y;
                 
                 // Invalidate old and new areas to prevent visual artifacts
                 if (parent != null)
@@ -6314,6 +6316,32 @@ namespace Notes
             int maxY = panelRect.Bottom - approx.Height;
             unit.X = Math.Min(Math.Max(unit.X, minX), maxX);
             unit.Y = Math.Min(Math.Max(unit.Y, minY), maxY);
+        }
+
+        private Point ClampButtonLocation(Control parent, Button button, Point desired)
+        {
+            if (parent == null || button == null)
+                return desired;
+
+            if (parent is GroupBox groupBox)
+            {
+                int minX = 0;
+                int minY = Math.Max(0, groupBox.DisplayRectangle.Top);
+                int maxX = Math.Max(minX, groupBox.ClientSize.Width - button.Width);
+                int maxY = Math.Max(minY, groupBox.ClientSize.Height - button.Height);
+                int clampedX = Math.Min(Math.Max(desired.X, minX), maxX);
+                int clampedY = Math.Min(Math.Max(desired.Y, minY), maxY);
+                return new Point(clampedX, clampedY);
+            }
+
+            Rectangle panelRect = GetPanelDisplayRectangle();
+            int panelMinX = panelRect.Left;
+            int panelMinY = panelRect.Top;
+            int panelMaxX = panelRect.Right - button.Width;
+            int panelMaxY = panelRect.Bottom - button.Height;
+            int clampedPanelX = Math.Min(Math.Max(desired.X, panelMinX), panelMaxX);
+            int clampedPanelY = Math.Min(Math.Max(desired.Y, panelMinY), panelMaxY);
+            return new Point(clampedPanelX, clampedPanelY);
         }
 
         private Size GetApproxButtonSize(UnitStruct unit)
