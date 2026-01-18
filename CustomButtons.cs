@@ -612,10 +612,25 @@ namespace Notes
     {
         private bool _isHovered = false;
 
+        protected override void OnResize(EventArgs e)
+        {
+            base.OnResize(e);
+            int shadowOffset = _isHovered ? 8 : 4;
+            Rectangle rect = new Rectangle(2, 2, Width - shadowOffset - 2, Height - shadowOffset - 2);
+            if (rect.Width > 0 && rect.Height > 0)
+            {
+                using (GraphicsPath path = CreateRoundedRectangle(rect, 10))
+                {
+                    Region = new Region(path);
+                }
+            }
+        }
+
         protected override void OnMouseEnter(EventArgs e)
         {
             base.OnMouseEnter(e);
             _isHovered = true;
+            OnResize(EventArgs.Empty);
             Invalidate();
         }
 
@@ -623,6 +638,7 @@ namespace Notes
         {
             base.OnMouseLeave(e);
             _isHovered = false;
+            OnResize(EventArgs.Empty);
             Invalidate();
         }
 
