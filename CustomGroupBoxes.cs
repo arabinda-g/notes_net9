@@ -112,6 +112,31 @@ namespace Notes
             CreateResizeHandle();
         }
 
+        protected override void OnPaintBackground(PaintEventArgs e)
+        {
+            if (Parent == null)
+            {
+                e.Graphics.Clear(BackColor);
+                return;
+            }
+
+            GraphicsState state = e.Graphics.Save();
+            try
+            {
+                e.Graphics.TranslateTransform(-Left, -Top);
+                Rectangle parentRect = new Rectangle(Left, Top, Width, Height);
+                using (PaintEventArgs pea = new PaintEventArgs(e.Graphics, parentRect))
+                {
+                    InvokePaintBackground(Parent, pea);
+                    InvokePaint(Parent, pea);
+                }
+            }
+            finally
+            {
+                e.Graphics.Restore(state);
+            }
+        }
+
         public void SetTitle(string title)
         {
             FullTitle = title ?? string.Empty;
