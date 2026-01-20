@@ -153,6 +153,7 @@ namespace Notes
         private bool isAutoSaving = false;
         private readonly object saveLock = new object();
         private bool forceExit = false;
+        private bool isLayoutReady = false;
 
         // Button movement variables
         private bool btnMovingArrow = false;
@@ -281,6 +282,13 @@ namespace Notes
             
             // Now that the handle is created, we can register the hotkey
             RegisterGlobalHotkey();
+        }
+
+        protected override void OnShown(EventArgs e)
+        {
+            base.OnShown(e);
+            isLayoutReady = true;
+            ResizePanel();
         }
 
         private void InitializeCustomComponents()
@@ -900,7 +908,7 @@ namespace Notes
             {
                 var group = Groups[key];
                 var before = group;
-                NormalizeGroup(ref group, rect.Size);
+                NormalizeGroup(ref group, rect.Size, true);
                 Groups[key] = group;
                 if (before.X != group.X || before.Y != group.Y || before.Width != group.Width || before.Height != group.Height)
                     changed = true;
@@ -1282,14 +1290,14 @@ namespace Notes
                         group.Id = key;
                     group.GroupBoxType = NormalizeGroupBoxTypeCaseInsensitive(group.GroupBoxType);
                     group.Title = EnsureUniqueGroupTitle(group.Title, existingGroupTitles);
-                    NormalizeGroup(ref group, panelRect.Size);
+                    NormalizeGroup(ref group, panelRect.Size, isLayoutReady);
                     loadedGroups[key] = group;
                 }
                 Groups = loadedGroups;
                 foreach (var key in Units.Keys.ToList())
                 {
                     var unit = Units[key];
-                    NormalizeUnit(ref unit, panelRect);
+                    NormalizeUnit(ref unit, panelRect, isLayoutReady);
                     if (!string.IsNullOrEmpty(unit.GroupId) && !Groups.ContainsKey(unit.GroupId))
                     {
                         unit.GroupId = null;
@@ -1381,20 +1389,23 @@ namespace Notes
                     unit.X - targetGroupBox.Location.X,
                     unit.Y - targetGroupBox.Location.Y
                 );
-                int minX = 0;
-                int minY = Math.Max(0, targetGroupBox.DisplayRectangle.Top);
-                int maxX = Math.Max(minX, targetGroupBox.ClientSize.Width - newButton.Width);
-                int maxY = Math.Max(minY, targetGroupBox.ClientSize.Height - newButton.Height);
-
-                int clampedX = Math.Min(Math.Max(relativePos.X, minX), maxX);
-                int clampedY = Math.Min(Math.Max(relativePos.Y, minY), maxY);
-                if (clampedX != relativePos.X || clampedY != relativePos.Y)
+                if (isLayoutReady)
                 {
-                    relativePos = new Point(clampedX, clampedY);
-                    unit.X = targetGroupBox.Location.X + relativePos.X;
-                    unit.Y = targetGroupBox.Location.Y + relativePos.Y;
-                    if (Units.ContainsKey(id))
-                        Units[id] = unit;
+                    int minX = 0;
+                    int minY = Math.Max(0, targetGroupBox.DisplayRectangle.Top);
+                    int maxX = Math.Max(minX, targetGroupBox.ClientSize.Width - newButton.Width);
+                    int maxY = Math.Max(minY, targetGroupBox.ClientSize.Height - newButton.Height);
+
+                    int clampedX = Math.Min(Math.Max(relativePos.X, minX), maxX);
+                    int clampedY = Math.Min(Math.Max(relativePos.Y, minY), maxY);
+                    if (clampedX != relativePos.X || clampedY != relativePos.Y)
+                    {
+                        relativePos = new Point(clampedX, clampedY);
+                        unit.X = targetGroupBox.Location.X + relativePos.X;
+                        unit.Y = targetGroupBox.Location.Y + relativePos.Y;
+                        if (Units.ContainsKey(id))
+                            Units[id] = unit;
+                    }
                 }
                 newButton.Location = relativePos;
                 targetGroupBox.Controls.Add(newButton);
@@ -1403,16 +1414,19 @@ namespace Notes
             }
             else
             {
-                int maxX = Math.Max(0, panelContainer.ClientSize.Width - newButton.Width);
-                int maxY = Math.Max(0, panelContainer.ClientSize.Height - newButton.Height);
-                int clampedX = Math.Min(Math.Max(unit.X, 0), maxX);
-                int clampedY = Math.Min(Math.Max(unit.Y, 0), maxY);
-                if (clampedX != unit.X || clampedY != unit.Y)
+                if (isLayoutReady)
                 {
-                    unit.X = clampedX;
-                    unit.Y = clampedY;
-                    if (Units.ContainsKey(id))
-                        Units[id] = unit;
+                    int maxX = Math.Max(0, panelContainer.ClientSize.Width - newButton.Width);
+                    int maxY = Math.Max(0, panelContainer.ClientSize.Height - newButton.Height);
+                    int clampedX = Math.Min(Math.Max(unit.X, 0), maxX);
+                    int clampedY = Math.Min(Math.Max(unit.Y, 0), maxY);
+                    if (clampedX != unit.X || clampedY != unit.Y)
+                    {
+                        unit.X = clampedX;
+                        unit.Y = clampedY;
+                        if (Units.ContainsKey(id))
+                            Units[id] = unit;
+                    }
                 }
                 newButton.Location = new Point(unit.X, unit.Y);
                 panelContainer.Controls.Add(newButton);
@@ -2316,7 +2330,7 @@ namespace Notes
                             group.Id = newGroupId;
                             group.GroupBoxType = NormalizeGroupBoxTypeCaseInsensitive(group.GroupBoxType);
                             group.Title = EnsureUniqueGroupTitle(group.Title, existingGroupTitles);
-                            NormalizeGroup(ref group, panelRect.Size);
+                            NormalizeGroup(ref group, panelRect.Size, true);
                             
                             groupIdMap[oldGroupId] = newGroupId;
                             Groups.Add(newGroupId, group);
@@ -2333,7 +2347,7 @@ namespace Notes
                             unit.ContentFormat = NormalizeContentFormat(unit.ContentFormat);
                             SanitizeUnitContent(ref unit);
                             ValidateUnitBinaryContent(ref unit);
-                            NormalizeUnit(ref unit, panelRect);
+                            NormalizeUnit(ref unit, panelRect, true);
                             unit.Title = EnsureUniqueUnitTitle(unit.Title ?? string.Empty, existingUnitTitles);
                             
                             // Remap GroupId if the unit belongs to an imported group
@@ -6295,20 +6309,29 @@ namespace Notes
             return rect;
         }
 
-        private void NormalizeGroup(ref GroupStruct group, Size panelSize)
+        private void NormalizeGroup(ref GroupStruct group, Size panelSize, bool clampToPanel)
         {
             group.Width = Math.Abs(group.Width);
             group.Height = Math.Abs(group.Height);
-            group.Width = Math.Max(100, Math.Min(group.Width, panelSize.Width));
-            group.Height = Math.Max(80, Math.Min(group.Height, panelSize.Height));
-            int maxX = Math.Max(0, panelSize.Width - group.Width);
-            int maxY = Math.Max(0, panelSize.Height - group.Height);
-            group.X = Math.Min(Math.Max(group.X, 0), maxX);
-            group.Y = Math.Min(Math.Max(group.Y, 0), maxY);
+            if (clampToPanel)
+            {
+                group.Width = Math.Max(100, Math.Min(group.Width, panelSize.Width));
+                group.Height = Math.Max(80, Math.Min(group.Height, panelSize.Height));
+                int maxX = Math.Max(0, panelSize.Width - group.Width);
+                int maxY = Math.Max(0, panelSize.Height - group.Height);
+                group.X = Math.Min(Math.Max(group.X, 0), maxX);
+                group.Y = Math.Min(Math.Max(group.Y, 0), maxY);
+                return;
+            }
+
+            group.Width = Math.Max(100, group.Width);
+            group.Height = Math.Max(80, group.Height);
         }
 
-        private void NormalizeUnit(ref UnitStruct unit, Rectangle panelRect)
+        private void NormalizeUnit(ref UnitStruct unit, Rectangle panelRect, bool clampToPanel)
         {
+            if (!clampToPanel)
+                return;
             Size approx = GetApproxButtonSize(unit);
             int minX = panelRect.Left;
             int minY = panelRect.Top;
@@ -6901,27 +6924,47 @@ namespace Notes
             }
 
             SetGroupBoxTitle(groupBox, group.Title);
-            var clampedLocation = ClampGroupBoxLocation(groupBox, new Point(group.X, group.Y));
-            groupBox.Location = clampedLocation;
-            if (clampedLocation.X != group.X || clampedLocation.Y != group.Y)
+            if (isLayoutReady)
             {
-                group.X = clampedLocation.X;
-                group.Y = clampedLocation.Y;
-                if (!string.IsNullOrEmpty(group.Id) && Groups.ContainsKey(group.Id))
-                    Groups[group.Id] = group;
-                configModified = true;
+                var clampedLocation = ClampGroupBoxLocation(groupBox, new Point(group.X, group.Y));
+                groupBox.Location = clampedLocation;
+                if (clampedLocation.X != group.X || clampedLocation.Y != group.Y)
+                {
+                    group.X = clampedLocation.X;
+                    group.Y = clampedLocation.Y;
+                    if (!string.IsNullOrEmpty(group.Id) && Groups.ContainsKey(group.Id))
+                        Groups[group.Id] = group;
+                    configModified = true;
+                }
             }
-            int maxWidth = panelContainer.ClientSize.Width > 0 ? panelContainer.ClientSize.Width : group.Width;
-            int maxHeight = panelContainer.ClientSize.Height > 0 ? panelContainer.ClientSize.Height : group.Height;
-            int width = Math.Max(100, Math.Min(group.Width, maxWidth));
-            int height = Math.Max(80, Math.Min(group.Height, maxHeight));
+            else
+            {
+                groupBox.Location = new Point(group.X, group.Y);
+            }
+
+            int width;
+            int height;
+            if (isLayoutReady)
+            {
+                int maxWidth = panelContainer.ClientSize.Width > 0 ? panelContainer.ClientSize.Width : group.Width;
+                int maxHeight = panelContainer.ClientSize.Height > 0 ? panelContainer.ClientSize.Height : group.Height;
+                width = Math.Max(100, Math.Min(group.Width, maxWidth));
+                height = Math.Max(80, Math.Min(group.Height, maxHeight));
+            }
+            else
+            {
+                width = Math.Max(100, Math.Abs(group.Width));
+                height = Math.Max(80, Math.Abs(group.Height));
+            }
+
             if (width != group.Width || height != group.Height)
             {
                 group.Width = width;
                 group.Height = height;
                 if (!string.IsNullOrEmpty(group.Id) && Groups.ContainsKey(group.Id))
                     Groups[group.Id] = group;
-                configModified = true;
+                if (isLayoutReady)
+                    configModified = true;
             }
             groupBox.Size = new Size(width, height);
             ApplyGroupBoxColors(groupBox, group);
